@@ -85,10 +85,11 @@
   const container = document.getElementById("abilities-output");
   const data = abilityData[currentAffinity];
 
-  if (!currentAffinity || !data) {
-    container.innerHTML = '<em>No abilities found for this affinity</em>';
-    return;
-  }
+if (!currentAffinity || !abilityData[currentAffinity]) {
+  container.innerHTML = '';
+  return;
+}
+
 
   let html = '';
   for (const [category, abilities] of Object.entries(data)) {
