@@ -187,6 +187,7 @@ def view_notion_db(db):
 @login_required
 def classes_view():
     path = os.path.join("static", "Data", "Normalized_Abilities.xlsx")
+    
     table_df = pd.read_excel(path, sheet_name="Table").fillna("")
     data_df = pd.read_excel(path, sheet_name="Data").fillna("")
     affinity_df = pd.read_excel(path, sheet_name="Affinities S").fillna("")
@@ -195,16 +196,21 @@ def classes_view():
     headers = table_df.columns.tolist()
     rows = table_df.values.tolist()
 
+    # Organize ability data by Affinity and Type
+    from collections import defaultdict
     ability_data = defaultdict(lambda: defaultdict(list))
     for _, row in data_df.iterrows():
-        aff, typ = row["Affinity"], row["Type"]
-        entry = {
+        aff = row.get("Affinity", "").strip()
+        typ = row.get("Type", "").strip()
+        if not aff or not typ:
+            continue
+        ability_data[aff][typ].append({
             "Rank I": row.get("Rank I", "N/A") or "N/A",
             "Rank II": row.get("Rank II", "N/A") if typ != "Innate" else "N/A",
-            "Rank III": row.get("Rank III", "N/A") if typ != "Innate" else "N/A"
-        }
-        ability_data[aff][typ].append(entry)
+            "Rank III": row.get("Rank III", "N/A") if typ != "Innate" else "N/A",
+        })
 
+    # Normalize columns
     affinity_df.columns = affinity_df.columns.str.strip().str.upper()
     class_df.columns = class_df.columns.str.strip()
 
@@ -213,16 +219,20 @@ def classes_view():
             "difficulty": row.get("DIFFICULTY", "Unknown"),
             "description": row.get("DESCRIPTION", "")
         }
-        for _, row in affinity_df.iterrows() if pd.notna(row["AFFINITY"])
+        for _, row in affinity_df.iterrows()
+        if pd.notna(row.get("AFFINITY"))
     }
 
     class_info = {
-        row["Class"]: {
-            "bonus": row.get("Starting Bonus", ""),
-            "weapon": row.get("Starting Weapon", "")
-        }
-        for _, row in class_df.iterrows() if pd.notna(row["Class"])
+    row["Class"]: {
+        "bonus": row["Starting Bonus:"],
+        "weapon": row["Starting Weapon:"]
     }
+    for _, row in class_df.iterrows()
+}
+
+
+
 
     return render_template(
         "classes_view.html",
