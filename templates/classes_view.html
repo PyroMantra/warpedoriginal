@@ -52,22 +52,29 @@
   let currentRank = 'Rank I';
 
   function selectAffinity(value) {
-    currentAffinity = value;
-    document.getElementById("affinity-name").innerText = value;
+  currentAffinity = value;
+  document.getElementById("affinity-name").innerText = value;
 
-    // Affinity info
-    const info = affinityInfo[value];
-    document.getElementById("affinity-difficulty").innerText = info ? `Difficulty: ${info.difficulty}` : '';
-    document.getElementById("affinity-description").innerText = info ? info.description : '';
+  const isClass = classInfo.hasOwnProperty(value);
+  const isAffinity = affinityInfo.hasOwnProperty(value);
 
-    // Class info
-    const cls = classInfo[value];
-    document.getElementById("class-details").innerText = cls
-      ? `Starting Bonus: ${cls.bonus} | Starting Weapon: ${cls.weapon}`
-      : '';
+  // Set affinity info
+  document.getElementById("affinity-difficulty").innerText =
+    isAffinity ? `Difficulty: ${affinityInfo[value].difficulty}` : '';
+  document.getElementById("affinity-description").innerText =
+    isAffinity ? affinityInfo[value].description : '';
 
-    renderAbilities();
-  }
+  // Set class info
+  document.getElementById("class-details").innerText =
+    isClass ? `🎓 Class\n\nStarting Bonus: ${classInfo[value].bonus} | Starting Weapon: ${classInfo[value].weapon}` : '';
+
+  // Optional: different styling
+  document.getElementById("class-details").style.color = isClass ? "#7af" : "#aaa";
+
+  renderAbilities();
+}
+
+
 
   function setRank(rank) {
     currentRank = rank;
@@ -75,22 +82,25 @@
   }
 
   function renderAbilities() {
-    const container = document.getElementById("abilities-output");
-    if (!currentAffinity || !abilityData[currentAffinity]) {
-      container.innerHTML = '<em>No abilities found for this affinity</em>';
-      return;
-    }
+  const container = document.getElementById("abilities-output");
+  const data = abilityData[currentAffinity];
 
-    let html = '';
-    for (const [category, abilities] of Object.entries(abilityData[currentAffinity])) {
-      html += `<h3>${category}</h3><ul>`;
-      for (const ab of abilities) {
-        html += `<li>${ab[currentRank] || ab['Rank I']}</li>`;
-      }
-      html += '</ul>';
-    }
-    container.innerHTML = html;
+  if (!currentAffinity || !data) {
+    container.innerHTML = '<em>No abilities found for this affinity</em>';
+    return;
   }
+
+  let html = '';
+  for (const [category, abilities] of Object.entries(data)) {
+    html += `<h3>${category}</h3><ul>`;
+    for (const ab of abilities) {
+      html += `<li>${ab[currentRank] || ab['Rank I']}</li>`;
+    }
+    html += '</ul>';
+  }
+  container.innerHTML = html;
+}
+
 </script>
 
 <style>
@@ -100,6 +110,10 @@
   }
   td.selectable:hover {
     background: #444;
+  }
+  #class-details {
+    font-style: italic;
+    margin-top: 0.5rem;
   }
 </style>
 {% endblock %}
