@@ -1,4 +1,4 @@
-
+﻿
 import os
 import re
 import html
@@ -9,8 +9,10 @@ from datetime import datetime
 from functools import wraps
 from collections import defaultdict, deque
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask, render_template, redirect, url_for, session, request
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from authlib.integrations.flask_client import OAuth
 
@@ -27,6 +29,16 @@ except Exception:
 # Flask / App setup
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
+# --- Proxy & cookie settings for OAuth behind Railway ---
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True,
+    PREFERRED_URL_SCHEME="https",
+)
+# --- end proxy/cookie block ---
+
 # ENV_WARN_INSERTED
 if not os.environ.get('GOOGLE_CLIENT_ID') or not os.environ.get('GOOGLE_CLIENT_SECRET'):
     print('[WARN] GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set in your shell.')
@@ -533,4 +545,9 @@ if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
 
 
+
+
+@app.route("/healthz")
+def healthz():
+    return "ok", 200
 
