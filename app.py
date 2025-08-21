@@ -1,15 +1,5 @@
 ﻿﻿
 import os
-from werkzeug.middleware.proxy_fix import ProxyFix
-# Trust Railway proxy and keep https scheme/host
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
-app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
-app.config.update(
-    SESSION_COOKIE_SAMESITE="None",
-    SESSION_COOKIE_SECURE=True,
-    PREFERRED_URL_SCHEME="https",
-)
-
 import re
 import html
 import random
@@ -19,16 +9,14 @@ from datetime import datetime
 from functools import wraps
 from collections import defaultdict, deque
 
-from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask, render_template, redirect, url_for, session, request
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from authlib.integrations.flask_client import OAuth
-
 import pandas as pd
 
-# Optional: load .env again (env_boot already does this, but harmless)
+# Optional: load .env
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -39,7 +27,8 @@ except Exception:
 # Flask / App setup
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
-# --- Proxy & cookie settings for OAuth behind Railway ---
+
+# Trust Railway proxy and keep https scheme/host (MUST be after app is created)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
 app.config.update(
@@ -47,6 +36,7 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,
     PREFERRED_URL_SCHEME="https",
 )
+
 # --- end proxy/cookie block ---
 
 # ENV_WARN_INSERTED
@@ -76,11 +66,6 @@ google = oauth.register(
 
 # Socket.IO
 socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
-
-# Healthcheck endpoint for Railway
-@app.route('/healthz')
-def healthz():
-    return 'ok', 200
 
 
 # ------------------------------------------------------------------------------
@@ -545,6 +530,13 @@ def on_chat_message(data):
     emit("chat_message", msg, to="global")
 # ------------------------------------------------------------------------------
 # Entrypoint
+def _healthz():
+    return "ok", 200
+
+# Register once even if code gets merged/duplicated in the future
+if "healthz_ok" not in app.view_functions and "healthz" not in app.view_functions:
+    app.add_url_rule("/healthz", endpoint="healthz_ok", view_func=_healthz)
+
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     print("ATP DEBUG: starting server")
