@@ -1,0 +1,56 @@
+﻿(function(){
+  function byId(id){return document.getElementById(id);}
+  function escapeHtml(s){var d=document.createElement("div"); d.innerText=s; return d.innerHTML;}
+  function appendMsg(list, u, t){
+    if(!list) return;
+    var d=document.createElement("div");
+    d.className="chat-msg";
+    d.innerHTML='<span class="u">'+escapeHtml(u)+':</span><span class="t">'+escapeHtml(t)+'</span>';
+    list.appendChild(d);
+    list.scrollTop=list.scrollHeight;
+  }
+  function init(){
+    const box = byId("global-chat"); if(!box) return;
+    const list = box.querySelector("#chat-messages") || byId("chat-messages");
+    const form = byId("chat-form");
+    const input = byId("chat-input");
+    const me = (window.CURRENT_USER_NAME || "Anonymous");
+    const socket = io({transports:["websocket","polling"]});
+
+    let gotHistory = false;
+
+    socket.on("connect", ()=> {
+      console.log("[chat] connected", socket.id);
+      // fallback: if no history after 1s, explicitly ask for it
+      setTimeout(()=>{ if(!gotHistory) { console.log("[chat] requesting history"); socket.emit("chat_history_request"); }}, 1000);
+    });
+    socket.on("connect_error", e=> console.error("[chat] connect_error", e));
+
+    socket.on("chat_ready", ()=> console.log("[chat] ready"));
+    socket.on("chat_history", items=>{
+      gotHistory = true;
+      console.log("[chat] history", items?.length||0);
+      if(list) list.innerHTML="";
+      (items||[]).forEach(m=>appendMsg(list, m.user, m.text));
+    });
+    socket.on("chat_message", m=>{
+      console.log("[chat] message", m);
+      appendMsg(list, m.user, m.text);
+    });
+
+    form.addEventListener("submit", e=>{
+      e.preventDefault();
+      const text=(input.value||"").trim();
+      if(!text) return;
+      socket.emit("chat_message", {text});
+      // optimistic fallback
+      setTimeout(()=>{
+        const last = list && list.lastElementChild && list.lastElementChild.textContent || "";
+        if(!last || last.indexOf(text)===-1){ appendMsg(list, me, text); }
+      }, 1200);
+      input.value="";
+    });
+  }
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", init); }
+  else { init(); }
+})();

@@ -1,0 +1,361 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213648">
+{% extends "layout.html" %}
+{% block content %}
+<h1>Classes & Abilities</h1>
+
+<style>
+  :root{
+    --col-class: 59,130,246;      /* blue */
+    --col-affinity: 34,197,94;    /* green */
+    --col-mastery: 168,85,247;    /* purple */
+    --col-trait: 168,85,247;      /* purple */
+    --col-bonus: 245,158,11;      /* amber */
+    --col-penalty: 239,68,68;     /* red */
+    --col-origin: 14,165,233;     /* cyan */
+  }
+
+  /* ---- Classes tab visual polish ---- */
+  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+
+  /* Column themes */
+  .col-class th, .col-class td { background: rgba(59,130,246,0.10); }        /* blue-ish for Classes */
+  .col-affinity th, .col-affinity td { background: rgba(34,197,94,0.10); }    /* green for Affinities */
+  .col-mastery th, .col-mastery td { background: rgba(168,85,247,0.10); }     /* purple for Masteries */
+
+  /* Make pills inside cells for multiple values (affinities / masteries) */
+  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
+  .col-affinity .pill { background: rgba(34,197,94,0.18); }
+  .col-mastery .pill { background: rgba(168,85,247,0.18); }
+  .col-class .pill { background: rgba(59,130,246,0.18); }
+
+  /* Hover / selection */
+  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
+  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+
+  /* Ability detail headings */
+  .ability-text h3 { margin-top: 1rem; font-size: 1.35rem; letter-spacing: 0.3px; }
+  .ability-text h3::before { content: ''; display: inline-block; width: 6px; height: 1.2em; margin-right: 8px; vertical-align: -2px; border-radius: 2px; background: linear-gradient(180deg, #ffa500, #ff6b00); }
+  /* Specific key colors */
+  .ability-text h3:contains("Innate")::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+  .ability-text h3:contains("Tier I")::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+  .ability-text h3:contains("Tier II")::before { background: linear-gradient(180deg, #34d399, #10b981); }
+  .ability-text h3:contains("Tier III")::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
+  .ability-text h3:contains("Ultimate")::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
+
+  /* Fallback for browsers without :contains() (JS will also set classes) */
+  .ability-text h3.h-innate { font-size: 1.4rem; }
+  .ability-text h3.h-tier-i { font-size: 1.4rem; }
+  .ability-text h3.h-tier-ii { font-size: 1.4rem; }
+  .ability-text h3.h-tier-iii { font-size: 1.4rem; }
+  .ability-text h3.h-ultimate { font-size: 1.45rem; }
+
+  /* Right panel readability */
+  #affinity-name { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  #affinity-difficulty { color: #ffd27a; }
+  .abilities-section ul { margin: 0.5rem 0 1rem; padding-left: 1.2rem; }
+  .abilities-section li { margin: 0.25rem 0; }
+
+  .ability-text h3.h-innate::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+  .ability-text h3.h-tier-i::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+  .ability-text h3.h-tier-ii::before { background: linear-gradient(180deg, #34d399, #10b981); }
+  .ability-text h3.h-tier-iii::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
+  .ability-text h3.h-ultimate::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
+
+<style>
+.col-class th, .col-class td { background: rgba(var(--col-class),0.10); }
+.col-affinity th, .col-affinity td { background: rgba(var(--col-affinity),0.10); }
+.col-mastery th, .col-mastery td { background: rgba(var(--col-mastery),0.10); }
+
+  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  .classes-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
+  .col-class .pill { background: rgba(var(--col-class),0.18); }
+  .col-affinity .pill { background: rgba(var(--col-affinity),0.18); }
+  .col-mastery .pill { background: rgba(var(--col-mastery),0.18); }
+  .col-trait .pill { background: rgba(var(--col-trait),0.18); }
+  .col-bonus .pill { background: rgba(var(--col-bonus),0.18); }
+  .col-penalty .pill { background: rgba(var(--col-penalty),0.18); }
+  .col-origin .pill { background: rgba(var(--col-origin),0.18); }
+  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
+  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+</style>
+</style>
+
+
+<div style="display: flex; gap: 2rem; align-items: flex-start;">
+  <!-- Left Table -->
+  <div style="flex: 0 0 60%; overflow-x: auto;">
+    <table border="1" class="classes-table" id="classes-table" style="width: 100%; table-layout: auto;">
+      <thead>
+        <tr>
+          {% for header in headers %}
+            <th>{{ header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td class="selectable" data-col-idx="{{ loop.index0 }}" onclick="selectAffinity('{{ cell }}')">{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Right Side -->
+  <div class="abilities-section" style="flex: 1; overflow-wrap: break-word; word-wrap: break-word;">
+    <h2 id="affinity-name">Select an Affinity</h2>
+    <p id="affinity-difficulty" style="font-weight: bold;"></p>
+    <p id="affinity-description" style="margin-bottom: 1rem;"></p>
+
+    <div class="rank-buttons" style="margin-bottom: 1rem;">
+      <button onclick="setRank('Rank I')">Rank I</button>
+      <button onclick="setRank('Rank II')">Rank II</button>
+      <button onclick="setRank('Rank III')">Rank III</button>
+    </div>
+
+    <div id="class-details" style="margin-bottom: 1rem; font-style: italic;"></div>
+    <div id="abilities-output" class="ability-text"></div>
+  </div>
+
+<script>
+(function(){
+  const table = document.getElementById('classes-table');
+  if(!table) return;
+  const headRow = table.tHead && table.tHead.rows[0];
+  if(!headRow) return;
+
+  // Map column index -> type
+  const colType = {};
+  for (let i=0;i<headRow.cells.length;i++){
+    const text = (headRow.cells[i].textContent||'').toLowerCase();
+    if (text.includes('class')) colType[i] = 'class';
+    else if (text.includes('affinit')) colType[i] = 'affinity';
+    else if (text.includes('master')) colType[i] = 'mastery';
+  }
+
+  // Add classes to headers and cells
+  const typeToClass = {class: 'col-class', affinity:'col-affinity', mastery:'col-mastery'};
+  for (let i=0;i<headRow.cells.length;i++){
+    const t = colType[i];
+    if (!t) continue;
+    headRow.cells[i].classList.add(typeToClass[t]);
+  }
+  for (const row of table.tBodies[0].rows){
+    for (let i=0;i<row.cells.length;i++){
+      const t = colType[i];
+      if (!t) continue;
+      row.cells[i].classList.add(typeToClass[t]);
+      // If it's affinity/mastery, convert comma/semicolon/pipe separated values into pills
+      if (t==='affinity' || t==='mastery'){
+        const raw = row.cells[i].textContent || '';
+        const parts = raw.split(/\s*[;,|]\s*/).filter(Boolean);
+        if (parts.length > 1){
+          row.cells[i].innerHTML = parts.map(p => `<span class="pill">${p}</span>`).join('');
+        } else {
+          // single value -> still wrap for consistency
+          row.cells[i].innerHTML = `<span class="pill">${raw}</span>`;
+        }
+      } else if (t==='class'){
+        // Classes column also wrap as a pill for visual hierarchy
+        const raw = row.cells[i].textContent || '';
+        row.cells[i].innerHTML = `<span class="pill">${raw}</span>`;
+      }
+    }
+  }
+
+  // Track selection to help readability
+  window.selectAffinity = function(value){
+    // Clear old selection
+    table.querySelectorAll('td.is-selected').forEach(td => td.classList.remove('is-selected'));
+    // Find and highlight first matching cell
+    for (const row of table.tBodies[0].rows){
+      for (const td of row.cells){
+        if ((td.textContent||'').trim() === String(value).trim()){ td.classList.add('is-selected'); break; }
+      }
+    }
+    // Call original function if defined
+    if (typeof window._selectAffinityCore === 'function') return window._selectAffinityCore(value);
+  };
+
+  // Preserve original selectAffinity logic
+  if (typeof window._selectAffinityCore !== 'function' && typeof window.selectAffinity === 'function'){
+    window._selectAffinityCore = window.selectAffinity;
+  }
+})();
+</script>
+</div>
+
+
+<script>
+  const abilityData = {{ ability_data | tojson }};
+  const affinityInfo = {{ affinity_info | tojson }};
+  const classInfo = {{ class_info | tojson }};
+
+  let currentAffinity = null;
+  let currentRank = 'Rank I';
+
+  function selectAffinity(value) {
+  currentAffinity = value;
+  document.getElementById("affinity-name").innerText = value;
+  // Highlight the selected cell in the table for readability
+  try {
+    const table = document.getElementById('classes-table');
+    if (table) {
+      table.querySelectorAll('td.is-selected').forEach(td => td.classList.remove('is-selected'));
+      outer: for (const row of table.tBodies[0].rows) {
+        for (const td of row.cells) {
+          if ((td.textContent||'').trim() === String(value).trim()) { td.classList.add('is-selected'); break outer; }
+        }
+      }
+    }
+  } catch(_){}
+
+
+  const isClass = classInfo.hasOwnProperty(value);
+  const isAffinity = affinityInfo.hasOwnProperty(value);
+
+  // Set affinity info
+  document.getElementById("affinity-difficulty").innerText =
+    isAffinity ? `Difficulty: ${affinityInfo[value].difficulty}` : '';
+  document.getElementById("affinity-description").innerText =
+    isAffinity ? affinityInfo[value].description : '';
+
+  // Set class info
+  document.getElementById("class-details").innerText =
+    isClass ? `🎓 Class\n\nStarting Bonus: ${classInfo[value].bonus} | Starting Weapon: ${classInfo[value].weapon}` : '';
+
+  // Optional: different styling
+  document.getElementById("class-details").style.color = isClass ? "#7af" : "#aaa";
+
+  renderAbilities();
+}
+
+
+
+  function setRank(rank) {
+    currentRank = rank;
+    renderAbilities();
+  }
+
+  function renderAbilities() {
+  const container = document.getElementById("abilities-output");
+  const data = abilityData[currentAffinity];
+
+if (!currentAffinity || !abilityData[currentAffinity]) {
+  container.innerHTML = '';
+  return;
+}
+
+
+  let html = '';
+  for (const [category, abilities] of Object.entries(data)) {
+    const key = String(category).toLowerCase();
+    let hClass = '';
+    if(key.includes('innate')) hClass='h-innate';
+    else if(key.includes('tier i') || key.includes('rank i')) hClass='h-tier-i';
+    else if(key.includes('tier ii') || key.includes('rank ii')) hClass='h-tier-ii';
+    else if(key.includes('tier iii') || key.includes('rank iii')) hClass='h-tier-iii';
+    else if(key.includes('ultimate')) hClass='h-ultimate';
+    html += `<h3 class="${hClass}">${category}</h3><ul>`;
+    for (const ab of abilities) {
+      html += `<li>${ab[currentRank] || ab['Rank I']}</li>`;
+    }
+    html += '</ul>';
+  }
+  container.innerHTML = html;
+}
+
+</script>
+
+<style>
+  :root{
+    --col-class: 59,130,246;      /* blue */
+    --col-affinity: 34,197,94;    /* green */
+    --col-mastery: 168,85,247;    /* purple */
+    --col-trait: 168,85,247;      /* purple */
+    --col-bonus: 245,158,11;      /* amber */
+    --col-penalty: 239,68,68;     /* red */
+    --col-origin: 14,165,233;     /* cyan */
+  }
+
+  td.selectable {
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+  }
+  td.selectable:hover {
+    background: #444;
+  }
+  #class-details {
+    font-style: italic;
+    margin-top: 0.5rem;
+  }
+
+  .ability-text h3.h-innate::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+  .ability-text h3.h-tier-i::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+  .ability-text h3.h-tier-ii::before { background: linear-gradient(180deg, #34d399, #10b981); }
+  .ability-text h3.h-tier-iii::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
+  .ability-text h3.h-ultimate::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
+
+<style>
+.col-class th, .col-class td { background: rgba(var(--col-class),0.10); }
+.col-affinity th, .col-affinity td { background: rgba(var(--col-affinity),0.10); }
+.col-mastery th, .col-mastery td { background: rgba(var(--col-mastery),0.10); }
+
+  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  .classes-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
+  .col-class .pill { background: rgba(var(--col-class),0.18); }
+  .col-affinity .pill { background: rgba(var(--col-affinity),0.18); }
+  .col-mastery .pill { background: rgba(var(--col-mastery),0.18); }
+  .col-trait .pill { background: rgba(var(--col-trait),0.18); }
+  .col-bonus .pill { background: rgba(var(--col-bonus),0.18); }
+  .col-penalty .pill { background: rgba(var(--col-penalty),0.18); }
+  .col-origin .pill { background: rgba(var(--col-origin),0.18); }
+  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
+  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+</style>
+</style>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="global-chat">
+  <div class="chat-header">
+    <div class="title">Global Chat</div>
+    <div class="controls">
+      <button id="chat-min" class="btn" type="button">–</button>
+    </div>
+  </div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

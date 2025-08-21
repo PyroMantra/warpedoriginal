@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Races Gallery</title>
+
+   <link rel="stylesheet" href="{{ url_for('static', filename='css/gallery.css') }}">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+</head>
+  <title>Races Gallery</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/gallery.css') }}">
+<body>
+  <h1>Races Gallery</h1>
+
+  {% for kin, races in tree.items() %}
+    <h2>{{ kin }}</h2>
+    <div class="gallery">
+      {% for race, subraces in races.items() %}
+        {% for entry in subraces %}
+          <div class="card">
+            <h3>{{ entry.subrace }}</h3>
+            <div class="toggle" onclick="this.parentElement.classList.toggle('open')">
+              <span class="arrow">▶</span> {{ race }}
+            </div>
+            <div class="stats">
+            {% for stat in entry.stats %}
+  <div><strong>{{ stat[0] }}</strong>: {{ stat[1] }}</div>
+{% endfor %}
+            </div>
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  {% endfor %}
+
+  <br>
+  <a href="/">← Back to Home</a>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+<script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+<!-- Global Chat Hover Button -->
+<div id="chat-fab" title="Global Chat" aria-label="Global Chat">
+  <span id="chat-badge"></span>
+  <!-- icon -->
+  <span aria-hidden="true">💬</span>
+  <!-- popover -->
+  <div id="chat-popover">
+    <div class="chat-popover-header">Global Chat</div>
+    <div id="chat-popover-messages"></div>
+  </div>
+</div>
+</body>
+</html>

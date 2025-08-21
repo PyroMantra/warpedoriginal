@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RPG Admin Panel</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    ul { list-style-type: none; padding: 0; }
+    li { margin-bottom: 10px; }
+    .button {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #333;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+    }
+    .button:hover {
+      background: #555;
+    }
+  </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body>
+  <h1>{{ current_user_name }}</h1>
+
+  <h2>Game Database</h2>
+  <ul>
+    {% for sheet in sheets %}
+      <li><a class="button" href="{{ url_for('view_sheet', sheet=sheet) }}">{{ sheet }}</a></li>
+    {% endfor %}
+  </ul>
+
+  {% if show_potion_button %}
+    <hr>
+    <h2>Tools</h2>
+    <a class="button" href="{{ url_for('potion_generator') }}">🧪 Open Potion Generator</a>
+  {% endif %}
+
+  <br><br>
+  <a href="{{ url_for('logout') }}">Log out</a>
+<!-- Global Chat Panel -->
+
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+<script src="{{ url_for('static', filename='chat.js') }}"></script>
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+<!-- Global Chat Panel (canonical) -->
+<div id="global-chat">
+  <div class="chat-header">Global Chat</div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+</body>
+</html>

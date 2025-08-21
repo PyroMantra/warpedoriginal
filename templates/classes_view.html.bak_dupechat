@@ -1,0 +1,174 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213648">
+{% extends "layout.html" %}
+{% block content %}
+<h1>Classes & Abilities</h1>
+
+<div style="display: flex; gap: 2rem; align-items: flex-start;">
+  <!-- Left Table -->
+  <div style="flex: 0 0 60%; overflow-x: auto;">
+    <table border="1" style="width: 100%; table-layout: auto;">
+      <thead>
+        <tr>
+          {% for header in headers %}
+            <th>{{ header }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td class="selectable" onclick="selectAffinity('{{ cell }}')">{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Right Side -->
+  <div class="abilities-section" style="flex: 1; overflow-wrap: break-word; word-wrap: break-word;">
+    <h2 id="affinity-name">Select an Affinity</h2>
+    <p id="affinity-difficulty" style="font-weight: bold;"></p>
+    <p id="affinity-description" style="margin-bottom: 1rem;"></p>
+
+    <div class="rank-buttons" style="margin-bottom: 1rem;">
+      <button onclick="setRank('Rank I')">Rank I</button>
+      <button onclick="setRank('Rank II')">Rank II</button>
+      <button onclick="setRank('Rank III')">Rank III</button>
+    </div>
+
+    <div id="class-details" style="margin-bottom: 1rem; font-style: italic;"></div>
+    <div id="abilities-output" class="ability-text"></div>
+  </div>
+</div>
+
+
+<script>
+  const abilityData = {{ ability_data | tojson }};
+  const affinityInfo = {{ affinity_info | tojson }};
+  const classInfo = {{ class_info | tojson }};
+
+  let currentAffinity = null;
+  let currentRank = 'Rank I';
+
+  function selectAffinity(value) {
+  currentAffinity = value;
+  document.getElementById("affinity-name").innerText = value;
+
+  const isClass = classInfo.hasOwnProperty(value);
+  const isAffinity = affinityInfo.hasOwnProperty(value);
+
+  // Set affinity info
+  document.getElementById("affinity-difficulty").innerText =
+    isAffinity ? `Difficulty: ${affinityInfo[value].difficulty}` : '';
+  document.getElementById("affinity-description").innerText =
+    isAffinity ? affinityInfo[value].description : '';
+
+  // Set class info
+  document.getElementById("class-details").innerText =
+    isClass ? `🎓 Class\n\nStarting Bonus: ${classInfo[value].bonus} | Starting Weapon: ${classInfo[value].weapon}` : '';
+
+  // Optional: different styling
+  document.getElementById("class-details").style.color = isClass ? "#7af" : "#aaa";
+
+  renderAbilities();
+}
+
+
+
+  function setRank(rank) {
+    currentRank = rank;
+    renderAbilities();
+  }
+
+  function renderAbilities() {
+  const container = document.getElementById("abilities-output");
+  const data = abilityData[currentAffinity];
+
+if (!currentAffinity || !abilityData[currentAffinity]) {
+  container.innerHTML = '';
+  return;
+}
+
+
+  let html = '';
+  for (const [category, abilities] of Object.entries(data)) {
+    html += `<h3>${category}</h3><ul>`;
+    for (const ab of abilities) {
+      html += `<li>${ab[currentRank] || ab['Rank I']}</li>`;
+    }
+    html += '</ul>';
+  }
+  container.innerHTML = html;
+}
+
+</script>
+
+<style>
+  td.selectable {
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+  }
+  td.selectable:hover {
+    background: #444;
+  }
+  #class-details {
+    font-style: italic;
+    margin-top: 0.5rem;
+  }
+</style>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  
+</div>
+
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  
+</div>
+
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  
+</div>
+
+<!-- Global Chat Hover Button -->
+
+    <div id="chat-popover-messages"></div>
+  </div>
+</div>
+
+
+
+  <div id="chat-popover-messages"></div>
+</div>
+
+<div id="global-chat">
+  <div class="chat-header">
+    <div class="title">Global Chat</div>
+    <div class="controls">
+      <button id="chat-min" class="btn" type="button">–</button>
+    </div>
+  </div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

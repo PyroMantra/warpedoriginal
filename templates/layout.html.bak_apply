@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}My RPG World{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sirin+Stencil&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Sirin Stencil', sans-serif;
+      font-size: 1.125rem;
+      background: linear-gradient(to bottom, #2f2f2f, #1f1f1f);
+      color: #ffffff;
+    }
+    .card {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(8px);
+    }
+    table {
+      border-collapse: collapse;
+      width: auto;
+      table-layout: auto;
+    }
+    th, td {
+      border: 1px solid #555;
+      padding: 0.5rem 0.75rem;
+      background-color: transparent;
+      transition: background-color 0.2s, color 0.2s;
+      white-space: nowrap;
+    }
+    td:hover {
+      background-color: #555;
+      color: #ffffff;
+    }
+    td:focus, td:active {
+      outline: none;
+      background-color: #555;
+    }
+    .abilities-section {
+      color: #ffffff;
+      padding-left: 2rem;
+      padding-right: 2rem;
+      text-align: left;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      max-width: none;
+    }
+    input, select, textarea {
+      background-color: #2f2f2f;
+      color: white;
+      border: 1px solid #888;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #ffa500;
+      background-color: #3f3f3f;
+    }
+    option {
+      background-color: #1f1f1f;
+      color: #ffffff;
+    }
+    .ability-text {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      text-align: left;
+    }
+    .search-bar {
+      text-align: right;
+      margin-bottom: 1rem;
+    }
+    .rank-buttons {
+      display: flex;
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 1rem;
+      margin-top: 0.25rem;
+      margin-bottom: 1rem;
+    }
+    .rank-buttons button {
+      background-color: #444;
+      color: white;
+      border: 1px solid #888;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .rank-buttons button:hover {
+      background-color: #666;
+    }
+    .roll-header td {
+  font-weight: bold !important;
+  font-size: 1.2rem !important;
+  color: #ffa500; /* optional highlight */
+}
+
+    .bg-color-1 { background-color: #00B0F0; }
+  .bg-color-2 { background-color: #4472C4; }
+  .bg-color-3 { background-color: #4472C4; }
+  .bg-color-4, .bg-color-5 { background-color: #70AD47; }
+  .bg-color-6, .bg-color-7 { background-color: #FFC000; }
+  .bg-color-8, .bg-color-9 { background-color: #FF0000; }
+  .bg-color-10 { background-color: #595959; }
+  </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body class="min-h-screen {{ sheet|replace(' ', '-') }} flex flex-col">
+  <header class="bg-gradient-to-r from-orange-800 to-orange-600 p-4 shadow-md">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <h1 class="text-3xl font-bold text-white tracking-wide">Across the Planes</h1>
+      <nav class="navbar">
+  <div class="container mx-auto flex items-center gap-6 py-3">
+    <a href="{{ url_for('home') }}" class="text-2xl font-bold text-white"></a>
+
+    {% if session.get('user_id') %}
+      <div class="ml-auto flex items-center gap-4 text-sm">
+        <a href="{{ url_for('potion_generator') }}" class="text-white hover:text-orange-300">Potions</a>
+        <a href="{{ url_for('races_table') }}" class="text-white hover:text-orange-300">Races</a>
+        <a href="{{ url_for('classes_view') }}" class="text-white hover:text-orange-300">Classes</a>
+        <span class="text-white/70">|</span>
+        <span class="text-white/90">{{ session.get('username') or session.get('email') }}</span>
+        <a href="{{ url_for('logout') }}" class="text-red-300 hover:text-red-500">Logout</a>
+      </div>
+    {% else %}
+      <div class="ml-auto flex items-center gap-4 text-sm">
+        <a href="{{ url_for('login') }}" class="text-white hover:text-orange-300">Login</a>
+        <a href="{{ url_for('register') }}" class="text-white hover:text-orange-300">Register</a>
+      </div>
+    {% endif %}
+  </div>
+</nav>
+
+    </div>
+  </header>
+
+  <main class="w-full px-6 py-8 flex-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="text-center text-sm text-white py-4">
+    &copy; 2025  | All rights reserved.
+  </footer>
+<!-- Global Chat Panel -->
+<div id="global-chat">
+  <div class="chat-header">Global Chat</div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+<script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>

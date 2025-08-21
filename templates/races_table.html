@@ -1,0 +1,229 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+{% extends "layout.html" %}
+
+{% block title %}Races Table{% endblock %}
+
+{% block content %}
+<h1>Races Table</h1>
+
+<style>
+  :root{
+    --col-class: 59,130,246;      /* blue */
+    --col-affinity: 34,197,94;    /* green */
+    --col-mastery: 168,85,247;    /* purple */
+    --col-trait: 168,85,247;      /* purple */
+    --col-bonus: 245,158,11;      /* amber */
+    --col-penalty: 239,68,68;     /* red */
+    --col-origin: 14,165,233;     /* cyan */
+  }
+
+  /* ---- Races tab visual polish ---- */
+  .races-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .races-table th, .races-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .races-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  .races-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+
+  /* Column themes */
+  .col-race th, .col-race td { background: rgba(59,130,246,0.10); }       /* blue for Race */
+  .col-affinity th, .col-affinity td { background: rgba(34,197,94,0.10); } /* green for Affinities */
+  .col-trait th, .col-trait td { background: rgba(168,85,247,0.10); }      /* purple for Traits */
+  .col-bonus th, .col-bonus td { background: rgba(245,158,11,0.10); }      /* amber for Bonuses */
+  .col-penalty th, .col-penalty td { background: rgba(239,68,68,0.10); }   /* red for Penalties */
+  .col-origin th, .col-origin td, .col-type th, .col-type td, .col-subrace th, .col-subrace td { background: rgba(14,165,233,0.10); } /* cyan-ish */
+
+  /* Pills for multi-values */
+  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
+  .col-affinity .pill { background: rgba(34,197,94,0.18); }
+  .col-trait .pill { background: rgba(168,85,247,0.18); }
+  .col-bonus .pill { background: rgba(245,158,11,0.18); }
+  .col-penalty .pill { background: rgba(239,68,68,0.18); }
+  .col-race .pill { background: rgba(59,130,246,0.18); }
+
+  /* Filter row styling */
+  .filter-row select { width: 100%; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.18); padding: 6px 8px; border-radius: 8px; }
+  .filter-row select:focus { outline: 2px solid #ffa500; outline-offset: 2px; }
+
+  /* Clickable cells (if you hook them later) */
+  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
+  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  td.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+<style>
+.col-affinity th, .col-affinity td { background: rgba(var(--col-affinity),0.10); }
+.col-trait th, .col-trait td { background: rgba(var(--col-trait),0.10); }
+.col-bonus th, .col-bonus td { background: rgba(var(--col-bonus),0.10); }
+.col-penalty th, .col-penalty td { background: rgba(var(--col-penalty),0.10); }
+.col-origin th, .col-origin td { background: rgba(var(--col-origin),0.10); }
+
+  .races-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .races-table th, .races-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .races-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  .races-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
+  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
+  .col-class .pill { background: rgba(var(--col-class),0.18); }
+  .col-affinity .pill { background: rgba(var(--col-affinity),0.18); }
+  .col-mastery .pill { background: rgba(var(--col-mastery),0.18); }
+  .col-trait .pill { background: rgba(var(--col-trait),0.18); }
+  .col-bonus .pill { background: rgba(var(--col-bonus),0.18); }
+  .col-penalty .pill { background: rgba(var(--col-penalty),0.18); }
+  .col-origin .pill { background: rgba(var(--col-origin),0.18); }
+  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
+  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+</style>
+</style>
+
+<table id="raceTable" class="display races-table">
+  <thead>
+    <tr>
+      {% for head in headers %}
+        <th>{{ head }}</th>
+      {% endfor %}
+    </tr>
+    <tr class="filter-row">
+      {% for head in headers %}
+        <th><select><option value="">All</option></select></th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        {% for col in row %}
+          <td>{{ col }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script>
+  const table = $('#raceTable').DataTable({
+    paging: false,
+    lengthChange: false,
+    initComplete: function () {
+      this.api().columns().every(function () {
+        const column = this;
+        const select = $('select', column.header());
+        column.data().unique().sort().each(function (d) {
+          if (d) select.append(`<option value="${d}">${d}</option>`);
+        });
+        select.on('change', function () {
+          column.search(this.value).draw();
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+</div>
+</div>
+</div>
+</div>
+<script>
+(function(){
+  const table = document.getElementById('raceTable');
+  if(!table) return;
+  const headRow = table.tHead && table.tHead.rows[0];
+  if(!headRow) return;
+
+  // Column type detection
+  const colType = {};
+  for (let i=0; i<headRow.cells.length; i++){
+    const text = (headRow.cells[i].textContent||'').trim().toLowerCase();
+    if (text.includes('race') || text.includes('lineage') || text.includes('species')) colType[i] = 'race';
+    else if (text.includes('affinit')) colType[i] = 'affinity';
+    else if (text.includes('trait')) colType[i] = 'trait';
+    else if (text.includes('bonus') || text.includes('boon')) colType[i] = 'bonus';
+    else if (text.includes('penalt') || text.includes('malus')) colType[i] = 'penalty';
+    else if (text.includes('origin') || text.includes('type') || text.includes('subrace')) colType[i] = 'origin';
+  }
+  const typeToClass = {race:'col-race', affinity:'col-affinity', trait:'col-trait', bonus:'col-bonus', penalty:'col-penalty', origin:'col-origin'};
+
+  // Apply classes to headers
+  for (let i=0;i<headRow.cells.length;i++){
+    const t = colType[i];
+    if (t) headRow.cells[i].classList.add(typeToClass[t]);
+  }
+
+  // Apply classes + pills to body
+  const tbody = table.tBodies[0];
+  for (const row of tbody.rows){
+    for (let i=0;i<row.cells.length;i++){
+      const t = colType[i];
+      if (!t) continue;
+      const td = row.cells[i];
+      td.classList.add(typeToClass[t]);
+      // Wrap multiple values into pills
+      if (t==='affinity' || t==='trait' || t==='bonus' || t==='penalty'){
+        const raw = td.textContent || '';
+        const parts = raw.split(/\s*[;,|]\s*/).filter(Boolean);
+        if (parts.length > 1){
+          td.innerHTML = parts.map(p => `<span class="pill">${p}</span>`).join('');
+        } else {
+          td.innerHTML = `<span class="pill">${raw}</span>`;
+        }
+      } else if (t==='race'){
+        const raw = td.textContent || '';
+        td.innerHTML = `<span class="pill">${raw}</span>`;
+      }
+    }
+  }
+
+  // Optional: add filtering behavior for filter-row selects
+  const filterRow = table.tHead && table.tHead.rows[1];
+  if (filterRow && filterRow.classList.contains('filter-row')){
+    for (let i=0;i<filterRow.cells.length;i++){
+      const select = filterRow.cells[i].querySelector('select');
+      if(!select) continue;
+      // Build unique options
+      const values = new Set();
+      for (const row of tbody.rows){
+        const text = (row.cells[i].textContent||'').trim();
+        if (text) values.add(text);
+      }
+      [...values].sort().forEach(v=>{
+        const opt = document.createElement('option');
+        opt.value = v; opt.textContent = v;
+        select.appendChild(opt);
+      });
+      // Hook change handler
+      select.addEventListener('change', function(){
+        const val = this.value;
+        for (const row of tbody.rows){
+          const text = (row.cells[i].textContent||'').trim();
+          const show = !val || text === val;
+          row.style.display = show ? '' : 'none';
+        }
+      });
+    }
+  }
+})();
+</script>
+
+
+<div id="global-chat">
+  <div class="chat-header">
+    <div class="title">Global Chat</div>
+    <div class="controls">
+      <button id="chat-min" class="btn" type="button">–</button>
+    </div>
+  </div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

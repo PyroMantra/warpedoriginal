@@ -1,0 +1,1 @@
+Sanitized app.py with no orphan 'except' blocks.

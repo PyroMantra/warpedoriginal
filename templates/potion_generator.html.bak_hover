@@ -1,0 +1,75 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+{% extends "layout.html" %}
+{% block title %}Potion Generator{% endblock %}
+{% block content %}
+<style>
+  .container {
+    display: flex;
+    gap: 2rem;
+  }
+  .left-column {
+    flex: 1;
+    min-width: 200px;
+  }
+  .right-column {
+    flex: 2;
+  }
+  select {
+    width: 100%;
+    padding: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+</style>
+
+<h1>Potion Generator</h1>
+<form method="get" id="potion-form">
+  <div class="container">
+    <div class="left-column">
+      {% for i in range(1, 11) %}
+        <label>Ingredient {{ i }}</label>
+        <select name="ingredient{{ i }}" onchange="document.getElementById('potion-form').submit()">
+          {% for ing in ingredients %}
+            <option value="{{ ing }}" {% if selected_ings_map["ingredient" + i|string] == ing %}selected{% endif %}>
+              {{ ing }}
+            </option>
+          {% endfor %}
+        </select>
+      {% endfor %}
+    </div>
+
+    <div class="right-column">
+      <h3>Matching Potions</h3>
+      {% if matches %}
+        <ul>
+          {% for match in matches %}
+            <li><strong>{{ match.mix }}</strong> → {{ match.result }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No matching potions found.</p>
+      {% endif %}
+    </div>
+  </div>
+</form>
+<a href="/">← Back to Home</a>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+
+<!-- Global Chat Panel (canonical) -->
+<div id="global-chat">
+  <div class="chat-header">Global Chat</div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

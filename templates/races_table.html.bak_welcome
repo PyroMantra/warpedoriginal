@@ -1,0 +1,52 @@
+{% extends "layout.html" %}
+
+{% block title %}Races Table{% endblock %}
+
+{% block content %}
+<h1>Races Table</h1>
+<table id="raceTable" class="display">
+  <thead>
+    <tr>
+      {% for head in headers %}
+        <th>{{ head }}</th>
+      {% endfor %}
+    </tr>
+    <tr class="filter-row">
+      {% for head in headers %}
+        <th><select><option value="">All</option></select></th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+      <tr>
+        {% for col in row %}
+          <td>{{ col }}</td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script>
+  const table = $('#raceTable').DataTable({
+    paging: false,
+    lengthChange: false,
+    initComplete: function () {
+      this.api().columns().every(function () {
+        const column = this;
+        const select = $('select', column.header());
+        column.data().unique().sort().each(function (d) {
+          if (d) select.append(`<option value="${d}">${d}</option>`);
+        });
+        select.on('change', function () {
+          column.search(this.value).draw();
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

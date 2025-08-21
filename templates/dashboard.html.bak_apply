@@ -1,0 +1,74 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213648">
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+  .button {
+    display: inline-block;
+    background-color: #444;
+    color: #fff;
+    padding: 0.6rem 1.2rem;
+    margin: 0.4rem 0.5rem 0.4rem 0;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  .button:hover {
+    background-color: #666;
+  }
+</style>
+
+<h1>{{ current_user_name }}</h1>
+
+<h2>Data</h2>
+{% for btn in data_buttons %}
+  {% if btn.arg %}
+    <a class="button" href="{{ url_for(btn.endpoint, db=btn.arg) if btn.endpoint == 'view_notion_db' else url_for(btn.endpoint, sheet=btn.arg) }}">
+      {{ btn.label }}
+    </a>
+  {% else %}
+    <a class="button" href="{{ url_for(btn.endpoint) }}">{{ btn.label }}</a>
+  {% endif %}
+{% endfor %}
+
+<h2>Gallery Format</h2>
+<a class="button" href="{{ url_for('races_gallery') }}">Races Gallery</a>
+<a class="button" href="{{ url_for('notion_db_index') }}">Excess Data</a>
+
+
+<h2>Generators</h2>
+<a class="button" href="{{ url_for('potion_generator') }}">Potions</a>
+<a class="button" href="#">Blank Generator 1</a>
+<a class="button" href="#">Blank Generator 2</a>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+
+<!-- Global Chat Panel (canonical) -->
+<div id="global-chat">
+  <div class="chat-header">Global Chat</div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

@@ -1,0 +1,155 @@
+﻿(function(){
+  function byId(id){return document.getElementById(id);}
+  function escapeHtml(s){var d=document.createElement("div"); d.innerText=s; return d.innerHTML;}
+  function appendMsg(list, u, t){
+    if(!list) return;
+    var d=document.createElement("div");
+    d.className="chat-msg";
+    d.innerHTML='<span class="u">'+escapeHtml(u)+':</span><span class="t">'+escapeHtml(t)+'</span>';
+    list.appendChild(d);
+    list.scrollTop=list.scrollHeight;
+  }
+  function init(){
+    const box = byId("global-chat"); if(!box) return;
+    const list = box.querySelector("#chat-messages") || byId("chat-messages");
+    const form = byId("chat-form");
+    const input = byId("chat-input");
+    const me = (window.CURRENT_USER_NAME || "Anonymous");
+    const socket = io({transports:["websocket","polling"]});
+
+    let gotHistory = false;
+
+    socket.on("connect", ()=> {
+      console.log("[chat] connected", socket.id);
+      // fallback: if no history after 1s, explicitly ask for it
+      setTimeout(()=>{ if(!gotHistory) { console.log("[chat] requesting history"); socket.emit("chat_history_request"); }}, 1000);
+    });
+    socket.on("connect_error", e=> console.error("[chat] connect_error", e));
+
+    socket.on("chat_ready", ()=> console.log("[chat] ready"));
+    socket.on("chat_history", items=>{
+      gotHistory = true;
+      console.log("[chat] history", items?.length||0);
+      if(list) list.innerHTML="";
+      (items||[]).forEach(m=>appendMsg(list, m.user, m.text));
+    });
+    socket.on("chat_message", m=>{
+      console.log("[chat] message", m);
+      appendMsg(list, m.user, m.text);
+    });
+
+    form.addEventListener("submit", e=>{
+      e.preventDefault();
+      const text=(input.value||"").trim();
+      if(!text) return;
+      socket.emit("chat_message", {text});
+      // optimistic fallback
+      setTimeout(()=>{
+        const last = list && list.lastElementChild && list.lastElementChild.textContent || "";
+        if(!last || last.indexOf(text)===-1){ appendMsg(list, me, text); }
+      }, 1200);
+      input.value="";
+    });
+  }
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded", init); }
+  else { init(); }
+})();
+
+//
+// [drag-movable-chat] v1 — draggable global chat by header (mouse + touch)
+//
+(function(){
+  function initDraggable(){
+    var el = document.getElementById('global-chat');
+    if(!el) return;
+    var handle = el.querySelector('.chat-header') || el;
+
+    try{
+      var pos = JSON.parse(localStorage.getItem('globalChatPos') || 'null');
+      if(pos && typeof pos.left==='number' && typeof pos.top==='number'){
+        el.style.right = 'auto'; el.style.bottom = 'auto';
+        el.style.left  = pos.left + 'px';
+        el.style.top   = pos.top  + 'px';
+      }
+    }catch(e){}
+
+    function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+    var dragging=false, sx=0, sy=0, startL=0, startT=0, pid=null;
+
+    function startFromRect(){
+      var r = el.getBoundingClientRect();
+      if(!el.style.left || !el.style.top){
+        el.style.left = r.left + 'px';
+        el.style.top  = r.top  + 'px';
+        el.style.right='auto';
+        el.style.bottom='auto';
+      }
+      startL = parseFloat(el.style.left) || r.left;
+      startT = parseFloat(el.style.top)  || r.top;
+    }
+
+    function onDown(e){
+      dragging = true;
+      var cx = (e.clientX != null) ? e.clientX : (e.touches && e.touches[0].clientX) || 0;
+      var cy = (e.clientY != null) ? e.clientY : (e.touches && e.touches[0].clientY) || 0;
+      sx = cx; sy = cy;
+      startFromRect();
+      handle.classList.add('dragging');
+      if(e.target && e.target.setPointerCapture && e.pointerId !== undefined){
+        pid = e.pointerId; try{ e.target.setPointerCapture(pid); }catch(_){}
+      }
+      e.preventDefault();
+    }
+
+    function onMove(e){
+      if(!dragging) return;
+      var cx = (e.clientX != null) ? e.clientX : (e.touches && e.touches[0].clientX) || 0;
+      var cy = (e.clientY != null) ? e.clientY : (e.touches && e.touches[0].clientY) || 0;
+      var nl = startL + (cx - sx);
+      var nt = startT + (cy - sy);
+      var maxL = window.innerWidth  - el.offsetWidth;
+      var maxT = window.innerHeight - el.offsetHeight;
+      el.style.left = clamp(nl, 0, maxL) + 'px';
+      el.style.top  = clamp(nt, 0, maxT) + 'px';
+    }
+
+    function onUp(){
+      if(!dragging) return;
+      dragging = false;
+      handle.classList.remove('dragging');
+      try{
+        localStorage.setItem('globalChatPos', JSON.stringify({
+          left: parseFloat(el.style.left) || 0,
+          top:  parseFloat(el.style.top)  || 0
+        }));
+      }catch(_){}
+    }
+
+    if(window.PointerEvent){
+      handle.addEventListener('pointerdown', onDown);
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    } else {
+      handle.addEventListener('mousedown', onDown);
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      handle.addEventListener('touchstart', onDown, {passive:false});
+      window.addEventListener('touchmove', onMove, {passive:false});
+      window.addEventListener('touchend', onUp);
+      window.addEventListener('touchcancel', onUp);
+    }
+
+    handle.style.userSelect = 'none';
+    handle.style.touchAction = 'none';
+    if(!handle.style.cursor) handle.style.cursor = 'move';
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initDraggable);
+  } else {
+    initDraggable();
+  }
+})();
+

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ sheet }}</title>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #f0f0f0;
+      font-family: sans-serif;
+      padding: 2rem;
+    }
+
+    a.button {
+      display: inline-block;
+      padding: 8px 16px;
+      background: #444;
+      color: white;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      text-decoration: none;
+    }
+
+    a.button:hover {
+      background: #666;
+    }
+
+    a.top-right {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+    }
+
+    h1 {
+      margin-bottom: 1rem;
+    }
+
+    .search-bar {
+      margin-bottom: 1rem;
+    }
+
+    .search-bar input[type="text"] {
+      padding: 0.5rem;
+      width: 400px;
+      background: #333;
+      color: white;
+      border: 1px solid #777;
+      border-radius: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      border: 1px solid #555;
+      padding: 10px;
+      text-align: left;
+      white-space: normal;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      background-color: #2a2a2a;
+    }
+
+    th {
+      background-color: #3a3a3a;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #222;
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 20%;
+    }
+  </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+</head>
+<body>
+  <a class="button top-right" href="/">← Back to Home</a>
+  <h1>{{ sheet }}</h1>
+
+{% if sheet in ["The Informatorium", "Items", "Gear"] %}
+  <div class="search-bar">
+    <input type="text" id="search" placeholder="Search {{ sheet }}...">
+  </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("search");
+      const rows = document.querySelectorAll("table tbody tr");
+      input.addEventListener("input", () => {
+        const term = input.value.toLowerCase();
+        rows.forEach(row => {
+          row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none";
+        });
+      });
+    });
+  </script>
+{% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        {% for header in headers %}
+          <th>{{ header }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+            <td>{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+<script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+<!-- Global Chat Panel (canonical) -->
+<div id="global-chat">
+  <div class="chat-header">Global Chat</div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+</body>
+</html>

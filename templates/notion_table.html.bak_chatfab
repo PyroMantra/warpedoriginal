@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ db }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+</head>
+<body style="background: #1f1f1f; color: #fff; font-family: 'Sirin Stencil', sans-serif; font-size: 1.1rem;">
+  <a class="button top-right" href="/">← Back to Home</a>
+  <h1>{{ db }}</h1>
+
+  <div class="search-bar" style="text-align:right; margin-bottom:1rem;">
+    <input type="text" id="search" placeholder="Search {{ db }}..." style="padding: 0.6rem; width: 300px; background-color: #2f2f2f; color: white; border: 1px solid #888;">
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("search");
+      const rows = document.querySelectorAll("table tbody tr");
+      input.addEventListener("input", () => {
+        const term = input.value.toLowerCase();
+        rows.forEach(row => {
+          row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none";
+        });
+      });
+    });
+  </script>
+
+  <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+    <thead>
+      <tr>
+        {% for header in headers %}
+          <th style="border: 1px solid #555; padding: 0.6rem; background-color: #333;">{{ header }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+            <td style="border: 1px solid #555; padding: 0.6rem; background-color: #2a2a2a; white-space: normal; word-wrap: break-word;">{{ cell }}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+<script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+<!-- Global Chat Panel (canonical) -->
+
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>
+<!-- Global Chat Hover Button -->
+<div id="chat-fab" title="Global Chat" aria-label="Global Chat">
+  <span id="chat-badge"></span>
+  <!-- icon -->
+  <span aria-hidden="true">💬</span>
+  <!-- popover -->
+  <div id="chat-popover">
+    <div class="chat-popover-header">Global Chat</div>
+    <div id="chat-popover-messages"></div>
+  </div>
+</div>
+</body>
+</html>

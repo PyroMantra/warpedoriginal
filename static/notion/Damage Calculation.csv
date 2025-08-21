@@ -1,0 +1,22 @@
+﻿Name,Damage Calculation
+Roll,Damage Calculation:
+1,You Hit yourself at 50% Damage/Drop Weapon/Hit another Target
+2,You Miss. (0%)
+3,You Miss. (0%)
+4,You Miss. (0%)
+5,You Miss. (0%)
+6,10%
+7,20%
+8,30%
+9,40%
+10,Average Damage Range(50%)
+11,60%
+12,70%
+13,80%
+14,90%
+15,Highest Damage Range(100%)
+16,Lowest Damage Range Crit.
+17,25%
+18,75%
+19,Highest Damage Range Crit.
+20,Highest Damage Range Crit + Vital(+1 Crit Multiplier)
