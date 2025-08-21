@@ -65,7 +65,7 @@ google = oauth.register(
 )
 
 # Socket.IO
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")
+socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
 
 
 # ------------------------------------------------------------------------------
