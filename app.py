@@ -1,5 +1,15 @@
-﻿
+﻿﻿
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix
+# Trust Railway proxy and keep https scheme/host
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
+app.config.update(
+    SESSION_COOKIE_SAMESITE="None",
+    SESSION_COOKIE_SECURE=True,
+    PREFERRED_URL_SCHEME="https",
+)
+
 import re
 import html
 import random
@@ -543,11 +553,3 @@ if __name__ == "__main__":
         print(f"{r.endpoint}: {r}")
     print("--------------")
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
-
-
-
-
-@app.route("/healthz")
-def healthz():
-    return "ok", 200
-
