@@ -483,6 +483,14 @@ def google_login_callback():
         return redirect(url_for("pick_username"))
     return redirect(url_for("home"))
 
+def _healthz():
+    return "ok", 200
+
+# Register once even if code gets merged/duplicated in the future
+if "healthz_ok" not in app.view_functions and "healthz" not in app.view_functions:
+    app.add_url_rule("/healthz", endpoint="healthz_ok", view_func=_healthz)
+
+
 # ------------------------------------------------------------------------------
 # Debug / misc
 # ------------------------------------------------------------------------------
@@ -530,12 +538,6 @@ def on_chat_message(data):
     emit("chat_message", msg, to="global")
 # ------------------------------------------------------------------------------
 # Entrypoint
-def _healthz():
-    return "ok", 200
-
-# Register once even if code gets merged/duplicated in the future
-if "healthz_ok" not in app.view_functions and "healthz" not in app.view_functions:
-    app.add_url_rule("/healthz", endpoint="healthz_ok", view_func=_healthz)
 
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
