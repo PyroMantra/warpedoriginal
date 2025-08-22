@@ -65,7 +65,18 @@ google = oauth.register(
 )
 
 # Socket.IO
-socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
+# --- Socket.IO setup ---
+# Use eventlet in production (Railway), fall back to threading locally (e.g., Windows + Python 3.13)
+try:
+    import eventlet  # will succeed on Railway
+    ASYNC_MODE = "eventlet"
+except Exception:
+    ASYNC_MODE = "threading"
+
+socketio = SocketIO(app, async_mode=ASYNC_MODE, cors_allowed_origins="*")
+print(f"[socketio] async_mode={ASYNC_MODE}")
+# --- end Socket.IO setup ---
+
 
 
 # ------------------------------------------------------------------------------

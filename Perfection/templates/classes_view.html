@@ -28,6 +28,17 @@
   .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
   .col-affinity .pill { background: rgba(34,197,94,0.18); }
   .col-mastery .pill { background: rgba(168,85,247,0.18); }
+
+    /* === Custom: Unique Mastery pill colors (white text) === */
+  .col-mastery .pill { color: #ffffff !important; }
+  .col-mastery .pill.pill--defense   { background: #6b7280 !important; }  /* gray */
+  .col-mastery .pill.pill--arcane    { background: #3b82f6 !important; }  /* blue */
+  .col-mastery .pill.pill--stealth   { background: #a855f7 !important; }  /* purple */
+  .col-mastery .pill.pill--intellect { background: #14b8a6 !important; }  /* teal */
+  .col-mastery .pill.pill--offense   { background: #f97316 !important; }  /* orange */
+  .col-mastery .pill.pill--agility   { background: #22c55e !important; }  /* green */
+  /* === End custom === */
+
   .col-class .pill { background: rgba(59,130,246,0.18); }
 
   /* Hover / selection */
@@ -92,48 +103,16 @@
   .pill-diff-hardcore  { color:#ef4444; border:1px solid rgba(239,68,68,0.6); background: rgba(239,68,68,0.12); }
   .pill-diff-grimcore  { color:#f8fafc; border:1px solid rgba(17,17,17,0.9); background:#111111; }
 
-/* === Mastery Panel UI === */
-.mastery-panel { --accent:#94a3b8; --accent-soft: rgba(148,163,184,0.15); --border: rgba(148,163,184,0.5); }
-.mastery-panel.mastery-offense   { --accent:#f97316; --accent-soft: rgba(249,115,22,0.14); --border: rgba(249,115,22,0.5); }
-.mastery-panel.mastery-defense   { --accent:#6b7280; --accent-soft: rgba(107,114,128,0.14); --border: rgba(107,114,128,0.5); }
-.mastery-panel.mastery-arcane    { --accent:#3b82f6; --accent-soft: rgba(59,130,246,0.14); --border: rgba(59,130,246,0.5); }
-.mastery-panel.mastery-agility   { --accent:#22c55e; --accent-soft: rgba(34,197,94,0.14); --border: rgba(34,197,94,0.5); }
-.mastery-panel.mastery-intellect { --accent:#14b8a6; --accent-soft: rgba(20,184,166,0.14); --border: rgba(20,184,166,0.5); }
-.mastery-panel.mastery-stealth   { --accent:#a855f7; --accent-soft: rgba(168,85,247,0.14); --border: rgba(168,85,247,0.5); }
+/* === Custom: Unique colors for Mastery bubbles & enforce white text === */
+.classes-table .pill { color: #ffffff !important; }
+.col-mastery .pill.pill--offense  { background: rgba(239,68,68,0.92) !important; }   /* red */
+.col-mastery .pill.pill--defense  { background: rgba(59,130,246,0.92) !important; }  /* blue */
+.col-mastery .pill.pill--arcane   { background: rgba(168,85,247,0.92) !important; }  /* purple */
+.col-mastery .pill.pill--intellect{ background: rgba(245,158,11,0.94) !important; }  /* amber */
+.col-mastery .pill.pill--agility  { background: rgba(34,197,94,0.92) !important; }   /* green */
+.col-mastery .pill.pill--stealth  { background: rgba(107,114,128,0.92) !important; } /* dark gray */
+/* === End custom === */
 
-.mastery-subtle { color:#a3a3a3; margin:0 0 .5rem 0; }
-.mastery-list { list-style: none; margin:0; padding:0; }
-.mastery-list li {
-  background: var(--accent-soft);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  border-radius: 10px;
-  padding: 8px 10px;
-  margin: 6px 0;
-  line-height: 1.35;
-}
-.mastery-badge {
-  display:inline-block; min-width:1.6em; text-align:center;
-  padding: 2px 6px; margin-right: 8px; border-radius: 999px;
-  border: 1px solid var(--border); color: #fff; background: var(--accent);
-  font-size: .85rem;
-}
-.tag {
-  display:inline-block; padding: 1px 6px; border-radius: 999px;
-  border: 1px solid var(--border); color:#fff; background: var(--accent);
-  font-size: .75rem; margin-right:6px;
-}
-/* Tone down mastery cell pills by default */
-.col-mastery .pill { background: rgba(168,85,247,0.12) !important; border: 1px solid rgba(168,85,247,0.35) !important; color:#fff !important; }
-
-
-/* Class details font-size tweak (v19) */
-#class-details { font-size: 1.22rem; line-height: 1.58; }
-
-#class-details b, #class-details strong { color: #ffffff; }
-#class-details em, #class-details i { color: #cbd5e1; }
-
-</style>
 </style>
 
 
@@ -181,7 +160,66 @@
   const table = document.getElementById('classes-table');
   if(!table) return;
   const headRow = table.tHead && table.tHead.rows[0];
+  const rankPanel = document.querySelector('.rank-buttons');
+  function keyFromText(t){ t=(t||'').trim().toLowerCase();
+    if (t.startsWith('offense')) return 'offense';
+    if (t.startsWith('defense')) return 'defense';
+    if (t.startsWith('arcane')) return 'arcane';
+    if (t.startsWith('intellect')||t.startsWith('inttellect')) return 'intellect';
+    if (t.startsWith('agility')) return 'agility';
+    if (t.startsWith('stealth')) return 'stealth';
+    return null; }
+  function toggleRankButtonsByIndex(colIdx){
+    if (!rankPanel || !headRow) return;
+    const h = (headRow.cells[colIdx]?.textContent||'').toLowerCase();
+    rankPanel.style.display = h.includes('affinit') ? '' : 'none';
+  }
+
   if(!headRow) return;
+  if (document.querySelector('.rank-buttons')) { document.querySelector('.rank-buttons').style.display='none'; }
+
+
+  
+  
+  function applyMasteryPillClasses(){
+    try{
+      document.querySelectorAll('.col-mastery td').forEach(function(td){
+        const pills = td.querySelectorAll('.pill');
+        if (pills.length === 1 && (pills[0].textContent||'').trim()===''){ td.innerHTML=''; return; }
+        pills.forEach(function(p){
+          const t = (p.textContent||'').trim();
+          const low = t.toLowerCase();
+          let k = null, bg = null;
+          if (low.startsWith('defense')) { k='defense'; bg='#6b7280'; }     // gray
+          else if (low.startsWith('arcane')) { k='arcane'; bg='#3b82f6'; }  // blue
+          else if (low.startsWith('stealth')) { k='stealth'; bg='#a855f7'; } // purple
+          else if (low.startsWith('intellect') || low.startsWith('inttellect')) { k='intellect'; bg='#14b8a6'; } // teal
+          else if (low.startsWith('offense')) { k='offense'; bg='#f97316'; } // orange
+          else if (low.startsWith('agility')) { k='agility'; bg='#22c55e'; } // green
+          if (k){ p.classList.add('pill--'+k); }
+          p.style.color = '#ffffff';
+          if (bg){ p.style.background = bg; p.style.borderColor = 'transparent'; }
+        });
+      });
+    }catch(e){ /* no-op */ }
+  }
+
+        pills.forEach(function(p){
+          const t = (p.textContent||'').trim();
+          const low = t.toLowerCase();
+          let k = null;
+          if (low.startsWith('offense')) k='offense';
+          else if (low.startsWith('defense')) k='defense';
+          else if (low.startsWith('arcane')) k='arcane';
+          else if (low.startsWith('intellect')||low.startsWith('inttellect')) k='intellect';
+          else if (low.startsWith('agility')) k='agility';
+          else if (low.startsWith('stealth')) k='stealth';
+          if (k){ p.classList.add('pill--'+k); }
+          p.style.color = '#fff';
+        });
+      });
+    }catch(e){ /* no-op */ }
+  }
 
   // Map column index -> type
   const colType = {};
@@ -222,6 +260,8 @@
     }
   }
 
+  applyMasteryPillClasses();
+
   // Track selection to help readability
   window.selectAffinity = function(value){
     // Clear old selection
@@ -235,6 +275,16 @@
     // Call original function if defined
     if (typeof window._selectAffinityCore === 'function') return window._selectAffinityCore(value);
   };
+
+  // Toggle Rank buttons when clicking any cell
+  if (table){
+    table.addEventListener('click', function(ev){
+      const td = ev.target.closest('td');
+      if (!td) return;
+      toggleRankButtonsByIndex(td.cellIndex);
+      applyMasteryPillClasses();
+    });
+  }
 
   // Preserve original selectAffinity logic
   if (typeof window._selectAffinityCore !== 'function' && typeof window.selectAffinity === 'function'){
@@ -441,171 +491,6 @@ if (!currentAffinity || !abilityData[currentAffinity]) {
   td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
   td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
 </style>
-</style>
-
-<script>
-
-
-// Mastery panel + colors + rank button toggle (v16) — embeds mastery JSON
-(function() {
-  const table = document.getElementById('classes-table');
-  const rankPanel = document.querySelector('.rank-buttons');
-  const masteryData = {"Offense": ["+1 Attribute Point", "Master Unarmed: Unarmed Type gains +1 Scaling.", "(\u2248) Hit Harder: Basic Attack Target with +1 Extra Scaling on your highest Scaling Attribute. (2/Day)", "+1 Might", "Master Strength Weapon: Master Strength Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2248) Shield Break: Basic Attack Target, if the Basic Attack Lands their Defense is reduced by 50% of the Damage Blocked. (2/Day)", "+2 Base Strength", "Master Dual Wield: You may Dual Wield Two Handed Weapons; Bows are excluded.", "(P) Offense is the best Defense: Basic Attacking with a Roll of 16 or Higher gives you a Preparation Stack.", "+0.5 Crit Multiplier", "Master Tactical Combat: You can select your Banners Starting Tiles in Combat up to 2 Tiles from closest Hostile Entity.", "(\u2248) Prominence: Archform; Gain 1 Crit Multiplier, 1 Scaling and Unstoppable; Your Attacks have Precise; Basic Attacks have +2 Roll Modifier; Lasts 5 Turns. (1/Vendal)"], "Defense": ["+1 Stat Point", "Master Shield/Buckler: Master Shield or Buckler; Mastered Type Give 50% More Stats.", "(\u2248) Lucky Block: [Requires Shield/Buckler] Counter; Block Target Projectile/Strike reducing Damage equal to your Defense. (2/Day)", "10% Elemental Resistance", "Master Heavy Armor: Armor Pieces no longer give negative Stats.", "(P) Tenacity: Gain 1 Extra Counter Action .", "+2 Base Defense & 2 Base Dispersion", "Master Heavy Combat: Your Basic Attack now also scales with 50% of your Defense.", "(\u2756:\u2248) The Iron Dome: Toggle; Gain a Shield That gives 10 Defense, 10 Dispersion and 30% Deflect. (5% Current Health/Turn)", "+50 Max Health", "Master Protection: You may choose as Counter to redirect Projectiles or Strikes to you as long as the Original Target is in your Melee Range.", "(\u2248) Resilience: Archform; Gain Resilient; +50% Elemental Resistance; Defense and Dispersion are combined into 1 Stat called Resilience; Lasts 5 Turns. (1/Vendal)"], "Arcane": ["+1 Attribute Point", "Master Hand Catalyst: Your Unarmed Basic Attacks become Ranged, have +5 Base Damage and deal Magic Damage.", "(\u2756:^) Orb of Power: Summon an Orb surrounding you which constantly gives you 1 Power per Turn until end of combat. (2/Day)", "+1 Wisdom", "Master Power Weapon: Master Power Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2756:o) Arcane Release: Push Everything in Melee Range 1 Tile away and deal Magic Damage equal to Power. (1/Day)", "+2 Base Power", "Master Mana Pool Expansion: Gain 20 Max Mana at the Start of Day.", "(\u2756:\u2248) Arcanic Influx: Double your current Power until End of Combat. (1/Day)", "+50 Max Mana", "Master the Arcane: All Magic Damage you deal becomes Arcane Damage.", "(\u2248) Emergence: Archform; Gain Surge; Gain 10 Power; Refresh all other Ability Cooldowns and Restore 100 Mana Upon Cast; Lasts 5 Turns. (1/Vendal)"], "Agility": ["+1 Attribute Point", "Master Throwable Type: Throwables of that Type gain 0.5 Scaling.", "(\u2248) Power Dodge: Counter; Dodge with +5 Roll Modifier. (0.5 Stamina)", "+1 Mobility", "Master Dexterity Weapon: Master Dexterity Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2248) Sprint: Move up to 3 Tiles. (1 Stamina)", "+2 Base Dexterity", "Master Dodging: Your Dodges gain +2 on their Roll.", "(\u2248) Tempo Switch: Counter; Your next Action will have Flash or Blitz. (1/Combat)", "+1 Stamina", "Master Breathing: Your Traversal Attempt Rolls have a +2 Roll Modifier.", "(\u2248) Celerity: Archform; Gain 4 Mobility; Gain 1 Extra Flash Action per Turn; Your Actions have Flash; Lasts 5 Turns. (1/Day)"], "Intellect": ["+1 Stat Point", "Master Cognition: Whenever you gain Experience gain 50 more; Does not count itself.", "(\u2248) The Great Work: Create a Great Work; It occupies a Slot in your Inventory and may be Sold for 300 Gold. (1/Day; 1 Stamina)", "+10% Fortitude", "Master Deduction: You will always know who is the Highest Level Hero, Richest Hero, Hero with largest Banner and what Biome they are in.", "(\u2248) Emotional Manipulation: The next Purchase you will make at Target Zone will be 50% Cheaper. (1/Zone)", "+1 on Landmark Rolls", "Master Philosophy: Upon Engaging Combat with a Sentient Roll D20; Rolling between 16-20 will Convert Sentients up to Bosses to your Banner.", "(\u2248) Magnum Opus: Consume a Great Work, a Legendary Item and a Legendary Gear to Create a Random Artifact of Legendary Rarity.", "+1 Roll Modifier", "Master Rationality: You become immune to Confusion, Charm and Fear.", "(\u2248) Brilliance: Archform; Gain Enlightment; You are able to detect Invisible Entities; +4 Roll Modifier; Lasts 5 Turns. (1/Vendal)"], "Stealth": ["+1 Stat Point", "Master Vital Spots: Vitals gain +0.5 Crit Multiplier.", "(\u2756:\u2248) Smoke Cloud: Become Invisible for 1 Turn. (2/Day)", "10% Deflection", "Master Sharp Weapon: Master Sharp Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(P) Shadowboom: Everytime you Become Invisible you create a shadowy explosion dealing 10 True Damage.", "+3 Flee Roll", "Master Art of Stealth: Gain the Stealth Condition.", "(\u2248) Unseen Threat: Basic Attack target Dealing 10 True Damage for each turn you were invisibe previously. (1/Day)", "+0.5 Scaling", "Master Sneaking: Become Invisible for 2 Turns on Combat Start.", "(\u2248) Concealment: Archform; Gain Ethereal and Invisible; If Invisibility is lost it gets reapplied at the Start of your Turn; Lasts 5 Turns. (1/Vendal)"]};
-  window.__MASTERY_DATA__ = masteryData;
-
-  function headerText(i) {
-    if (!table || !table.tHead || !table.tHead.rows[0] || !table.tHead.rows[0].cells[i]) return '';
-    return (table.tHead.rows[0].cells[i].textContent||'').toLowerCase();
-  }
-  function isAffinityCol(i) { return headerText(i).includes('affinit'); }
-  function isMasteryCol(i) { return headerText(i).includes('master'); }
-  function masteryColIdxs(){
-    if (!table || !table.tHead || !table.tHead.rows[0]) return [];
-    const cells = Array.from(table.tHead.rows[0].cells);
-    return cells.map((c,i)=>((c.textContent||'').toLowerCase().includes('master') ? i : -1)).filter(i=>i>=0);
-  }
-  function keyFrom(txt) {
-    const t = (txt||'').trim().toLowerCase();
-    if (t.startsWith('offense')) return 'offense';
-    if (t.startsWith('defense')) return 'defense';
-    if (t.startsWith('arcane'))  return 'arcane';
-    if (t.startsWith('agility')) return 'agility';
-    if (t.startsWith('intellect') || t.startsWith('inttellect')) return 'intellect';
-    if (t.startsWith('stealth')) return 'stealth';
-    return null;
-  }
-
-  const SOFT = {
-    defense:  { bg:'rgba(107,114,128,0.16)', border:'1px solid rgba(107,114,128,0.60)' },
-    arcane:   { bg:'rgba(59,130,246,0.16)',  border:'1px solid rgba(59,130,246,0.60)'  },
-    stealth:  { bg:'rgba(168,85,247,0.16)',  border:'1px solid rgba(168,85,247,0.60)' },
-    intellect:{ bg:'rgba(20,184,166,0.16)',  border:'1px solid rgba(20,184,166,0.60)'  },
-    offense:  { bg:'rgba(249,115,22,0.16)',  border:'1px solid rgba(249,115,22,0.60)'  },
-    agility:  { bg:'rgba(34,197,94,0.16)',   border:'1px solid rgba(34,197,94,0.60)'   },
-  };
-  function colorizeMasteryPills(){
-    try{
-      const idxs = masteryColIdxs();
-      if (!table || !table.tBodies.length || !idxs.length) return;
-      const rows = Array.from(table.tBodies[0].rows);
-      for (const row of rows){
-        for (const i of idxs){
-          const td = row.cells[i]; if (!td) continue;
-          const pills = td.querySelectorAll('.pill');
-          pills.forEach(p => {
-            const k = keyFrom(p.textContent);
-            const c = k && SOFT[k];
-            if (c){
-              p.style.setProperty('background', c.bg, 'important');
-              p.style.setProperty('border', c.border, 'important');
-              p.style.setProperty('color', '#ffffff', 'important');
-            }
-          });
-        }
-      }
-    }catch(_e){}
-  }
-
-  function esc(s){ const d=document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
-  function leadingTag(text){ const m=/^\(([^)]+)\)\s*/.exec(text); return m?'<span class="tag">'+esc(m[1])+'</span> ':''; }
-  function stripLeading(text){ return text.replace(/^\(([^)]+)\)\s*/, ''); }
-  function renderMasteryPanel(name){
-    const key = keyFrom(name) || 'generic';
-    const items = masteryData[(name||'').trim()] || masteryData[name?.charAt(0)+name?.slice(1).toLowerCase()] || [];
-    let html = '<div class="mastery-panel mastery-'+key+'"><div class="mastery-subtle">Mastery</div><ol class="mastery-list">';
-    for (let i=0;i<items.length;i++){ const raw = items[i]; html += '<li><span class="mastery-badge">'+(i+1)+'</span>'+leadingTag(raw)+esc(stripLeading(raw))+'</li>'; }
-    html += '</ol></div>';
-    const titleEl = document.getElementById('affinity-name');
-    const diffEl  = document.getElementById('affinity-difficulty');
-    const descEl  = document.getElementById('affinity-description');
-    const classEl = document.getElementById('class-details');
-    const outEl   = document.getElementById('abilities-output');
-    if (titleEl) titleEl.textContent = (name||'').toString();
-    if (diffEl) { diffEl.textContent=''; diffEl.style.display='none'; }
-    if (descEl) descEl.textContent = '';
-    if (classEl) classEl.textContent = '';
-    if (outEl) outEl.innerHTML = html;
-  }
-
-  document.addEventListener('click', function(e){
-    const td = e.target.closest && e.target.closest('td');
-    if (!td || !td.closest || !td.closest('#classes-table')) return;
-    window.__lastClickType = isMasteryCol(td.cellIndex) ? 'mastery' : (isAffinityCol(td.cellIndex)?'affinity':'other');
-    if (rankPanel) rankPanel.style.display = (window.__lastClickType==='affinity') ? '' : 'none';
-    setTimeout(colorizeMasteryPills, 0);
-  }, true);
-
-  (function(){
-    const orig = window.selectAffinity;
-    window.selectAffinity = function(value){
-      if (window.__lastClickType === 'mastery'){ renderMasteryPanel(value); window.__lastClickType = null; return; }
-      if (typeof orig === 'function') orig(value);
-      const diffEl = document.getElementById('affinity-difficulty');
-      if (diffEl) diffEl.style.display = (window.__lastClickType==='affinity') ? '' : 'none';
-      window.__lastClickType = null;
-    };
-  })();
-
-  if (rankPanel) rankPanel.style.display = 'none';
-  function passes(){ colorizeMasteryPills(); setTimeout(colorizeMasteryPills,50); setTimeout(colorizeMasteryPills,200); }
-  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', passes); } else { passes(); }
-})();
-</script>
-
-<script>
-<script>
-// Class details formatter (v20): reentrant-safe, no infinite loops
-(function(){
-  function splitAndBold(raw){
-    // Replace pipe separators with line breaks and bold the labels
-    // Works whether there is a space around the pipe or not
-    let t = raw.replace(/\s*\|\s*/g, "\n");
-    t = t.replace(/(Starting Bonus:)/i, "<strong>$1</strong>");
-    t = t.replace(/(Starting Weapon:)/i, "<strong>$1</strong>");
-    return t.replace(/\n/g, "<br>");
-  }
-
-  function formatClassDetails(){
-    const el = document.getElementById("class-details");
-    if (!el) return;
-    const txt = (el.textContent || "").trim();
-    if (!txt) return;
-    if (!(/Starting Bonus:/i.test(txt) || /Starting Weapon:/i.test(txt))) return;
-
-    const newHTML = splitAndBold(txt);
-    // Only update if content actually changes to avoid mutation loops
-    if (el.innerHTML !== newHTML){
-      el.innerHTML = newHTML;
-    }
-  }
-
-  // Observe changes but avoid loops by comparing before/after
-  function observe(){
-    const el = document.getElementById("class-details");
-    if (!el) return;
-    const mo = new MutationObserver(function(){
-      // Defer formatting to end of tick and only once
-      Promise.resolve().then(formatClassDetails);
-    });
-    mo.observe(el, {childList:true, characterData:true, subtree:true});
-    // Initial pass
-    formatClassDetails();
-  }
-
-  // Also format after table clicks that might update the right pane
-  document.addEventListener("click", function(e){
-    if (e.target && e.target.closest && e.target.closest("#classes-table")){
-      setTimeout(formatClassDetails, 0);
-    }
-  }, true);
-
-  if (document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", observe);
-  } else {
-    observe();
-  }
-})();
-</script></script>
 {% endblock %}
 <script data-brand-fallback="1">
 document.addEventListener('DOMContentLoaded', function(){
@@ -637,3 +522,74 @@ document.addEventListener('DOMContentLoaded', function(){
     <button id="chat-send" type="submit">Send</button>
   </form>
 </div>
+
+<script>
+// === Custom: Mastery pill coloring & rank button toggle ===
+(function(){
+  const table = document.getElementById('classes-table');
+  const rankPanel = document.querySelector('.rank-buttons');
+
+  function keyFromText(t){
+    t = (t||'').trim().toLowerCase();
+    if (!t) return null;
+    if (t.startsWith('offense')) return 'offense';
+    if (t.startsWith('defense')) return 'defense';
+    if (t.startsWith('arcane')) return 'arcane';
+    if (t.startsWith('intellect') || t.startsWith('inttellect')) return 'intellect';
+    if (t.startsWith('agility')) return 'agility';
+    if (t.startsWith('stealth')) return 'stealth';
+    return null;
+  }
+
+  function applyMasteryPillColors(){
+    // Remove empty pills
+    document.querySelectorAll('.classes-table .pill').forEach(p => {
+      if (!p.textContent || p.textContent.trim()==='') p.remove();
+      else p.style.color = '#fff';
+    });
+    // Add specific classes in the Mastery column
+    document.querySelectorAll('.col-mastery td .pill').forEach(p => {
+      const k = keyFromText(p.textContent);
+      if (k) p.classList.add('pill--'+k);
+    });
+  }
+
+  function colTypeFromCell(td){
+    if (!td || !table || !table.tHead) return '';
+    const colIndex = td.cellIndex;
+    const head = table.tHead.rows[0];
+    if (!head || !head.cells[colIndex]) return '';
+    const htext = (head.cells[colIndex].textContent||'').toLowerCase();
+    if (htext.includes('affinit')) return 'affinity';
+    if (htext.includes('master')) return 'mastery';
+    if (htext.includes('class')) return 'class';
+    return '';
+  }
+
+  function toggleRankButtonsForCell(td){
+    if (!rankPanel) return;
+    const t = colTypeFromCell(td);
+    rankPanel.style.display = (t==='affinity') ? '' : 'none';
+  }
+
+  // Initial state: hidden until an affinity cell is selected
+  if (rankPanel) rankPanel.style.display = 'none';
+
+  if (table){
+    table.addEventListener('click', function(e){
+      const td = e.target.closest('td');
+      if (!td || !td.closest('table')) return;
+      applyMasteryPillColors();
+      toggleRankButtonsForCell(td);
+    });
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', applyMasteryPillColors);
+  } else {
+    applyMasteryPillColors();
+  }
+})();
+// === End custom ===
+</script>
+

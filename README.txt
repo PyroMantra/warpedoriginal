@@ -1,1 +1,1 @@
-Sanitized app.py with no orphan 'except' blocks.
+v6: Mastery colors applied via inline JS styles to guarantee override: DEFENSE gray, ARCANE blue, STEALTH purple, INTELLECT teal, OFFENSE orange, AGILITY green.
