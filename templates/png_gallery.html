@@ -3,17 +3,82 @@
 {% block content %}
 <h1 class="text-3xl font-bold mb-4">Hexes</h1>
 
-{# Upload removed. Just display PNGs found in static/pngs/ #}
-
 {% if png_files %}
 <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
   {% for f in png_files %}
   <div class="group relative rounded-xl overflow-hidden bg-white/5 p-3 flex items-center justify-center">
-    <img src="{{ url_for('static', filename='pngs/' + f) }}" alt="{{ f }}" class="w-full h-auto transition-transform duration-300 ease-out group-hover:scale-110" loading="lazy">
+    <img
+      src="{{ url_for('static', filename='pngs/' + f) }}"
+      alt="{{ f }}"
+      class="hex-thumb w-full h-auto transition-transform duration-300 ease-out group-hover:scale-110 cursor-zoom-in"
+      loading="lazy">
   </div>
   {% endfor %}
 </div>
 {% else %}
 <p>No PNGs found. Put your hex images into <code>static/pngs/</code> and refresh.</p>
 {% endif %}
+
+<style>
+/* Simple lightbox */
+#hexOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+#hexOverlay.show { display: flex; }
+#hexOverlay img {
+  max-width: 92vw;
+  max-height: 92vh;
+  border-radius: 10px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.6);
+  transform: scale(.98);
+  transition: transform .15s ease;
+}
+#hexOverlay.show img { transform: scale(1); }
+#hexOverlay .hint {
+  position: fixed;
+  bottom: 24px;
+  color: rgba(255,255,255,.7);
+  font-size: 14px;
+  user-select: none;
+}
+</style>
+
+<div id="hexOverlay" aria-modal="true" role="dialog">
+  <img id="hexOverlayImg" alt="Hex full view">
+  <div class="hint">Click anywhere or press Esc to close</div>
+</div>
+
+<script>
+(function(){
+  const thumbs = document.querySelectorAll('.hex-thumb');
+  const overlay = document.getElementById('hexOverlay');
+  const overlayImg = document.getElementById('hexOverlayImg');
+
+  function openLightbox(src, alt){
+    overlayImg.src = src;
+    overlayImg.alt = alt || 'Hex full view';
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox(){
+    overlay.classList.remove('show');
+    overlayImg.src = '';
+    document.body.style.overflow = '';
+  }
+
+  thumbs.forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.src, img.alt));
+  });
+
+  overlay.addEventListener('click', closeLightbox);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  document.getElementById('hexOverlayImg').addEventListener('click', e => e.stopPropagation());
+})();
+</script>
 {% endblock %}

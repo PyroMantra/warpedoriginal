@@ -93,20 +93,19 @@
       background-color: #666;
     }
     .roll-header td {
-  font-weight: bold !important;
-  font-size: 1.2rem !important;
-  color: #ffa500; /* optional highlight */
-}
-
+      font-weight: bold !important;
+      font-size: 1.2rem !important;
+      color: #ffa500;
+    }
     .bg-color-1 { background-color: #00B0F0; }
-  .bg-color-2 { background-color: #4472C4; }
-  .bg-color-3 { background-color: #4472C4; }
-  .bg-color-4, .bg-color-5 { background-color: #70AD47; }
-  .bg-color-6, .bg-color-7 { background-color: #FFC000; }
-  .bg-color-8, .bg-color-9 { background-color: #FF0000; }
-  .bg-color-10 { background-color: #595959; }
+    .bg-color-2 { background-color: #4472C4; }
+    .bg-color-3 { background-color: #4472C4; }
+    .bg-color-4, .bg-color-5 { background-color: #70AD47; }
+    .bg-color-6, .bg-color-7 { background-color: #FFC000; }
+    .bg-color-8, .bg-color-9 { background-color: #FF0000; }
+    .bg-color-10 { background-color: #595959; }
   </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/classes_fix.css') }}">
 </head>
 <body class="min-h-screen {{ sheet|replace(' ', '-') }} flex flex-col" data-endpoint="{{ request.endpoint }}">
@@ -114,27 +113,28 @@
     <div class="max-w-6xl mx-auto flex justify-between items-center">
       <h1 class="text-3xl font-bold text-white tracking-wide">Across the Planes</h1>
       <nav class="navbar">
-  <div class="container mx-auto flex items-center gap-6 py-3">
-    <a href="{{ url_for('home') }}" class="text-2xl font-bold text-white"></a>
+        <div class="container mx-auto flex items-center gap-6 py-3">
+          <a href="{{ url_for('home') }}" class="text-2xl font-bold text-white"></a>
 
-    {% if session.get('user_id') %}
-      <div class="ml-auto flex items-center gap-4 text-sm">
-        <a href="{{ url_for('potion_generator') }}" class="text-white hover:text-orange-300">Potions</a>
-        <a href="{{ url_for('races_table') }}" class="text-white hover:text-orange-300">Races</a>
-        <a href="{{ url_for('classes_view') }}" class="text-white hover:text-orange-300">Classes</a>
-        <span class="text-white/70">|</span>
-        <span class="text-white/90">{{ session.get('username') or session.get('email') }}</span>
-        <a href="{{ url_for('logout') }}" class="text-red-300 hover:text-red-500">Logout</a>
-      </div>
-    {% else %}
-      <div class="ml-auto flex items-center gap-4 text-sm">
-        <a href="{{ url_for('login') }}" class="text-white hover:text-orange-300">Login</a>
-        <a href="{{ url_for('register') }}" class="text-white hover:text-orange-300">Register</a>
-      </div>
-    {% endif %}
-  </div>
-</nav>
-
+          {% if session.get('user_id') %}
+          <!-- Bumped font size here -->
+          <div class="ml-auto flex items-center gap-6 text-xl md:text-2xl leading-none">
+            <a href="{{ url_for('potion_generator') }}" class="text-white hover:text-orange-300">Potions</a>
+            <a href="{{ url_for('races_table') }}" class="text-white hover:text-orange-300">Races</a>
+            <a href="{{ url_for('classes_view') }}" class="text-white hover:text-orange-300">Classes</a>
+            <span class="text-white/70">|</span>
+            <span class="text-white/90">{{ session.get('username') or session.get('email') }}</span>
+            <a href="{{ url_for('logout') }}" class="text-red-300 hover:text-red-500">Logout</a>
+          </div>
+          {% else %}
+          <!-- And here for guests -->
+          <div class="ml-auto flex items-center gap-6 text-xl md:text-2xl leading-none">
+            <a href="{{ url_for('login') }}" class="text-white hover:text-orange-300">Login</a>
+            <a href="{{ url_for('register') }}" class="text-white hover:text-orange-300">Register</a>
+          </div>
+          {% endif %}
+        </div>
+      </nav>
     </div>
   </header>
 
@@ -176,7 +176,7 @@ document.addEventListener('DOMContentLoaded', function(){
     <button id="chat-send" type="submit">Send</button>
   </form>
 </div>
-  <script>
+<script>
 (function(){
   try {
     var ep = document.body.getAttribute('data-endpoint') || '';
