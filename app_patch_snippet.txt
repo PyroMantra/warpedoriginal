@@ -1,0 +1,13 @@
+# --- Hexes Gallery Route ---
+# Requires: from flask import render_template, url_for
+#           import os
+@app.route("/hexes")
+def hexes_gallery():
+    hex_dir = os.path.join(app.static_folder, "hexes")
+    try:
+        filenames = sorted([f for f in os.listdir(hex_dir)
+                            if f.lower().endswith((".png", ".webp", ".jpg", ".jpeg", ".gif", ".avif"))])
+    except FileNotFoundError:
+        filenames = []
+    images = [(name, url_for("static", filename=f"hexes/{name}")) for name in filenames]
+    return render_template("hexes.html", images=images)

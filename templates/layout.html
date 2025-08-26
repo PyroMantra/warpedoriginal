@@ -107,8 +107,9 @@
   .bg-color-10 { background-color: #595959; }
   </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/classes_fix.css') }}">
 </head>
-<body class="min-h-screen {{ sheet|replace(' ', '-') }} flex flex-col">
+<body class="min-h-screen {{ sheet|replace(' ', '-') }} flex flex-col" data-endpoint="{{ request.endpoint }}">
   <header class="bg-gradient-to-r from-orange-800 to-orange-600 p-4 shadow-md">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
       <h1 class="text-3xl font-bold text-white tracking-wide">Across the Planes</h1>
@@ -175,5 +176,15 @@ document.addEventListener('DOMContentLoaded', function(){
     <button id="chat-send" type="submit">Send</button>
   </form>
 </div>
+  <script>
+(function(){
+  try {
+    var ep = document.body.getAttribute('data-endpoint') || '';
+    if (ep === 'classes_view') {
+      document.body.classList.add('classes_view');
+    }
+  } catch (e) {}
+})();
+</script>
 </body>
 </html>

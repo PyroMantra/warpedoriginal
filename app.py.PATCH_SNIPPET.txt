@@ -1,0 +1,12 @@
+# --- PATCH: Hexes route path ---
+# Find your existing gallery route that looks like:
+#   @app.route("/png-gallery")
+# and replace it with this version so the URL is /hexes.
+@app.route("/hexes")
+@login_required
+def png_gallery():
+    os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
+    files = [f for f in os.listdir(PNG_UPLOAD_FOLDER) if f.lower().endswith(".png")]
+    files.sort()
+    return render_template("png_gallery.html", png_files=files)
+# --- END PATCH ---

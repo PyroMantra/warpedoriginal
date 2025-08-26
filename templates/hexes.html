@@ -1,0 +1,33 @@
+{% extends "layout.html" %}
+{% block title %}Hexes{% endblock %}
+
+{% block content %}
+<h1>Hexes</h1>
+<p class="text-white/70 mb-4">Drop PNG/WebP/JPG into <code>static/hexes/</code>. They will appear here automatically.</p>
+
+<style>
+  .hex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .hex-tile { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 10px; transition: background 120ms ease, transform 120ms ease; }
+  .hex-tile:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
+  .hex-img-wrap { position: relative; width: 100%; padding-top: 100%; overflow: hidden; border-radius: 10px; background: rgba(0,0,0,0.25); }
+  .hex-img-wrap img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .hex-name { margin-top: 6px; font-size: 0.8rem; color: rgba(255,255,255,0.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
+<div class="hex-grid">
+  {% for name, url in images %}
+    <figure class="hex-tile">
+      <div class="hex-img-wrap">
+        <img src="{{ url }}" alt="{{ name }}" loading="lazy" decoding="async">
+      </div>
+      <figcaption class="hex-name" title="{{ name }}">{{ name }}</figcaption>
+    </figure>
+  {% endfor %}
+</div>
+
+{% if not images %}
+  <div class="mt-6 text-white/70">
+    No images yet. Add files to <code>static/hexes/</code> (e.g., <code>.png</code>, <code>.webp</code>, <code>.jpg</code>).
+  </div>
+{% endif %}
+{% endblock %}

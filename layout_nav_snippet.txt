@@ -1,0 +1,2 @@
+<!-- Add to your top navbar links -->
+<a href="{{ url_for('hexes_gallery') }}">Hexes</a>

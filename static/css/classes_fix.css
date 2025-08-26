@@ -1,0 +1,9 @@
+/* Wider, no-wrap grid for Classes page only */
+body.classes_view table { table-layout: auto; min-width: 1700px; border-collapse: separate; }
+body.classes_view th, body.classes_view td { white-space: nowrap; }
+body.classes_view table tbody tr { height: 36px; }
+body.classes_view table tr > *:nth-child(1) { width: 110px; }
+body.classes_view table tr > *:nth-child(2) { width: 110px; }
+body.classes_view table tr > *:nth-child(3) { width: 190px; }
+body.classes_view table tr > *:nth-child(n+4) { width: 190px; }
+body.classes_view .table-scroll, body.classes_view .classes-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }

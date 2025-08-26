@@ -1,70 +1,45 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213648">
 {% extends "layout.html" %}
 {% block title %}Dashboard{% endblock %}
-
 {% block content %}
+
 <style>
-  .button {
-    display: inline-block;
-    background-color: #444;
-    color: #fff;
-    padding: 0.6rem 1.2rem;
-    margin: 0.4rem 0.5rem 0.4rem 0;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    transition: background 0.2s;
-  }
-  .button:hover {
-    background-color: #666;
-  }
+/* Fallback styling to ensure pill buttons even if external CSS rules changed */
+.buttons { display:flex; flex-wrap:wrap; gap:12px; margin:8px 0 18px; }
+.buttons .button {
+  display:inline-block;
+  padding:10px 14px;
+  border-radius:12px;
+  background:rgba(255,255,255,0.07);
+  color:#fff;
+  text-decoration:none;
+  line-height:1;
+  box-shadow:0 1px 0 rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05);
+  transition:background .18s ease, transform .02s ease;
+}
+.buttons .button:hover { background:rgba(255,255,255,0.14); }
+.buttons .button:active { transform:translateY(1px); }
 </style>
 
-<h1>{{ current_user_name }}</h1>
-
-<h2>Data</h2>
+<h2 class="section-title">Data</h2>
+<div class="buttons">
 {% for btn in data_buttons %}
-  {% if btn.arg %}
-    <a class="button" href="{{ url_for(btn.endpoint, db=btn.arg) if btn.endpoint == 'view_notion_db' else url_for(btn.endpoint, sheet=btn.arg) }}">
-      {{ btn.label }}
-    </a>
+  {# Hide any legacy Hexes entries that point to sheets/Notion #}
+  {% if (btn.endpoint == 'view_sheet' and btn.arg == 'Hexes') or (btn.endpoint == 'view_notion_db' and btn.arg == 'Hexes') %}
   {% else %}
-    <a class="button" href="{{ url_for(btn.endpoint) }}">{{ btn.label }}</a>
+    {% set href = btn.href if btn.href else (url_for('view_notion_db', db=btn.arg) if btn.endpoint == 'view_notion_db' else (url_for('view_sheet', sheet=btn.arg) if btn.endpoint == 'view_sheet' else url_for(btn.endpoint))) %}
+    <a class="button" href="{{ href }}">
+      {{ 'Hexes' if btn.endpoint == 'png_gallery' else btn.label }}
+    </a>
   {% endif %}
 {% endfor %}
+</div>
 
-<h2>Generators</h2>
-<a class="button" href="{{ url_for('potion_generator') }}">Potions</a>
-<a class="button" href="#">Blank Generator 1</a>
-<a class="button" href="#">Blank Generator 2</a>
+<h2 class="section-title">Generators</h2>
+<div class="buttons">
+  <a class="button" href="{{ url_for('potion_generator') }}">Potions</a>
+  {% for g in generators %}
+    <a class="button" href="{{ url_for('generate', sheet=g) }}">{{ g }}</a>
+  {% endfor %}
+</div>
+
 {% endblock %}
-<script data-brand-fallback="1">
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
-    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
-      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
-      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
-    }
-  });
-});
-</script>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-
-<div id="global-chat">
-  <div class="chat-header">
-    <div class="title">Global Chat</div>
-    <div class="controls">
-      <button id="chat-min" class="btn" type="button">–</button>
-    </div>
-  </div>
-  <div id="chat-messages"></div>
-  <form id="chat-form">
-    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
-    <button id="chat-send" type="submit">Send</button>
-  </form>
-</div>

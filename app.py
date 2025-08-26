@@ -9,9 +9,10 @@ from datetime import datetime
 from functools import wraps
 from collections import defaultdict, deque
 
-from flask import Flask, render_template, redirect, url_for, session, request
+from flask import Flask, render_template, redirect, url_for, session, request, send_from_directory, flash
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from authlib.integrations.flask_client import OAuth
 import pandas as pd
@@ -110,6 +111,13 @@ def init_auth_db():
 
 init_auth_db()
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+PNG_UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'pngs')
+ALLOWED_EXTENSIONS = {'png'}
+
 # ------------------------------------------------------------------------------
 # Data / Excel loading
 # ------------------------------------------------------------------------------
@@ -191,7 +199,7 @@ def __envcheck():
 @app.route("/")
 @login_required
 def home():
-    data_buttons = [
+    logical = [
         {"label": "The Informatorium", "endpoint": "view_sheet", "arg": "The Informatorium"},
         {"label": "Races", "endpoint": "races_table"},
         {"label": "Classes", "endpoint": "classes_view"},
@@ -208,7 +216,47 @@ def home():
         {"label": "Clarifications", "endpoint": "view_sheet", "arg": "Clarifications & Mechanics"},
         {"label": "Items", "endpoint": "view_sheet", "arg": "Items"},
         {"label": "Gear", "endpoint": "view_sheet", "arg": "Gear"},
+        {"label": "PNG Gallery", "endpoint": "png_gallery", "new_tab": True},
     ]
+
+    # Add Hexes
+    try:
+        if "Hexes" in sheets:
+            logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
+        elif os.path.exists(os.path.join("static", "notion", "Hexes.csv")):
+            logical.append({"label": "Hexes", "endpoint": "view_notion_db", "arg": "Hexes"})
+        else:
+            logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
+    except Exception:
+        logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
+
+    def _safe_url(endpoint, **kwargs):
+        try:
+            return url_for(endpoint, **kwargs)
+        except Exception:
+            if endpoint == "view_sheet" and "sheet" in kwargs:
+                return f"/view/{kwargs['sheet']}"
+            if endpoint == "view_notion_db" and "db" in kwargs:
+                return f"/notion-db/{kwargs['db']}"
+            try:
+                return url_for(endpoint)
+            except Exception:
+                return "/"
+
+    data_buttons = []
+    for btn in logical:
+        if btn.get("arg"):
+            if btn["endpoint"] == "view_notion_db":
+                href = _safe_url("view_notion_db", db=btn["arg"])
+            elif btn["endpoint"] == "view_sheet":
+                href = _safe_url("view_sheet", sheet=btn["arg"])
+            else:
+                href = _safe_url(btn["endpoint"])
+        else:
+            href = _safe_url(btn["endpoint"])
+        resolved = dict(btn); resolved["href"] = href
+        data_buttons.append(resolved)
+
     return render_template("dashboard.html", data_buttons=data_buttons, generators=generator_sheets)
 
 @app.route("/view/<sheet>")
@@ -259,6 +307,34 @@ def potion_generator():
         selected_ings_map={f"ingredient{i+1}": selected[i] if i < len(selected) else "" for i in range(10)},
     )
 
+
+@app.route("/png-gallery")
+@login_required
+def png_gallery():
+    os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
+    files = [f for f in os.listdir(PNG_UPLOAD_FOLDER) if f.lower().endswith(".png")]
+    files.sort()
+    return render_template("png_gallery.html", png_files=files)
+
+@app.route("/png-gallery/upload", methods=["POST"])
+@login_required
+def png_gallery_upload():
+    os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
+    if 'files' not in request.files:
+        return redirect(url_for('png_gallery'))
+    files = request.files.getlist('files')
+    for file in files:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            dest = os.path.join(PNG_UPLOAD_FOLDER, filename)
+            base, ext = os.path.splitext(filename)
+            i = 1
+            while os.path.exists(dest):
+                filename = f"{base}_{i}{ext}"
+                dest = os.path.join(PNG_UPLOAD_FOLDER, filename)
+                i += 1
+            file.save(dest)
+    return redirect(url_for('png_gallery'))
 @app.route("/races-table")
 @login_required
 def races_table():

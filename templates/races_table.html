@@ -69,6 +69,92 @@
   td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
   td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
   td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+
+/* === Races table 'lively' theme (v4) === */
+#raceTable { width: 100%; }
+#raceTable thead th {
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  position: sticky; top: 0; z-index: 2;
+}
+#raceTable tbody tr:hover td { background: rgba(255,255,255,.04); }
+
+/* chips & tags */
+.chip {
+  display:inline-block; border-radius:999px; padding:2px 10px;
+  border:1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.06);
+  font-weight:600; font-size:.92rem; line-height:1.2; color:#fff;
+}
+.chip-kin { background: color-mix(in oklab, var(--pill) 18%, transparent); border-color: color-mix(in oklab, var(--pill) 55%, transparent); }
+.chip-race { background: rgba(14,165,233,.12); border-color: rgba(14,165,233,.45); }
+.chip-sub { background: rgba(99,102,241,.12); border-color: rgba(99,102,241,.45); }
+
+.tag {
+  display:inline-block; margin:1px 4px 1px 0; padding:2px 8px; border-radius:8px;
+  border:1px solid rgba(148,163,184,.35); background: rgba(148,163,184,.12); font-size:.85rem; color:#e5e7eb;
+}
+
+/* numeric heat */
+#raceTable td.v { border:1px solid transparent; border-radius:8px; padding:4px 6px; }
+#raceTable td.v.pos  { background:rgba(34,197,94,.12);  border-color:rgba(34,197,94,.35);  color:#d1fae5; }
+#raceTable td.v.neg  { background:rgba(239,68,68,.12);  border-color:rgba(239,68,68,.35);  color:#fee2e2; }
+#raceTable td.v.zero { background:rgba(148,163,184,.10); border-color:rgba(148,163,184,.25); color:#e5e7eb; }
+
+
+/* === Races table 'lively' v6: kin palette + numeric chips === */
+#raceTable_wrapper table thead th,
+#raceTable thead th{
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04)) !important;
+  border-bottom: 1px solid rgba(255,255,255,.15) !important;
+  position: sticky; top: 0; z-index: 2;
+}
+
+.kin-chip{
+  display:inline-block;
+  padding:2px 10px;
+  border-radius:999px;
+  font-weight:700;
+  border:1px solid transparent;
+  letter-spacing:.02em;
+  text-shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+.kin-construct{ background:rgba(96,165,250,.18);  border-color:rgba(96,165,250,.55);  color:#eef6ff; }
+.kin-demon{      background:rgba(251,113,133,.18); border-color:rgba(251,113,133,.55); color:#fff1f2; }
+.kin-beast{      background:rgba(245,158,11,.20);  border-color:rgba(245,158,11,.55);  color:#fff7ed; }
+.kin-human{      background:rgba(34,197,94,.20);   border-color:rgba(34,197,94,.55);   color:#ecfdf5; }
+.kin-undead{     background:rgba(167,139,250,.22); border-color:rgba(167,139,250,.55); color:#f5f3ff; }
+.kin-elemental{  background:rgba(56,189,248,.20);  border-color:rgba(56,189,248,.55);  color:#e0f2fe; }
+.kin-spirit{     background:rgba(244,114,182,.20); border-color:rgba(244,114,182,.55); color:#fdf2f8; }
+.kin-giant{      background:rgba(148,163,184,.18); border-color:rgba(148,163,184,.55); color:#f1f5f9; }
+.kin-fae{        background:rgba(52,211,153,.20);  border-color:rgba(52,211,153,.55);  color:#ecfdf5; }
+.kin-dragon{     background:rgba(252,165,165,.20); border-color:rgba(252,165,165,.55); color:#fff1f2; }
+.kin-divine{     background:rgba(251,191,36,.22);  border-color:rgba(251,191,36,.60);  color:#fffbeb; }
+.kin-living{     background:rgba(45,212,191,.20);  border-color:rgba(45,212,191,.55);  color:#ecfeff; }
+
+.num-chip{
+  display:inline-block;
+  min-width: 36px;
+  text-align:center;
+  padding:2px 6px;
+  border-radius:8px;
+  font-variant-numeric: tabular-nums;
+  border:1px solid transparent;
+}
+.num-chip.pos{  background:rgba(34,197,94,.16);  border-color:rgba(34,197,94,.50);  color:#d1fae5; }
+.num-chip.neg{  background:rgba(239,68,68,.22);  border-color:rgba(239,68,68,.60);  color:#fee2e2; }
+.num-chip.zero{ background:rgba(148,163,184,.14); border-color:rgba(148,163,184,.45); color:#e5e7eb; }
+
+
+/* column tint fallbacks so there's always some color even if JS hasn't run */
+#raceTable_wrapper table tbody td:nth-child(1),
+#raceTable tbody td:nth-child(1){ background: rgba(96,165,250,.08); }     /* KIN */
+#raceTable_wrapper table tbody td:nth-child(2),
+#raceTable tbody td:nth-child(2){ background: rgba(14,165,233,.08); }     /* RACE */
+#raceTable_wrapper table tbody td:nth-child(3),
+#raceTable tbody td:nth-child(3){ background: rgba(99,102,241,.08); }     /* SUBTYPE */
+#raceTable_wrapper table tbody td:nth-child(6),
+#raceTable tbody td:nth-child(6){ background: rgba(148,163,184,.06); }    /* CONDITIONS */
+
 </style>
 </style>
 
@@ -227,3 +313,232 @@ document.addEventListener('DOMContentLoaded', function(){
     <button id="chat-send" type="submit">Send</button>
   </form>
 </div>
+
+<script>
+// Races table 'lively' enhancer (v4 robust). Cosmetic only.
+(function(){
+  function enhance(){
+    var table = document.getElementById('raceTable');
+    if (!table || !table.tHead || !table.tBodies.length) return;
+    var TB = table.tBodies[0];
+    if (!TB.rows.length) return; // wait until rows exist
+
+    var H = Array.from(table.tHead.rows[0].cells).map(th => (th.textContent||'').trim().toUpperCase());
+    var rows = Array.from(TB.rows);
+
+    function colIndex(names){
+      names = Array.isArray(names) ? names : [names];
+      for (var i=0;i<H.length;i++){
+        var h = H[i];
+        for (var j=0;j<names.length;j++){
+          if (h.includes(names[j].toUpperCase())) return i;
+        }
+      }
+      return -1;
+    }
+
+    var idxKin     = colIndex(['KIN','ORIGIN']);
+    var idxRace    = colIndex(['RACE','NAME']);
+    var idxSubtype = colIndex(['SUBTYPE']);
+    var idxCond    = colIndex(['CONDITION','CONDITIONS','TRAITS']);
+
+    var kinColors = {
+      'CONSTRUCT':'#60a5fa',
+      'DEMON':'#fb7185',
+      'BEAST':'#f59e0b',
+      'HUMAN':'#22c55e',
+      'UNDEAD':'#a78bfa',
+      'ELEMENTAL':'#38bdf8',
+      'SPIRIT':'#f472b6',
+      'GIANT':'#94a3b8',
+      'FAE':'#34d399',
+      'DRAGON':'#fca5a5',
+      'DIVINE':'#fbbf24',
+      'LIVING':'#2dd4bf'
+    };
+
+    function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+    function chipCell(td, kind){
+      if (!td || td.dataset.enhanced === '1') return;
+      var val = (td.textContent||'').trim();
+      if (!val) return;
+      var col = '#64748b';
+      if (kind==='kin'){
+        var k = val.toUpperCase();
+        if (kinColors[k]) col = kinColors[k];
+      }
+      td.innerHTML = '<span class="chip chip-'+kind+'" style="--pill:'+col+'">'+esc(val)+'</span>';
+      td.dataset.enhanced = '1';
+    }
+
+    function tagList(td){
+      if (!td || td.dataset.enhanced === '1') return;
+      var txt = (td.textContent||'').trim();
+      if (!txt) return;
+      var items = txt.split(/;\s*|,\s*/).filter(Boolean);
+      if (!items.length) return;
+      td.innerHTML = items.map(s => '<span class="tag">'+esc(s)+'</span>').join(' ');
+      td.dataset.enhanced = '1';
+    }
+
+    function colorNumber(td){
+      if (!td) return;
+      // don't re-add classes if already classified
+      if (td.classList.contains('pos') || td.classList.contains('neg') || td.classList.contains('zero')) return;
+      var txt = (td.textContent||'').replace('%','').trim();
+      if (!txt) return;
+      var n = parseFloat(txt);
+      if (isNaN(n)) return;
+      td.classList.add('v', n>0 ? 'pos' : (n<0 ? 'neg' : 'zero'));
+    }
+
+    rows.forEach(function(tr){
+      if (idxKin>=0)     chipCell(tr.cells[idxKin], 'kin');
+      if (idxRace>=0)    chipCell(tr.cells[idxRace], 'race');
+      if (idxSubtype>=0) chipCell(tr.cells[idxSubtype], 'sub');
+      if (idxCond>=0)    tagList(tr.cells[idxCond]);
+
+      for (var c=0;c<tr.cells.length;c++){
+        var head = H[c] || '';
+        if (/RESISTANCE/.test(head) || /(DEFENSE|DISPERSION|STRENGTH|DEXTERITY|POWER|STAMINA|FORTITUDE)/.test(head)){
+          colorNumber(tr.cells[c]);
+        }
+      }
+    });
+  }
+
+  function ready(fn){
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  ready(function(){
+    var table = document.getElementById('raceTable');
+    if (!table) return;
+
+    // 1) Initial attempts
+    setTimeout(enhance, 0);
+    setTimeout(enhance, 300);
+    setTimeout(enhance, 1000);
+
+    // 2) Hook DataTables draw if present
+    try {
+      if (window.jQuery && jQuery.fn && jQuery.fn.dataTable) {
+        jQuery(table).on('draw.dt', enhance);
+      }
+    } catch(e){ /* ignore */ }
+
+    // 3) Observe tbody mutations as a fallback
+    try {
+      var tb = table.tBodies[0];
+      if (tb){
+        var mo = new MutationObserver(function(){ enhance(); });
+        mo.observe(tb, {childList:true, subtree:true});
+      }
+    } catch(e){ /* ignore */ }
+  });
+})();
+</script>
+
+
+<script>
+// v6 robust enhancer: kin chips + numeric chips, resilient to redraws
+(function(){
+  function enhance(){
+    var table = document.getElementById('raceTable');
+    if (!table || !table.tHead || !table.tBodies.length) return;
+    var TB = table.tBodies[0];
+    if (!TB.rows.length) return;
+
+    var headers = Array.from(table.tHead.rows[0].cells).map(th => (th.textContent||'').trim().toUpperCase());
+    function colIndex(names){
+      names = Array.isArray(names)? names : [names];
+      for (var i=0;i<headers.length;i++){
+        var h = headers[i];
+        for (var j=0;j<names.length;j++){
+          if (h.includes(names[j].toUpperCase())) return i;
+        }
+      }
+      return -1;
+    }
+
+    var idxKin = colIndex(['KIN','ORIGIN']);
+    var numericPattern = /(RESISTANCE|DEFENSE|DISPERSION|STRENGTH|DEXTERITY|POWER|STAMINA|FORTITUDE)/;
+
+    Array.from(TB.rows).forEach(function(tr){
+      if (idxKin >= 0){
+        var td = tr.cells[idxKin];
+        if (td && !td.dataset.kinChip){
+          var val = (td.textContent||'').trim();
+          if (val){
+            var cls = 'kin-' + val.toLowerCase().replace(/\s+/g,'-');
+            td.innerHTML = '<span class="kin-chip '+cls+'">'+val+'</span>';
+            td.dataset.kinChip = '1';
+          }
+        }
+      }
+      for (var c=0;c<tr.cells.length;c++){
+        var head = headers[c] || '';
+        if (numericPattern.test(head)){
+          var cell = tr.cells[c];
+          if (!cell) continue;
+          if (cell.dataset.numChip) continue;
+          var raw = (cell.textContent||'').replace('%','').trim();
+          if (!raw) continue;
+          var num = parseFloat(raw);
+          if (isNaN(num)) continue;
+          var cls = num>0 ? 'pos' : (num<0 ? 'neg' : 'zero');
+          cell.innerHTML = '<span class="num-chip '+cls+'">'+cell.textContent.trim()+'</span>';
+          cell.dataset.numChip = '1';
+        }
+      }
+    });
+  }
+
+  function init(){
+    var table = document.getElementById('raceTable');
+    if (!table) return;
+
+    // try at intervals while table stabilizes
+    enhance();
+    setTimeout(enhance, 200);
+    setTimeout(enhance, 600);
+    setTimeout(enhance, 1200);
+
+    // DataTables redraw hook, if present
+    try{
+      if (window.jQuery && jQuery.fn && jQuery.fn.dataTable){
+        jQuery(table).on('draw.dt', enhance);
+      }
+    }catch(e){}
+
+    // Mutation observer on tbody as fallback
+    try{
+      var tb = table.tBodies[0];
+      var mo = new MutationObserver(function(){ enhance(); });
+      mo.observe(tb, {childList:true, subtree:true});
+    }catch(e){}
+  }
+
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+
+
+<script>
+// v7 boosters: delegated draw hook and visibility re-run
+(function(){
+  function enhance(){ if (window.__racesEnhance) window.__racesEnhance(); }
+  document.addEventListener('visibilitychange', enhance);
+  try{
+    if (window.jQuery){
+      jQuery(document).on('draw.dt', '#raceTable', enhance);
+    }
+  }catch(e){}
+})();
+</script>

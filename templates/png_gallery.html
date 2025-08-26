@@ -1,0 +1,19 @@
+{% extends "layout.html" %}
+{% block title %}Hexes{% endblock %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-4">Hexes</h1>
+
+{# Upload removed. Just display PNGs found in static/pngs/ #}
+
+{% if png_files %}
+<div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+  {% for f in png_files %}
+  <div class="group relative rounded-xl overflow-hidden bg-white/5 p-3 flex items-center justify-center">
+    <img src="{{ url_for('static', filename='pngs/' + f) }}" alt="{{ f }}" class="w-full h-auto transition-transform duration-300 ease-out group-hover:scale-110" loading="lazy">
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p>No PNGs found. Put your hex images into <code>static/pngs/</code> and refresh.</p>
+{% endif %}
+{% endblock %}
