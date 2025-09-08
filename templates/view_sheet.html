@@ -81,6 +81,72 @@
 <body>
   <a class="button top-right" href="/">← Back to Home</a>
   <h1>{{ sheet }}</h1>
+{% if sheet == 'Skills' %}
+  <div style="text-align:center; margin: 1rem 0 1.5rem;">
+    <a id="openSkillTree" class="button" href="#">Skill Tree</a>
+  </div>
+
+  <!-- Modal -->
+  <div id="skillTreeModal" class="st-modal" aria-modal="true" role="dialog">
+    <div class="st-modal__content">
+      <button id="closeSkillTree" class="st-close" aria-label="Close">&times;</button>
+      <div class="st-images">
+        <img src="{{ url_for('static', filename='skill_tree/skill_tree_1.png') }}" alt="Skill Tree 1">
+        <img src="{{ url_for('static', filename='skill_tree/skill_tree_2.png') }}" alt="Skill Tree 2">
+      </div>
+    </div>
+  </div>
+
+  <style>
+  /* OVERRIDES: stack vertically + fill width */
+  .st-modal{
+    position:fixed; inset:0; background:rgba(0,0,0,.92);
+    display:none; align-items:center; justify-content:center;
+    z-index:2000; padding:2rem; overflow:auto;  /* allow vertical scroll */
+  }
+  .st-modal.show{ display:flex; }
+
+  .st-modal__content{
+    width: min(1400px, 96vw);   /* use almost full viewport width */
+    max-height:none;            /* let content be taller than the viewport */
+    overflow:visible;
+    position:relative; background:transparent; margin:auto;
+  }
+
+  .st-images{
+    display:flex; flex-direction:column; gap:1rem;  /* vertical stack */
+  }
+
+  .st-images img{
+    width:100%; height:auto; display:block;         /* fill width, keep aspect ratio */
+    border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+
+  .st-close{
+    position:absolute; top:.5rem; right:.5rem; font-size:28px; line-height:1;
+    background:#111; border:1px solid #444; color:#fff; border-radius:8px;
+    padding:.2rem .6rem; cursor:pointer;
+  }
+</style>
+
+
+  <script>
+    (function () {
+      const modal = document.getElementById('skillTreeModal');
+      const open  = document.getElementById('openSkillTree');
+      const close = document.getElementById('closeSkillTree');
+
+      function show(){ modal.classList.add('show'); document.body.style.overflow = 'hidden'; }
+      function hide(){ modal.classList.remove('show'); document.body.style.overflow = ''; }
+
+      open.addEventListener('click', (e)=>{ e.preventDefault(); show(); });
+      close.addEventListener('click', hide);
+      modal.addEventListener('click', (e) => { if (e.target === modal) hide(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+    })();
+  </script>
+{% endif %}
+
 
 {% if sheet in ["The Informatorium", "Items", "Gear"] %}
   <div class="search-bar">

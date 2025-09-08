@@ -123,6 +123,14 @@ PNG_UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'pngs')
 # Factions images live here:
 FACTIONS_FOLDER = os.path.join(app.root_path, 'static', 'factions')
 
+# Entities & Landmarks image folders
+ENTITIES_FOLDER  = os.path.join(app.root_path, 'static', 'entities')
+LANDMARKS_FOLDER = os.path.join(app.root_path, 'static', 'landmarks')
+os.makedirs(ENTITIES_FOLDER, exist_ok=True)
+os.makedirs(LANDMARKS_FOLDER, exist_ok=True)
+XP_FOLDER = os.path.join(app.root_path, 'static', 'xp')
+os.makedirs(XP_FOLDER, exist_ok=True)
+
 # ------------------------------------------------------------------------------
 # Data / Excel loading
 # ------------------------------------------------------------------------------
@@ -225,7 +233,11 @@ def home():
         {"label": "Hexes", "endpoint": "png_gallery"},
         # Factions
         {"label": "Factions", "endpoint": "factions_gallery"},
-    ]
+	{"label": "Entities",  "endpoint": "entities_gallery"},
+	{"label": "Landmarks", "endpoint": "landmarks_gallery"},
+	{"label": "Xp-Chart", "endpoint": "xp_gallery"},
+	{"label": "Game Guide", "endpoint": "guide"},
+   ]
 
     def _safe_url(endpoint, **kwargs):
         try:
@@ -255,6 +267,32 @@ def home():
         data_buttons.append(resolved)
 
     return render_template("dashboard.html", data_buttons=data_buttons, generators=generator_sheets)
+
+@app.route("/entities")
+@app.route("/Entities")
+@login_required
+def entities_gallery():
+    files = []
+    if os.path.isdir(ENTITIES_FOLDER):
+        files = sorted([f for f in os.listdir(ENTITIES_FOLDER) if f.lower().endswith(".png")])
+    return render_template("entities_gallery.html", png_files=files)
+
+@app.route("/landmarks")
+@app.route("/Landmarks")
+@login_required
+def landmarks_gallery():
+    files = []
+    if os.path.isdir(LANDMARKS_FOLDER):
+        files = sorted([f for f in os.listdir(LANDMARKS_FOLDER) if f.lower().endswith(".png")])
+    return render_template("landmarks_gallery.html", png_files=files)
+
+@app.route("/xp")
+@login_required
+def xp_gallery():
+    files = []
+    if os.path.isdir(XP_FOLDER):
+        files = sorted([f for f in os.listdir(XP_FOLDER) if f.lower().endswith(".png")])
+    return render_template("xp.html", png_files=files)   # template is lowercase
 
 @app.route("/view/<sheet>")
 @login_required
@@ -363,6 +401,13 @@ def view_notion_db(db):
         return f"{db} database not found.", 404
     df = pd.read_csv(path).fillna("N/A")
     return render_template("notion_table.html", db=db, headers=df.columns.tolist(), rows=df.values.tolist())
+
+@app.route("/guide")
+@login_required
+def guide():
+    # you can later switch to multiple files (e.g. ?p=intro.md)
+    return render_template("guide.html", guide_file="guide/guide.md")
+
 
 @app.route("/classes-view")
 @login_required
