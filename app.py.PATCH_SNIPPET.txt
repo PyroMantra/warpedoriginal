@@ -1,12 +1,19 @@
-# --- PATCH: Hexes route path ---
-# Find your existing gallery route that looks like:
-#   @app.route("/png-gallery")
-# and replace it with this version so the URL is /hexes.
-@app.route("/hexes")
+
+# --- Factions gallery (similar to Hexes) ---
+FACTIONS_FOLDER = os.path.join(app.root_path, 'static', 'factions')
+
+@app.route("/factions")
 @login_required
-def png_gallery():
-    os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
-    files = [f for f in os.listdir(PNG_UPLOAD_FOLDER) if f.lower().endswith(".png")]
+def factions_gallery():
+    os.makedirs(FACTIONS_FOLDER, exist_ok=True)
+    files = [f for f in os.listdir(FACTIONS_FOLDER)
+             if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
     files.sort()
-    return render_template("png_gallery.html", png_files=files)
-# --- END PATCH ---
+    return render_template("factions_gallery.html", png_files=files)
+
+# In home(), add a button entry:
+# data_buttons = [
+#   ... existing items ...,
+#   {"label": "Factions", "endpoint": "factions_gallery"}
+# ]
+# -------------------------------------------

@@ -1,45 +1,94 @@
 {% extends "layout.html" %}
 {% block title %}Dashboard{% endblock %}
+
+{% macro tile(btn, badge_class='from-amber-400 to-orange-500') %}
+  {% set href = (
+    url_for('view_sheet', sheet=btn.arg) if btn.endpoint == 'view_sheet' and btn.get('arg') else
+    url_for('view_notion_db', db=btn.arg) if btn.endpoint == 'view_notion_db' and btn.get('arg') else
+    url_for(btn.endpoint)
+  ) %}
+  <a href="{{ href }}"
+     class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-orange-400/60 transition focus:outline-none focus:ring-2 focus:ring-orange-400/80">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br {{ badge_class }} text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+        {{ btn.label[0] }}
+      </div>
+      <div class="truncate">
+        <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+          {{ btn.label }}
+        </div>
+        <div class="text-xs text-white/50">Open</div>
+      </div>
+    </div>
+  </a>
+{% endmacro %}
+
 {% block content %}
+<div class="max-w-7xl mx-auto">
 
-<style>
-/* Fallback styling to ensure pill buttons even if external CSS rules changed */
-.buttons { display:flex; flex-wrap:wrap; gap:12px; margin:8px 0 18px; }
-.buttons .button {
-  display:inline-block;
-  padding:10px 14px;
-  border-radius:12px;
-  background:rgba(255,255,255,0.07);
-  color:#fff;
-  text-decoration:none;
-  line-height:1;
-  box-shadow:0 1px 0 rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.05);
-  transition:background .18s ease, transform .02s ease;
-}
-.buttons .button:hover { background:rgba(255,255,255,0.14); }
-.buttons .button:active { transform:translateY(1px); }
-</style>
+  <!-- DATA -->
+  <section class="mb-12">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Data</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+      {% for btn in data_buttons %}
+        {% set name = (btn.label or '')|lower %}
+        {% if name not in ['races', 'classes', 'factions'] %}
+          {{ tile(btn) }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
 
-<h2 class="section-title">Data</h2>
-<div class="buttons">
-{% for btn in data_buttons %}
-  {# Hide any legacy Hexes entries that point to sheets/Notion #}
-  {% if (btn.endpoint == 'view_sheet' and btn.arg == 'Hexes') or (btn.endpoint == 'view_notion_db' and btn.arg == 'Hexes') %}
-  {% else %}
-    {% set href = btn.href if btn.href else (url_for('view_notion_db', db=btn.arg) if btn.endpoint == 'view_notion_db' else (url_for('view_sheet', sheet=btn.arg) if btn.endpoint == 'view_sheet' else url_for(btn.endpoint))) %}
-    <a class="button" href="{{ href }}">
-      {{ 'Hexes' if btn.endpoint == 'png_gallery' else btn.label }}
-    </a>
-  {% endif %}
-{% endfor %}
+  <!-- CHARACTER -->
+  <section class="mb-12">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Character</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+      {% for btn in data_buttons %}
+        {% set name = (btn.label or '')|lower %}
+        {% if name in ['races', 'classes', 'factions'] %}
+          {{ tile(btn, 'from-violet-400 to-fuchsia-500') }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- GENERATORS -->
+  <section class="mb-6">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Generators</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+
+      <a href="{{ url_for('potion_generator') }}"
+         class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-emerald-400/60 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">P</div>
+          <div class="truncate">
+            <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+              Potions
+            </div>
+            <div class="text-xs text-white/50">Mix & match</div>
+          </div>
+        </div>
+      </a>
+
+      {% for g in generators %}
+        <a href="{{ url_for('generate', sheet=g) }}"
+           class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+              {{ (g|string)[0] }}
+            </div>
+            <div class="truncate">
+              <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+                {{ g }}
+              </div>
+              <div class="text-xs text-white/50">Generate</div>
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+
+    </div>
+  </section>
+
 </div>
-
-<h2 class="section-title">Generators</h2>
-<div class="buttons">
-  <a class="button" href="{{ url_for('potion_generator') }}">Potions</a>
-  {% for g in generators %}
-    <a class="button" href="{{ url_for('generate', sheet=g) }}">{{ g }}</a>
-  {% endfor %}
-</div>
-
 {% endblock %}

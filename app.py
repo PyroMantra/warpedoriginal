@@ -1,5 +1,4 @@
-﻿
-import os
+﻿import os
 import re
 import html
 import random
@@ -44,9 +43,9 @@ app.config.update(
 if not os.environ.get('GOOGLE_CLIENT_ID') or not os.environ.get('GOOGLE_CLIENT_SECRET'):
     print('[WARN] GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET are not set in your shell.')
     print('       In PowerShell, run:')
-    print('       $env:GOOGLE_CLIENT_ID=\"your_client_id\"')
-    print('       $env:GOOGLE_CLIENT_SECRET=\"your_client_secret\"')
-    print('       $env:OAUTHLIB_INSECURE_TRANSPORT=\"1\"   # local only')
+    print('       $env:GOOGLE_CLIENT_ID="your_client_id"')
+    print('       $env:GOOGLE_CLIENT_SECRET="your_client_secret"')
+    print('       $env:OAUTHLIB_INSECURE_TRANSPORT="1"   # local only')
 app.secret_key = "supersecretkey"
 
 # Google OAuth via env
@@ -111,12 +110,18 @@ def init_auth_db():
 
 init_auth_db()
 
+# ------------------------------------------------------------------------------
+# Gallery folders / helpers
+# ------------------------------------------------------------------------------
+ALLOWED_EXTENSIONS = {'png'}
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
+# Hexes images live here:
 PNG_UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'pngs')
-ALLOWED_EXTENSIONS = {'png'}
+# Factions images live here:
+FACTIONS_FOLDER = os.path.join(app.root_path, 'static', 'factions')
 
 # ------------------------------------------------------------------------------
 # Data / Excel loading
@@ -216,19 +221,11 @@ def home():
         {"label": "Clarifications", "endpoint": "view_sheet", "arg": "Clarifications & Mechanics"},
         {"label": "Items", "endpoint": "view_sheet", "arg": "Items"},
         {"label": "Gear", "endpoint": "view_sheet", "arg": "Gear"},
-        {"label": "PNG Gallery", "endpoint": "png_gallery", "new_tab": True},
+        # Hexes (no new tab)
+        {"label": "Hexes", "endpoint": "png_gallery"},
+        # Factions
+        {"label": "Factions", "endpoint": "factions_gallery"},
     ]
-
-    # Add Hexes
-    try:
-        if "Hexes" in sheets:
-            logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
-        elif os.path.exists(os.path.join("static", "notion", "Hexes.csv")):
-            logical.append({"label": "Hexes", "endpoint": "view_notion_db", "arg": "Hexes"})
-        else:
-            logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
-    except Exception:
-        logical.append({"label": "Hexes", "endpoint": "view_sheet", "arg": "Hexes"})
 
     def _safe_url(endpoint, **kwargs):
         try:
@@ -307,8 +304,12 @@ def potion_generator():
         selected_ings_map={f"ingredient{i+1}": selected[i] if i < len(selected) else "" for i in range(10)},
     )
 
+# ------------------------ Galleries ------------------------
 
+# Hexes gallery (PNG files only). Added friendly aliases /hexes and /Hexes
 @app.route("/png-gallery")
+@app.route("/hexes")
+@app.route("/Hexes")
 @login_required
 def png_gallery():
     os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
@@ -316,25 +317,20 @@ def png_gallery():
     files.sort()
     return render_template("png_gallery.html", png_files=files)
 
-@app.route("/png-gallery/upload", methods=["POST"])
+# (Upload route removed per your request)
+
+# Factions gallery (PNG files only)
+@app.route("/factions")
+@app.route("/Factions")  # optional alias
 @login_required
-def png_gallery_upload():
-    os.makedirs(PNG_UPLOAD_FOLDER, exist_ok=True)
-    if 'files' not in request.files:
-        return redirect(url_for('png_gallery'))
-    files = request.files.getlist('files')
-    for file in files:
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            dest = os.path.join(PNG_UPLOAD_FOLDER, filename)
-            base, ext = os.path.splitext(filename)
-            i = 1
-            while os.path.exists(dest):
-                filename = f"{base}_{i}{ext}"
-                dest = os.path.join(PNG_UPLOAD_FOLDER, filename)
-                i += 1
-            file.save(dest)
-    return redirect(url_for('png_gallery'))
+def factions_gallery():
+    os.makedirs(FACTIONS_FOLDER, exist_ok=True)
+    files = [f for f in os.listdir(FACTIONS_FOLDER) if f.lower().endswith(".png")]
+    files.sort()
+    return render_template("factions_gallery.html", png_files=files)
+
+# ------------------------ Tables/Views ------------------------
+
 @app.route("/races-table")
 @login_required
 def races_table():
@@ -623,9 +619,9 @@ def on_chat_message(data):
     msg = {"id": mid, "user": user, "text": text, "ts": datetime.utcnow().isoformat()}
     CHAT_HISTORY.append(msg)
     emit("chat_message", msg, to="global")
+
 # ------------------------------------------------------------------------------
 # Entrypoint
-
 # ------------------------------------------------------------------------------
 if __name__ == "__main__":
     print("ATP DEBUG: starting server")
