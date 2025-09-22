@@ -233,11 +233,13 @@ def home():
         {"label": "Hexes", "endpoint": "png_gallery"},
         # Factions
         {"label": "Factions", "endpoint": "factions_gallery"},
-	{"label": "Entities",  "endpoint": "entities_gallery"},
-	{"label": "Landmarks", "endpoint": "landmarks_gallery"},
-	{"label": "Xp-Chart", "endpoint": "xp_gallery"},
-	{"label": "Game Guide", "endpoint": "guide"},
-   ]
+        {"label": "Entities", "endpoint": "entities_gallery"},
+        {"label": "Landmarks", "endpoint": "landmarks_gallery"},
+        {"label": "Xp-Chart", "endpoint": "xp_gallery"},
+        {"label": "Game Guide", "endpoint": "guide"},
+        {"label": "Quests", "endpoint": "view_sheet", "arg": "Quests"},
+        # NOTE: removed {"label": "Random Quest", "endpoint": "quest_generator"} from Data
+    ]
 
     def _safe_url(endpoint, **kwargs):
         try:
@@ -263,10 +265,14 @@ def home():
                 href = _safe_url(btn["endpoint"])
         else:
             href = _safe_url(btn["endpoint"])
-        resolved = dict(btn); resolved["href"] = href
+        resolved = dict(btn)
+        resolved["href"] = href
         data_buttons.append(resolved)
 
-    return render_template("dashboard.html", data_buttons=data_buttons, generators=generator_sheets)
+    # Add Random Quests to the Generators section
+    generators = generator_sheets + ["Random Quests"]
+
+    return render_template("dashboard.html", data_buttons=data_buttons, generators=generators)
 
 @app.route("/entities")
 @app.route("/Entities")
@@ -286,6 +292,110 @@ def landmarks_gallery():
         files = sorted([f for f in os.listdir(LANDMARKS_FOLDER) if f.lower().endswith(".png")])
     return render_template("landmarks_gallery.html", png_files=files)
 
+@app.route("/quest-generator")
+@login_required
+def quest_generator():
+    import numpy as np
+    sheet_name = "Quests"
+
+    if sheet_name not in sheets:
+        return "The 'Quests' sheet was not found in your Excel.", 404
+    df = sheets[sheet_name].dropna(how="all").copy()
+    if df.empty:
+        return "No quests found in the 'Quests' sheet."
+
+    # --- find columns (case-insensitive) ---
+    def find_col_by_keywords(keywords):
+        kws = {k.lower() for k in keywords}
+        for c in df.columns:
+            if str(c).strip().lower() in kws:
+                return c
+        return None
+
+    # Prefer Name/Title for the card heading (template still falls back if missing)
+    title_col = find_col_by_keywords({"name", "title"})
+
+    # Objective text we want to display under the title
+    objective_col = find_col_by_keywords({
+        "requirement", "requirements", "objective", "objectives",
+        "task", "tasks", "goal", "goals", "description"
+    })
+    # If none of those exist, try "Quest" (but not if it's the title itself)
+    if objective_col is None:
+        qcol = find_col_by_keywords({"quest"})
+        if qcol and qcol != title_col:
+            objective_col = qcol
+
+    # Difficulty handling
+    diff_col = find_col_by_keywords({"difficulty"})
+
+    # formatter (hide .0)
+    def fmt_cell(x):
+        if pd.isna(x):
+            return ""
+        if isinstance(x, (int, np.integer)):
+            return str(x)
+        if isinstance(x, (float, np.floating)):
+            if np.isfinite(x) and float(x).is_integer():
+                return str(int(x))
+            return str(x)
+        return str(x)
+
+    note = None
+    picks = []
+
+    if diff_col is None:
+        note = "No Difficulty column found — showing any 3 quests."
+        picks = df.sample(n=min(3, len(df))).to_dict(orient="records")
+    else:
+        # normalize difficulty
+        def norm(s):
+            s = str(s).strip().lower()
+            if s in ("easy", "e", "ez", "beginner", "low"):
+                return "Easy"
+            if s in ("medium", "normal", "mid", "moderate", "m", "avg"):
+                return "Medium"
+            if s in ("hard", "difficult", "h", "high"):
+                return "Hard"
+            return str(s).title() if s else "Unspecified"
+
+        df["_norm_diff"] = df[diff_col].apply(norm)
+
+        targets = ["Easy", "Medium", "Hard"]
+        chosen_idx = set()
+
+        for t in targets:
+            sub = df[df["_norm_diff"] == t]
+            if not sub.empty:
+                row = sub.sample(n=1)
+                chosen_idx.add(row.index[0])
+                picks.append(row.iloc[0].to_dict())
+
+        if len(picks) < 3:
+            remaining = df[~df.index.isin(chosen_idx)]
+            if not remaining.empty:
+                extra = remaining.sample(n=min(3 - len(picks), len(remaining)))
+                for _, r in extra.iterrows():
+                    picks.append(r.to_dict())
+
+    # format & drop helper
+    formatted = []
+    for row in picks:
+        out = {k: fmt_cell(v) for k, v in row.items()}
+        out.pop("_norm_diff", None)
+        formatted.append(out)
+
+    columns = list(df.columns)  # preserve original order
+
+    return render_template(
+        "quests_random.html",
+        quests=formatted,
+        columns=columns,
+        req_col=objective_col,   # <-- the actual “what to do”
+        title_col=title_col,     # (optional, in case you want to use it)
+        note=note
+    )
+
 @app.route("/xp")
 @login_required
 def xp_gallery():
@@ -294,22 +404,103 @@ def xp_gallery():
         files = sorted([f for f in os.listdir(XP_FOLDER) if f.lower().endswith(".png")])
     return render_template("xp.html", png_files=files)   # template is lowercase
 
+
+# … other imports …
+
+import numpy as np
+import pandas as pd
+
 @app.route("/view/<sheet>")
 @login_required
 def view_sheet(sheet):
     if sheet not in sheets:
         return f"Sheet '{sheet}' not found.", 404
-    df = sheets[sheet].fillna("").astype(str)
-    return render_template("view_sheet.html", sheet=sheet, headers=df.columns.tolist(), rows=df.values.tolist())
+
+    # hide .0 for integers
+    def fmt_cell(x):
+        if pd.isna(x):
+            return ""
+        if isinstance(x, (int, np.integer)):
+            return str(x)
+        if isinstance(x, (float, np.floating)):
+            if np.isfinite(x) and float(x).is_integer():
+                return str(int(x))
+            return str(x)
+        return str(x)
+
+    df = sheets[sheet].copy()
+    df = df.applymap(fmt_cell)
+
+    # default payloads
+    row_colors = None
+    kin_legend = None
+    col_colors = None
+    headers_with_colors = None
+    rows_with_colors = None
+
+    if sheet.strip().upper() == "LEGACY":
+        KIN_COLORS = {
+            "LIVING":    {"bg": "#2a2a23", "border": "#494936", "chip": "#3a3a2d"},
+            "FAE":       {"bg": "#232a2f", "border": "#364954", "chip": "#2b3840"},
+            "CONSTRUCT": {"bg": "#2a272f", "border": "#4a4457", "chip": "#353044"},
+            "UNDEAD":    {"bg": "#2f262a", "border": "#574149", "chip": "#402d34"},
+            "DEMON":     {"bg": "#312524", "border": "#5a3c39", "chip": "#442f2c"},
+            "DIVINE":    {"bg": "#292b2f", "border": "#434651", "chip": "#33363f"},
+        }
+        DEFAULT_COLOR = {"bg": "#242424", "border": "#3a3a3a", "chip": "#2c2c2c"}
+
+        headers_list = df.columns.tolist()
+
+        # per-column colors (keep first column neutral)
+        col_colors = []
+        for i, h in enumerate(headers_list):
+            if i == 0:
+                col_colors.append(DEFAULT_COLOR)
+            else:
+                key = str(h).strip().upper()
+                col_colors.append(KIN_COLORS.get(key, DEFAULT_COLOR))
+
+        # legend from headers (skip first col)
+        kin_legend = [{"kin": h, **KIN_COLORS.get(str(h).strip().upper(), DEFAULT_COLOR)}
+                      for h in headers_list[1:]]
+
+        # pre-zip (no Jinja |zip needed)
+        headers_with_colors = list(zip(headers_list, col_colors))
+        rows_with_colors = [list(zip(row, col_colors)) for row in df.values.tolist()]
+
+    return render_template(
+        "view_sheet.html",
+        sheet=sheet,
+        headers=df.columns.tolist(),
+        rows=df.values.tolist(),
+        row_colors=row_colors,
+        kin_legend=kin_legend,
+        col_colors=col_colors,
+        headers_with_colors=headers_with_colors,
+        rows_with_colors=rows_with_colors,
+    )
+
+
+from urllib.parse import unquote
 
 @app.route("/generate/<sheet>")
 @login_required
 def generate(sheet):
+    # normalize the name coming from the URL
+    s = unquote(sheet).strip().lower()
+
+    # Special-case: our custom generator that's NOT an Excel "Generator" sheet
+    if s in ("random quests", "random quest", "quests random"):
+        return quest_generator()  # reuse your route that picks 3 quests
+
+    # --- existing behavior for Excel-based generators ---
     if sheet not in generator_sheets:
         return f"'{sheet}' is not a generator sheet.", 403
+
     df = sheets[sheet].dropna(how="all")
     if df.empty:
         return "No data to generate."
+
     random_row = df.sample(n=1).to_dict(orient="records")[0]
     return render_template("generator.html", sheet=sheet, row=random_row)
 

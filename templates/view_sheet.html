@@ -3,152 +3,52 @@
 <head>
   <title>{{ sheet }}</title>
   <style>
-    body {
-      background-color: #1a1a1a;
-      color: #f0f0f0;
-      font-family: sans-serif;
-      padding: 2rem;
-    }
+    body { background-color: #1a1a1a; color: #f0f0f0; font-family: sans-serif; padding: 2rem; }
+    a.button { display:inline-block; padding:8px 16px; background:#444; color:#fff; border-radius:6px; margin-bottom:1rem; text-decoration:none; }
+    a.button:hover { background:#666; }
+    a.top-right { position:absolute; top:1.5rem; right:2rem; }
+    h1 { margin-bottom:1rem; }
 
-    a.button {
-      display: inline-block;
-      padding: 8px 16px;
-      background: #444;
-      color: white;
-      border-radius: 6px;
-      margin-bottom: 1rem;
-      text-decoration: none;
-    }
+    .search-bar { margin-bottom:1rem; }
+    .search-bar input[type="text"] { padding:.5rem; width:400px; background:#333; color:#fff; border:1px solid #777; border-radius:4px; }
 
-    a.button:hover {
-      background: #666;
-    }
+    table { width:100%; border-collapse:collapse; table-layout:fixed; }
+    th, td { border:1px solid #555; padding:10px; text-align:left; white-space:normal; word-wrap:break-word; overflow-wrap:break-word; }
+    th { background:#3a3a3a; }
+    tr:nth-child(even) td { background:#222; }
 
-    a.top-right {
-      position: absolute;
-      top: 1.5rem;
-      right: 2rem;
-    }
+    /* compact first column */
+    .legacy-table th:first-child,
+.legacy-table td:first-child { width:3%; max-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    td, th { overflow:hidden; text-overflow:ellipsis; }
 
-    h1 {
-      margin-bottom: 1rem;
-    }
+/* Only Resonance = 5% */
+.resonance-table th:first-child,
+.resonance-table td:first-child {
+  width: 5%;
+  max-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    .search-bar {
-      margin-bottom: 1rem;
-    }
+.mastery-table th:first-child,
+.mastery-table td:first-child {
+  width: 5%;
+  max-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    .search-bar input[type="text"] {
-      padding: 0.5rem;
-      width: 400px;
-      background: #333;
-      color: white;
-      border: 1px solid #777;
-      border-radius: 4px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    th, td {
-      border: 1px solid #555;
-      padding: 10px;
-      text-align: left;
-      white-space: normal;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      background-color: #2a2a2a;
-    }
-
-    th {
-      background-color: #3a3a3a;
-    }
-
-    tr:nth-child(even) td {
-      background-color: #222;
-    }
-
-    th:first-child,
-    td:first-child {
-      width: 20%;
-    }
   </style>
-<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
 </head>
 <body>
   <a class="button top-right" href="/">← Back to Home</a>
   <h1>{{ sheet }}</h1>
-{% if sheet == 'Skills' %}
-  <div style="text-align:center; margin: 1rem 0 1.5rem;">
-    <a id="openSkillTree" class="button" href="#">Skill Tree</a>
-  </div>
 
-  <!-- Modal -->
-  <div id="skillTreeModal" class="st-modal" aria-modal="true" role="dialog">
-    <div class="st-modal__content">
-      <button id="closeSkillTree" class="st-close" aria-label="Close">&times;</button>
-      <div class="st-images">
-        <img src="{{ url_for('static', filename='skill_tree/skill_tree_1.png') }}" alt="Skill Tree 1">
-        <img src="{{ url_for('static', filename='skill_tree/skill_tree_2.png') }}" alt="Skill Tree 2">
-      </div>
-    </div>
-  </div>
-
-  <style>
-  /* OVERRIDES: stack vertically + fill width */
-  .st-modal{
-    position:fixed; inset:0; background:rgba(0,0,0,.92);
-    display:none; align-items:center; justify-content:center;
-    z-index:2000; padding:2rem; overflow:auto;  /* allow vertical scroll */
-  }
-  .st-modal.show{ display:flex; }
-
-  .st-modal__content{
-    width: min(1400px, 96vw);   /* use almost full viewport width */
-    max-height:none;            /* let content be taller than the viewport */
-    overflow:visible;
-    position:relative; background:transparent; margin:auto;
-  }
-
-  .st-images{
-    display:flex; flex-direction:column; gap:1rem;  /* vertical stack */
-  }
-
-  .st-images img{
-    width:100%; height:auto; display:block;         /* fill width, keep aspect ratio */
-    border-radius:8px; box-shadow:0 8px 30px rgba(0,0,0,.5);
-  }
-
-  .st-close{
-    position:absolute; top:.5rem; right:.5rem; font-size:28px; line-height:1;
-    background:#111; border:1px solid #444; color:#fff; border-radius:8px;
-    padding:.2rem .6rem; cursor:pointer;
-  }
-</style>
-
-
-  <script>
-    (function () {
-      const modal = document.getElementById('skillTreeModal');
-      const open  = document.getElementById('openSkillTree');
-      const close = document.getElementById('closeSkillTree');
-
-      function show(){ modal.classList.add('show'); document.body.style.overflow = 'hidden'; }
-      function hide(){ modal.classList.remove('show'); document.body.style.overflow = ''; }
-
-      open.addEventListener('click', (e)=>{ e.preventDefault(); show(); });
-      close.addEventListener('click', hide);
-      modal.addEventListener('click', (e) => { if (e.target === modal) hide(); });
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
-    })();
-  </script>
-{% endif %}
-
-
-{% if sheet in ["The Informatorium", "Items", "Gear"] %}
+  {% if sheet in ["The Informatorium", "Items", "Gear", "Quests"] %}
   <div class="search-bar">
     <input type="text" id="search" placeholder="Search {{ sheet }}...">
   </div>
@@ -158,61 +58,66 @@
       const rows = document.querySelectorAll("table tbody tr");
       input.addEventListener("input", () => {
         const term = input.value.toLowerCase();
-        rows.forEach(row => {
-          row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none";
-        });
+        rows.forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? "" : "none"; });
       });
     });
   </script>
-{% endif %}
+  {% endif %}
 
-  <table>
+  {% if kin_legend %}
+  <div class="kin-legend" style="display:flex;flex-wrap:wrap;gap:8px 12px;margin:8px 0 14px;align-items:center;">
+    <strong style="margin-right:8px;">Kin legend:</strong>
+    {% for item in kin_legend %}
+      <span class="kin-chip" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;border:1px solid {{ item.border }};background:{{ item.chip }};font-size:0.9rem;white-space:nowrap;">
+        <span class="kin-swatch" style="width:14px;height:14px;border-radius:3px;border:1px solid {{ item.border }};background:{{ item.bg }};"></span>
+        {{ item.kin }}
+      </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+<table class="
+  {% if sheet.strip().upper() == 'LEGACY' %}legacy-table{% endif %}
+  {% if sheet.strip().upper() == 'RESONANCE' %} resonance-table{% endif %}
+  {% if sheet.strip().upper() == 'MASTERY' %} mastery-table{% endif %}
+">
+
+
     <thead>
       <tr>
-        {% for header in headers %}
-          <th>{{ header }}</th>
-        {% endfor %}
+        {% if headers_with_colors %}
+          {% for h, cc in headers_with_colors %}
+            <th style="background: {{ cc.bg }}; border-bottom-color: {{ cc.border }};">{{ h }}</th>
+          {% endfor %}
+        {% else %}
+          {% for h in headers %}
+            <th>{{ h }}</th>
+          {% endfor %}
+        {% endif %}
       </tr>
     </thead>
     <tbody>
-      {% for row in rows %}
-        <tr>
-          {% for cell in row %}
-            <td>{{ cell }}</td>
-          {% endfor %}
-        </tr>
-      {% endfor %}
+      {% if rows_with_colors %}
+        {% for row in rows_with_colors %}
+          <tr>
+            {% for cell, cc in row %}
+              <td style="background: {{ cc.bg }}; border-bottom-color: {{ cc.border }};">{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% else %}
+        {% for row in rows %}
+          <tr>
+            {% for cell in row %}
+              <td>{{ cell }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      {% endif %}
     </tbody>
   </table>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
-<script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
-<script data-brand-fallback="1">
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
-    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
-      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
-      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
-    }
-  });
-});
-</script>
-</div>
-</div>
-</div>
-</div>
-<div id="global-chat">
-  <div class="chat-header">
-    <div class="title">Global Chat</div>
-    <div class="controls">
-      <button id="chat-min" class="btn" type="button">–</button>
-    </div>
-  </div>
-  <div id="chat-messages"></div>
-  <form id="chat-form">
-    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
-    <button id="chat-send" type="submit">Send</button>
-  </form>
-</div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
+  <script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
 </body>
-</html>

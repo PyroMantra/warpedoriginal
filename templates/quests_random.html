@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Random Quests</title>
+  <style>
+    body { background:#1a1a1a; color:#f0f0f0; font-family:system-ui, sans-serif; padding:2rem; }
+    a.button { display:inline-block; padding:8px 16px; background:#444; color:#fff; border-radius:6px; margin-bottom:1rem; text-decoration:none; }
+    a.button:hover { background:#666; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:16px; }
+    .card { background:#242424; border:1px solid #3a3a3a; border-radius:12px; padding:16px; }
+    .card h3 { margin:0 0 8px; font-size:1.1rem; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; border:1px solid #4a4a4a; background:#2e2e2e; font-size:.85rem; margin-left:8px; }
+    .row { margin:.3rem 0; }
+    .k { color:#b0b0b0; margin-right:6px; }
+  </style>
+</head>
+<body>
+  <a class="button" href="/">← Back to Home</a>
+  <h1>Random Quests</h1>
+  {% if note %}<div style="margin:.5rem 0 1rem; color:#ffdb7d;">{{ note }}</div>{% endif %}
+  <div class="grid">
+    {% for q in quests %}
+    <div class="card">
+  <h3>
+    {{ q.get(title_col) or q.get('Name') or q.get('Title') or q.get('Quest') or 'Quest' }}
+    {% if q.get('Difficulty') %}<span class="pill">{{ q.get('Difficulty') }}</span>{% endif %}
+  </h3>
+
+  {# Show the actual quest objective/requirement if we found the column #}
+  {% if req_col and q.get(req_col) %}
+    <div class="row"><span class="k">Quest:</span> <span class="v">{{ q.get(req_col) }}</span></div>
+  {% endif %}
+
+  <div class="rows">
+   {% for col in columns %}
+  {# case-insensitive check for "Difficulty", and skip helper/title/objective columns #}
+  {% set col_l = (col|string)|lower %}
+  {% if col != '_norm_diff'
+        and col_l != 'difficulty'
+        and col != title_col
+        and (not req_col or col != req_col) %}
+    {% set val = q.get(col) %}
+    {% if val not in [None, '', 'nan', 'NaN'] %}
+      <div class="row"><span class="k">{{ col }}:</span> <span class="v">{{ val }}</span></div>
+    {% endif %}
+  {% endif %}
+{% endfor %}
+  </div>
+</div>
+
+
+    {% endfor %}
+  </div>
+</body>
+</html>
