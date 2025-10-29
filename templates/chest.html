@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+{% block title %}Chest Generator{% endblock %}
+{% block content %}
+
+<h1>Chest Generator</h1>
+
+<div class="flex justify-end mb-3">
+  <button id="refresh-chest"
+          class="rounded-md px-3 py-1.5 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition">
+    🔄 Refresh
+  </button>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <!-- LEFT COLUMN: Chest -->
+  <div>
+    <h2 class="mb-2 text-white/75 text-base">Chest</h2>
+    <div class="space-y-2.5">
+      {% for sec in results.left %}
+      {% set gid = 'L' ~ loop.index0 %}
+      <div class="rounded-xl p-3 bg-white/[4%] ring-1 ring-white/10">
+        <!-- Header (compact) -->
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10.5px] text-white/70 uppercase tracking-wide">
+            Roll {{ sec.range }}
+          </span>
+          <button
+            data-copy-both
+            data-gear-id="gear-text-{{ gid }}"
+            data-item-id="item-text-{{ gid }}"
+            class="copy-btn rounded-md px-2.5 py-1 text-[11.5px] bg-white/5 ring-1 ring-white/10 hover:ring-white/20">
+            Copy
+          </button>
+        </div>
+
+        <!-- Content row (very light, aligned like merchant) -->
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2">
+          <!-- Gear -->
+          <div class="p-2">
+            <div class="text-[11.5px] text-white/60 mb-1">Gear ({{ sec.gear.rarity }})</div>
+            <div id="gear-text-{{ gid }}" class="text-[15px] font-semibold text-white whitespace-pre-wrap leading-snug">
+              {{ sec.gear.name }}
+            </div>
+          </div>
+
+          <!-- Item -->
+          <div class="p-2 sm:border-l sm:border-white/10">
+            <div class="text-[11.5px] text-white/60 mb-1">Item ({{ sec.item.rarity }})</div>
+            <div id="item-text-{{ gid }}" class="text-[15px] font-semibold text-white whitespace-pre-wrap leading-snug">
+              {{ sec.item.name }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: Legendary Chest -->
+  <div>
+    <h2 class="mb-2 text-white/75 text-base">Legendary Chest</h2>
+    <div class="space-y-2.5">
+      {% for sec in results.right %}
+      {% set gid = 'R' ~ loop.index0 %}
+      <div class="rounded-xl p-3 bg-white/[4%] ring-1 ring-white/10">
+        <div class="flex items-center justify-between">
+          <span class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10.5px] text-white/70 uppercase tracking-wide">
+            Roll {{ sec.range }}
+          </span>
+          <button
+            data-copy-both
+            data-gear-id="gear-text-{{ gid }}"
+            data-item-id="item-text-{{ gid }}"
+            class="copy-btn rounded-md px-2.5 py-1 text-[11.5px] bg-white/5 ring-1 ring-white/10 hover:ring-white/20">
+            Copy
+          </button>
+        </div>
+
+        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2">
+          <div class="p-2">
+            <div class="text-[11.5px] text-white/60 mb-1">Gear ({{ sec.gear.rarity }})</div>
+            <div id="gear-text-{{ gid }}" class="text-[15px] font-semibold text-white whitespace-pre-wrap leading-snug">
+              {{ sec.gear.name }}
+            </div>
+          </div>
+          <div class="p-2 sm:border-l sm:border-white/10">
+            <div class="text-[11.5px] text-white/60 mb-1">Item ({{ sec.item.rarity }})</div>
+            <div id="item-text-{{ gid }}" class="text-[15px] font-semibold text-white whitespace-pre-wrap leading-snug">
+              {{ sec.item.name }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+  /* keep global attribute-content hacks from leaking into buttons */
+  .copy-btn::before, .copy-btn::after { content: '' !important; display: none !important; }
+</style>
+
+<script>
+  // Refresh (cache-busting param)
+  document.getElementById('refresh-chest').addEventListener('click', function () {
+    const u = new URL('{{ url_for("chest_page") }}', window.location.origin);
+    u.searchParams.set('_', Date.now());
+    window.location.href = u.toString();
+  });
+
+  // One button per card: copy "GEAR + ITEM"
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-copy-both]');
+    if (!btn) return;
+    const gear = document.getElementById(btn.getAttribute('data-gear-id'));
+    const item = document.getElementById(btn.getAttribute('data-item-id'));
+    const text = (gear ? gear.innerText.trim() : '') + ' + ' + (item ? item.innerText.trim() : '');
+    try {
+      await navigator.clipboard.writeText(text);
+      flash(btn, 'Copied!');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      flash(btn, 'Copied!');
+    }
+  });
+
+  function flash(btn, msg) {
+    const old = btn.textContent;
+    btn.textContent = msg;
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 800);
+  }
+</script>
+
+{% endblock %}

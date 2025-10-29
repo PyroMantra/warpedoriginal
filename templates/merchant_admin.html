@@ -1,0 +1,100 @@
+{% extends "layout.html" %}
+{% block title %}Gear Presence{% endblock %}
+{% block content %}
+<h1>Legendary & Mythic Gear</h1>
+<p>Click a name to enable/disable it in the merchant pool.</p>
+
+<div class="toolbar">
+  <input id="filter" placeholder="Filter by name…" autocomplete="off" />
+  <div class="seg">
+    <button class="segbtn active" data-view="all">All</button>
+    <button class="segbtn" data-view="on">Enabled</button>
+    <button class="segbtn" data-view="off">Disabled</button>
+  </div>
+</div>
+
+{% set groups = ['Mythic', 'Legendary'] %}
+{% for grp in groups %}
+  <h2 class="group">{{ grp }}</h2>
+  <div class="chipbox">
+    {% for g in gear if g.rarity == grp %}
+      <button
+        class="chip {{ 'on' if g.enabled else 'off' }}"
+        data-name="{{ g.name }}"
+        data-state="{{ 'on' if g.enabled else 'off' }}"
+        aria-label="{{ g.rarity }}{% if g.is_artifact %} • Artifact{% endif %}"
+      ><span class="label">{{ g.display }}</span></button>
+    {% endfor %}
+  </div>
+{% endfor %}
+
+<style>
+  .toolbar { display:flex; gap:12px; align-items:center; margin: 10px 0 12px; flex-wrap: wrap; }
+  #filter { padding: 8px 10px; min-width: 240px; border: 1px solid #3a3a3a; border-radius: 8px; background: transparent; color: inherit; }
+  .seg { display:flex; gap:4px; }
+  .segbtn { all: unset; cursor: pointer; padding: 6px 10px; border:1px solid #3a3a3a; border-radius: 8px; }
+  .segbtn.active { background: #2a2a2a; }
+  .group { margin: 14px 0 6px; font-size: 1.1rem; opacity: .85; }
+
+  .chipbox { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; margin-bottom: 16px; }
+
+  /* pill button, and nuke any global pseudo-elements */
+  .chip { all: unset; display: inline-flex; align-items: center; cursor: pointer;
+          padding: 8px 12px; border-radius: 9999px; border: 1px solid #404040;
+          background: #111; color: #e5e7eb; line-height: 1.2; }
+  .chip::before, .chip::after { content: '' !important; display: none !important; }
+
+  .chip.on  { background: #0d271a; border-color: #34d399; color: #d1fae5; }
+  .chip.off { background: #2a1414; border-color: #f87171; color: #fee2e2; }
+  .chip:focus-visible { outline: 2px solid #888; outline-offset: 2px; }
+
+  .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+
+<script>
+  // Toggle
+  document.addEventListener('click', async (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const name = chip.dataset.name;
+    chip.style.opacity = .6; chip.style.pointerEvents = 'none';
+    try {
+      const res = await fetch('{{ url_for("merchant_admin_toggle") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'name=' + encodeURIComponent(name)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Toggle failed');
+      const isOn = !!data.enabled;
+      chip.classList.toggle('on',  isOn);
+      chip.classList.toggle('off', !isOn);
+      chip.dataset.state = isOn ? 'on' : 'off';
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      chip.style.opacity = ''; chip.style.pointerEvents = '';
+    }
+  });
+
+  // Filter text + state
+  const input = document.getElementById('filter');
+  const seg = document.querySelector('.seg');
+  let view = 'all';
+  function applyFilters() {
+    const q = (input.value || '').toLowerCase();
+    document.querySelectorAll('.chip').forEach(chip => {
+      const matchesText = chip.textContent.toLowerCase().includes(q);
+      const matchesState = (view === 'all') || (chip.dataset.state === view);
+      chip.style.display = (matchesText && matchesState) ? '' : 'none';
+    });
+  }
+  input.addEventListener('input', applyFilters);
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('.segbtn'); if (!b) return;
+    seg.querySelectorAll('.segbtn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); view = b.dataset.view; applyFilters();
+
+  });
+</script>
+{% endblock %}

@@ -45,6 +45,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
 </head>
 <body>
+
   <a class="button top-right" href="/">← Back to Home</a>
   <h1>{{ sheet }}</h1>
 
@@ -79,6 +80,12 @@
       background:#111; border:1px solid #444; color:#fff; border-radius:8px;
       padding:.2rem .6rem; cursor:pointer;}
   </style>
+
+<script>
+  window.CURRENT_USER_NAME = "{{ current_user_name }}";
+  window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='admin_menu.js') }}?v=2"></script>
 
   <script>
     (function () {

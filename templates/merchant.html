@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+{% block title %}Merchant Offer{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('home') }}" style="color:#f9a855; text-decoration:none;">← Back</a>
+<div class="flex justify-end mb-3">
+  <button id="refresh-merchant"
+          class="rounded-lg px-3 py-1.5 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition">
+    🔄 Refresh
+  </button>
+</div>
+
+<div class="grid" style="display:grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-top: 0.75rem;">
+  <!-- Gear column -->
+  <div class="card" style="background:#222; border:1px solid #3a3a3a; border-radius:12px; padding:14px;">
+    <h2 style="margin:0 0 8px; color:#fff; font-size:18px;">Gear</h2>
+
+    {% for section in ["common","uncommon","rare","epic","legendary","legendary_artifact","mythic"] %}
+      {% set header = section.replace('_',' ').title() %}
+      <div style="margin-top:12px; color:#bbb; font-size:12px;">{{ header }}</div>
+
+      {% for r in results.gear[section] %}
+        <div style="margin-top:6px; background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; color:#eaeaea;">
+          <div style="display:flex; justify-content:space-between; gap:10px;">
+            <span>{{ r.name }}</span>
+            <span style="color:#f0c06a; white-space:nowrap;">{{ r.gold }} Gold</span>
+          </div>
+        </div>
+      {% else %}
+        <div style="margin-top:6px; color:#666; font-size:12px;">—</div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <!-- Items column -->
+  <div class="card" style="background:#222; border:1px solid #3a3a3a; border-radius:12px; padding:14px;">
+    <h2 style="margin:0 0 8px; color:#fff; font-size:18px;">Items</h2>
+
+    {% for section in ["common", "uncommon", "rare","epic","legendary","mythic"] %}
+      <div style="margin-top:12px; color:#bbb; font-size:12px;">{{ section.title() }}</div>
+
+      {% for r in results["items"][section] %}
+        <div style="margin-top:6px; background:#2a2a2a; border:1px solid #444; border-radius:8px; padding:10px; color:#eaeaea;">
+          <div style="display:flex; justify-content:space-between; gap:10px;">
+            <span>{{ r.name }}</span>
+            <span style="color:#f0c06a; white-space:nowrap;">{{ r.gold }} Gold</span>
+          </div>
+        </div>
+      {% else %}
+        <div style="margin-top:6px; color:#666; font-size:12px;">—</div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+<script>
+  // Force a fresh GET (with a cache-busting param) to re-randomize the shop
+  document.getElementById('refresh-merchant').addEventListener('click', function () {
+    const u = new URL('{{ url_for("merchant_page") }}', window.location.origin);
+    u.searchParams.set('_', Date.now());
+    window.location.href = u.toString();
+  });
+
+  // Optional: press "r" to refresh (without Ctrl/⌘)
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      document.getElementById('refresh-merchant').click();
+    }
+  });
+</script>
+
+{% endblock %}

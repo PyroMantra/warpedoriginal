@@ -110,6 +110,23 @@ def init_auth_db():
 
 init_auth_db()
 
+def is_admin():
+    # read allow-lists from env (comma separated)
+    allow_emails = {e.strip().lower() for e in os.getenv("ADMIN_EMAILS", "").split(",") if e.strip()}
+    allow_users  = {u.strip().lower() for u in os.getenv("ADMIN_USERNAMES", "").split(",") if u.strip()}
+
+    email = (session.get("email") or "").strip().lower()
+    uname = (session.get("username") or "").strip().lower()
+
+
+    return (email and email in allow_emails) or (uname and uname in allow_users)
+
+import admin_ext
+admin_ext.init_admin(app, get_db)
+
+
+
+
 # ------------------------------------------------------------------------------
 # Gallery folders / helpers
 # ------------------------------------------------------------------------------
@@ -137,6 +154,10 @@ os.makedirs(XP_FOLDER, exist_ok=True)
 EXCEL_PATH = os.path.join("data", "Layer List (7).xlsx")
 sheets = pd.read_excel(EXCEL_PATH, sheet_name=None)
 
+
+import merchant_ext
+merchant_ext.init_merchant(app, get_db, sheets)
+
 # Remove non-generic sheets from general viewer:
 sheets = {k: v for k, v in sheets.items() if k not in ["Classes", "Races", "Abilities"]}
 
@@ -153,6 +174,8 @@ def _display_name_from_session():
         if email:
             name = email.split("@")[0]
     return name or "Adventurer"
+
+
 
 @app.before_request
 def hydrate_username_in_session():
@@ -209,6 +232,9 @@ def __envcheck():
         "OAUTHLIB_INSECURE_TRANSPORT": os.getenv("OAUTHLIB_INSECURE_TRANSPORT", "missing"),
     }
 
+
+
+
 @app.route("/")
 @login_required
 def home():
@@ -239,7 +265,9 @@ def home():
         {"label": "Game Guide", "endpoint": "guide"},
         {"label": "Quests", "endpoint": "view_sheet", "arg": "Quests"},
         # NOTE: removed {"label": "Random Quest", "endpoint": "quest_generator"} from Data
+
     ]
+
 
     def _safe_url(endpoint, **kwargs):
         try:
@@ -269,10 +297,18 @@ def home():
         resolved["href"] = href
         data_buttons.append(resolved)
 
-    # Add Random Quests to the Generators section
-    generators = generator_sheets + ["Random Quests"]
+     # Add Random Quests to the Generators section
+    # and REMOVE Potions from the loop (we render it manually for admins)
+    generators = [g for g in generator_sheets if g.strip().lower() != "potions"]
+    generators.append("Random Quests")
 
-    return render_template("dashboard.html", data_buttons=data_buttons, generators=generators)
+    return render_template(
+        "dashboard.html",
+        data_buttons=data_buttons,
+        generators=generators,
+        show_potions=is_admin(),   # admin-only manual Potions card
+    )
+
 
 @app.route("/entities")
 @app.route("/Entities")
@@ -505,7 +541,6 @@ def generate(sheet):
     return render_template("generator.html", sheet=sheet, row=random_row)
 
 @app.route("/potion-generator")
-@login_required
 def potion_generator():
     potion_df = pd.read_excel("static/Book 10.xlsx", sheet_name="Sheet1")
     potion_map = {
@@ -557,6 +592,84 @@ def factions_gallery():
     files = [f for f in os.listdir(FACTIONS_FOLDER) if f.lower().endswith(".png")]
     files.sort()
     return render_template("factions_gallery.html", png_files=files)
+
+
+# =====================
+# ADMIN ROLES - app.py
+# =====================
+
+def _ensure_is_admin_column():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(users)")
+    cols = [r[1] for r in cur.fetchall()]
+    if "is_admin" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    conn.close()
+
+_ensure_is_admin_column()
+
+def _bootstrap_admins_from_env():
+    emails = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS","").split(",") if e.strip()]
+    if not emails: return
+    conn = get_db()
+    cur = conn.cursor()
+    for e in emails:
+        cur.execute("UPDATE users SET is_admin=1 WHERE lower(email)=?", (e,))
+    conn.commit(); conn.close()
+
+_bootstrap_admins_from_env()
+
+@app.before_request
+def hydrate_username_in_session():
+    try:
+        if session.get("user_id") and (not session.get("username") or 'is_admin' not in session):
+            conn = get_db()
+            cur = conn.cursor()
+            cur.execute("SELECT username, email, is_admin FROM users WHERE id = ?", (session['user_id'],))
+            u = cur.fetchone(); conn.close()
+            if u:
+                if u["username"]:
+                    session["username"] = u["username"]
+                if u["email"] and not session.get("email"):
+                    session["email"] = u["email"]
+                session["is_admin"] = bool(u["is_admin"])
+    except Exception:
+        pass
+
+@app.context_processor
+def inject_current_user_display():
+    name = session.get("username") or (session.get("email").split("@")[0] if session.get("email") else "Adventurer")
+    return {"current_user_name": name, "username": name, "display_name": name, "is_admin": bool(session.get("is_admin"))}
+
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("login"))
+        if not session.get("is_admin"):
+            return "Admins only.", 403
+        return f(*args, **kwargs)
+    return wrapper
+
+    conn = get_db(); cur = conn.cursor()
+    if make == 0:
+        cur.execute("SELECT COUNT(*) FROM users WHERE is_admin=1")
+        cnt = cur.fetchone()[0]
+        if cnt <= 1 and user_id == me:
+            conn.close()
+            return redirect(url_for('admin_panel', msg="Cannot remove the last remaining admin (yourself)."))
+
+    cur.execute("UPDATE users SET is_admin=? WHERE id=?", (make, user_id))
+    conn.commit(); conn.close()
+
+    if user_id == me:
+        session["is_admin"] = bool(make)
+
+    return redirect(url_for('admin_panel', msg="Updated."))
+
+
 
 # ------------------------ Tables/Views ------------------------
 
@@ -815,7 +928,7 @@ if "healthz_ok" not in app.view_functions and "healthz" not in app.view_function
 # ------------------------------------------------------------------------------
 @app.route("/whoami")
 def whoami():
-    return f"logged in as: {session.get('username') or session.get('email') or 'anonymous'}"
+    return f"user_id={session.get('user_id')}, username={session.get('username')}, email={session.get('email')}, is_admin={is_admin()}"
 
 @app.route("/__routes__")
 def list_routes():

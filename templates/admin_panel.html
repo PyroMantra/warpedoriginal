@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin • Manage Users</title>
+  <style>
+    body{background:#121212;color:#eee;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:24px}
+    a.button,button{display:inline-block;padding:8px 14px;border-radius:8px;border:1px solid #3a3a3a;background:#242424;color:#fff;text-decoration:none;cursor:pointer}
+    a.button:hover,button:hover{background:#2f2f2f}
+    table{width:100%;border-collapse:collapse;margin-top:16px}
+    th,td{border:1px solid #333;padding:10px;text-align:left}
+    th{background:#1f1f1f}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #444;background:#2a2a2a;font-size:.85rem}
+    .ok{background:#244c2a;border-color:#3c7a42}
+    .no{background:#4c2424;border-color:#7a3c3c}
+    .row-actions{display:flex;gap:8px;align-items:center}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Admin • Manage Users</h1>
+    <a class="button" href="{{ url_for('home') }}">← Back to Home</a>
+  </div>
+  {% if message %}
+    <div style="background:#244c2a;border:1px solid #3c7a42;padding:10px;border-radius:8px;margin-bottom:12px">{{ message }}</div>
+  {% endif %}
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>Email</th><th>Username</th><th>Created</th><th>Admin</th><th style="width:220px">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.email or '—' }}</td>
+        <td>{{ u.username or '—' }}</td>
+        <td>{{ u.created_at or '—' }}</td>
+        <td>{% if u.is_admin %}<span class="pill ok">admin</span>{% else %}<span class="pill no">user</span>{% endif %}</td>
+        <td>
+          <form class="row-actions" method="post" action="{{ url_for('admin_toggle', user_id=u.id) }}" onsubmit="return confirm('Are you sure?');">
+            {% if u.is_admin %}
+              <button type="submit" name="make" value="0">Remove admin</button>
+            {% else %}
+              <button type="submit" name="make" value="1">Make admin</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

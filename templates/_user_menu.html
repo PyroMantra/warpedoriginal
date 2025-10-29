@@ -1,0 +1,26 @@
+{# Reusable top-right user menu. Include near top of your templates. #}
+<style>
+.umenu{position:fixed;top:12px;right:16px;z-index:1500}
+.umenu .btn{padding:8px 12px;border-radius:999px;background:#2b2b2b;border:1px solid #3a3a3a;color:#fff;cursor:pointer}
+.umenu .dd{display:none;position:absolute;right:0;margin-top:8px;background:#1f1f1f;border:1px solid #333;border-radius:10px;min-width:220px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.umenu .dd a{display:block;color:#fff;text-decoration:none;padding:10px 12px;border-bottom:1px solid #2a2a2a}
+.umenu .dd a:last-child{border-bottom:none}
+.umenu.open .dd{display:block}
+</style>
+<div class="umenu" id="umenu">
+  <button class="btn">{{ current_user_name }}</button>
+  <div class="dd" role="menu">
+    {% if is_admin %}
+      <a href="{{ url_for('admin_panel') }}">⚙️ Admin Panel</a>
+    {% endif %}
+    <a href="{{ url_for('logout') }}">🚪 Log out</a>
+  </div>
+</div>
+<script>
+(function(){
+  const m=document.getElementById('umenu');
+  if(!m) return;
+  m.querySelector('.btn').addEventListener('click',()=>m.classList.toggle('open'));
+  document.addEventListener('click',e=>{ if(!m.contains(e.target)) m.classList.remove('open'); });
+})();
+</script>

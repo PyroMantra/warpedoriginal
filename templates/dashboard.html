@@ -23,6 +23,8 @@
   </a>
 {% endmacro %}
 
+
+
 {% block content %}
 <div class="max-w-7xl mx-auto">
 
@@ -52,42 +54,113 @@
     </div>
   </section>
 
+<script>
+  window.CURRENT_USER_NAME = "{{ current_user_name }}";
+  window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='admin_menu.js') }}?v=2"></script>
+
+
   <!-- GENERATORS -->
   <section class="mb-6">
     <h2 class="text-xl font-semibold text-white/90 mb-3">Generators</h2>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
 
-      <a href="{{ url_for('potion_generator') }}"
-         class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-emerald-400/60 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
-        <div class="flex items-center gap-3">
-          <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">P</div>
-          <div class="truncate">
-            <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
-              Potions
-            </div>
-            <div class="text-xs text-white/50">Mix & match</div>
-          </div>
-        </div>
-      </a>
 
-      {% for g in generators %}
-        <a href="{{ url_for('generate', sheet=g) }}"
-           class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
-              {{ (g|string)[0] }}
-            </div>
-            <div class="truncate">
-              <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
-                {{ g }}
-              </div>
-              <div class="text-xs text-white/50">Generate</div>
-            </div>
-          </div>
-        </a>
-      {% endfor %}
+      {# existing generator tiles from 'generators' #}
+{% for g in generators %}
+  <a href="{{ url_for('generate', sheet=g) }}"
+     class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+        {{ (g|string)[0] }}
+      </div>
+      <div class="truncate">
+        <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+          {{ g }}
+        </div>
+        <div class="text-xs text-white/50">Generate</div>
+      </div>
+    </div>
+  </a>
+{% endfor %}
+
+
+
+<a href="{{ url_for('merchant_generator') if false else '/merchant' }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      M
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Merchant
+      </div>
+      <div class="text-xs text-white/50">Generate</div>
+    </div>
+  </div>
+</a>
+
+
+{# Potions visible to everyone #}
+<a href="{{ url_for('potion_generator') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-emerald-400/60 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      P
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Potions
+      </div>
+      <div class="text-xs text-white/50">Mix &amp; match</div>
+    </div>
+  </div>
+</a>
+
+<a href="{{ url_for('chest_page') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-blue-500/20 text-blue-300 font-extrabold flex items-center justify-center shadow-md">
+      C
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Chest
+      </div>
+      <div class="text-xs text-white/50">Gear + Item by roll</div>
+    </div>
+  </div>
+</a>
 
     </div>
+{% if is_admin %}
+  <!-- Administration -->
+  <h2 class="mt-8 mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">
+    Administration
+  </h2>
+
+  <!-- Match the same grid classes as Generators -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+    <!-- Gear Presence tile (copy of your tiles' style) -->
+    <a href="{{ url_for('merchant_admin_page') }}"
+       class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-emerald-500/20 text-emerald-300 font-extrabold flex items-center justify-center shadow-md">
+          G
+        </div>
+        <div class="truncate">
+          <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+            Gear Presence
+          </div>
+          <div class="text-xs text-white/50">Toggle Legendary/Mythic availability</div>
+        </div>
+      </div>
+    </a>
+  </div>
+{% endif %}
+
   </section>
 
 </div>
