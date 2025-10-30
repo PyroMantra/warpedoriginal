@@ -9,10 +9,8 @@ import os
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # EDIT THESE:
-HARDCODED_ADMINS = {"danyellye99@yahoo.com}
-    "you@example.com",        # <-- put your email(s) here
-    # "second@example.com",
-}
+HARDCODED_ADMINS = {"danyellye99@yahoo.com"}
+
 # If you also want to force by user_id (e.g., id=1 is always admin), add here:
 FORCE_ADMIN_USER_IDS = set()  # e.g., {1}
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
