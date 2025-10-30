@@ -1,38 +1,45 @@
-# admin_ext.py — env-driven admin roles (with DB toggles)
+# admin_ext.py — hardcoded admins (with optional env + DB toggles)
 # Usage (in app.py):
 #   import admin_ext
-#   admin_ext.init_admin(app, get_db)   # call once after app is created
+#   admin_ext.init_admin(app, get_db)
 
 from flask import session, redirect, url_for, render_template, request
 from functools import wraps
 import os
 
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# EDIT THESE:
+HARDCODED_ADMINS = {"danyellye99@yahoo.com"}
+    "you@example.com",        # <-- put your email(s) here
+    # "second@example.com",
+}
+# If you also want to force by user_id (e.g., id=1 is always admin), add here:
+FORCE_ADMIN_USER_IDS = set()  # e.g., {1}
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
 def init_admin(app, get_db):
     """
     Admin model:
-      - Anyone listed in ADMIN_EMAILS (comma-separated) is ALWAYS admin.
+      - Anyone in HARDCODED_ADMINS (or FORCE_ADMIN_USER_IDS) is ALWAYS admin.
+      - ADMIN_EMAILS env is also supported (merged with hardcoded list).
       - users.is_admin (DB) grants additional admins via /admin toggle.
-      - session['is_admin'] is hydrated on every request.
-      - `is_admin` is injected into templates.
-      - /admin and /admin/toggle/<id> routes included.
-
-    ADMIN_EMAILS examples:
-      "you@gmail.com"
-      "you@gmail.com, other@proton.me, admin@myco.co"
+      - session['is_admin'] hydrated on every request.
+      - is_admin injected into templates.
+      - /admin and /admin/toggle/<id> included.
     """
 
-    # ---------- helpers ----------
-    def _env_admins():
-        # Read fresh each time (cheap) to avoid stale values after redeploys
-        return {
-            e.strip().lower()
-            for e in os.getenv("ADMIN_EMAILS", "").split(",")
-            if e.strip()
-        }
+    # -------- baseline admins: hardcoded + env (merged) --------
+    ENV_ADMINS = {
+        e.strip().lower()
+        for e in os.getenv("ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    }
+    BASELINE_EMAIL_ADMINS = {e.strip().lower() for e in HARDCODED_ADMINS if e.strip()} | ENV_ADMINS
+    BASELINE_ID_ADMINS = set(FORCE_ADMIN_USER_IDS)
 
+    # ---------------- DB column ensure ----------------
     def _ensure_is_admin_column():
-        """Create users.is_admin if missing (safe if it already exists)."""
         conn = get_db()
         cur = conn.cursor()
         try:
@@ -46,13 +53,12 @@ def init_admin(app, get_db):
 
     _ensure_is_admin_column()
 
+    # ---------------- email lookup helpers ----------------
     def _email_from_session() -> str:
-        # Common direct keys
         for key in ("email", "user_email"):
             v = (session.get(key) or "").strip()
             if v:
                 return v.lower()
-        # Sometimes apps stash a user dict
         u = session.get("user")
         if isinstance(u, dict):
             v = (u.get("email") or "").strip()
@@ -76,45 +82,45 @@ def init_admin(app, get_db):
             conn.close()
 
     def _current_email() -> str:
-        # Prefer session; fall back to DB by user_id
         return _email_from_session() or _email_from_db()
 
-    # ---------- hydrate session flag each request ----------
+    # ---------------- hydrate session flag ----------------
     @app.before_request
     def _hydrate_admin_flag():
         try:
+            uid = session.get("user_id")
             email = _current_email()
-            env_admins = _env_admins()
 
-            if email and email in env_admins:
+            # Hardcoded / env baseline wins
+            if (email and email in BASELINE_EMAIL_ADMINS) or (uid in BASELINE_ID_ADMINS):
                 session["is_admin"] = True
                 return
 
-            # Not env admin: fallback to DB flag if user_id is present
-            if session.get("user_id"):
+            # Otherwise fall back to DB flag (extra admins granted via UI)
+            if uid:
                 conn = get_db()
                 cur = conn.cursor()
-                cur.execute("SELECT COALESCE(is_admin,0) FROM users WHERE id=?", (session["user_id"],))
+                cur.execute("SELECT COALESCE(is_admin,0) FROM users WHERE id=?", (uid,))
                 row = cur.fetchone()
                 conn.close()
                 session["is_admin"] = bool(row[0]) if row else False
             else:
                 session["is_admin"] = False
         except Exception:
-            # Never block the request
+            # best effort, never block
             pass
 
-    # ---------- expose is_admin to templates ----------
+    # ---------------- inject into templates ----------------
     @app.context_processor
     def _inject_is_admin():
         return {"is_admin": bool(session.get("is_admin"))}
 
-    # ---------- decorator ----------
+    # ---------------- decorator ----------------
     def admin_required(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if not session.get("user_id"):
-                return redirect(url_for("login"))  # change if your login endpoint differs
+                return redirect(url_for("login"))  # adjust if needed
             if not session.get("is_admin"):
                 return "Admins only.", 403
             return f(*args, **kwargs)
@@ -122,12 +128,10 @@ def init_admin(app, get_db):
 
     app.admin_required = admin_required
 
-    # ---------- views ----------
+    # ---------------- views ----------------
     @app.route("/admin")
     @admin_required
     def admin_panel():
-        env_admins = _env_admins()
-
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
@@ -139,41 +143,43 @@ def init_admin(app, get_db):
 
         users = []
         for r in rows:
-            email = (r[1] or "").strip().lower()
-            is_env = email in env_admins
-            is_db = bool(r[4])
+            uid = r[0]
+            email_raw = r[1] or ""
+            email = email_raw.strip().lower()
+            env_or_hard = (email in BASELINE_EMAIL_ADMINS) or (uid in BASELINE_ID_ADMINS)
+            db_admin = bool(r[4])
             users.append({
-                "id": r[0],
-                "email": r[1],
+                "id": uid,
+                "email": email_raw,
                 "username": r[2],
                 "created_at": r[3],
-                "is_admin_env": is_env,
-                "is_admin_db": is_db,
-                "is_admin_effective": is_env or is_db,
+                "is_admin_baseline": env_or_hard,   # hardcoded OR env
+                "is_admin_db": db_admin,            # db toggle
+                "is_admin_effective": env_or_hard or db_admin,
             })
 
         return render_template(
             "admin_panel.html",
             users=users,
-            env_admins=sorted(env_admins),
+            baseline_emails=sorted(BASELINE_EMAIL_ADMINS),
+            baseline_ids=sorted(list(BASELINE_ID_ADMINS)),
+            message=request.args.get("msg", ""),
             error=None,
-            message=request.args.get("msg", "")
         )
 
     @app.route("/admin/toggle/<int:user_id>", methods=["POST"])
     @admin_required
     def admin_toggle(user_id):
         """
-        Toggle DB-based admin. You cannot demote:
-          - an env admin (listed in ADMIN_EMAILS), or
-          - the last remaining effective admin (env + db).
+        Toggle DB admin. You cannot demote:
+          - a baseline admin (hardcoded or env),
+          - the last remaining effective admin (baseline + db).
         """
         make = 1 if (request.form.get("make") == "1") else 0
 
         conn = get_db()
         cur = conn.cursor()
         try:
-            # Target info
             cur.execute("SELECT email, COALESCE(is_admin,0) FROM users WHERE id=?", (user_id,))
             row = cur.fetchone()
             if not row:
@@ -182,27 +188,25 @@ def init_admin(app, get_db):
 
             target_email = (row[0] or "").strip().lower()
             target_db_admin = bool(row[1])
-            env_admins = _env_admins()
+            target_is_baseline = (target_email in BASELINE_EMAIL_ADMINS) or (user_id in BASELINE_ID_ADMINS)
 
-            # Can't demote env admins via UI
-            if make == 0 and target_email in env_admins:
+            # Can't demote baseline admin via UI
+            if make == 0 and target_is_baseline:
                 conn.close()
-                return redirect(url_for("admin_panel", msg="Env admins cannot be removed here."))
+                return redirect(url_for("admin_panel", msg="Baseline admins cannot be removed here."))
 
             # Prevent removing the last effective admin
             if make == 0:
-                # count env admins
-                env_count = len(env_admins)
-                # count DB admins (excluding target if they currently are one)
+                baseline_count = len(BASELINE_EMAIL_ADMINS) + len(BASELINE_ID_ADMINS)
                 cur.execute("SELECT COUNT(*) FROM users WHERE is_admin=1")
                 db_count = (cur.fetchone()[0] or 0)
                 if target_db_admin:
                     db_count -= 1
-                if (env_count + db_count) <= 0:
+                if (baseline_count + db_count) <= 0:
                     conn.close()
                     return redirect(url_for("admin_panel", msg="Cannot remove the last remaining admin."))
 
-            # Apply DB toggle
+            # Toggle DB flag
             cur.execute("UPDATE users SET is_admin=? WHERE id=?", (make, user_id))
             conn.commit()
         finally:
