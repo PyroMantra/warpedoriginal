@@ -39,17 +39,25 @@ def init_admin(app, get_db):
     BASELINE_ID_ADMINS = set(FORCE_ADMIN_USER_IDS)
 
     # ---------------- DB column ensure ----------------
-    def _ensure_is_admin_column():
-        conn = get_db()
-        cur = conn.cursor()
-        try:
-            cur.execute("PRAGMA table_info(users)")
-            cols = [r[1] for r in cur.fetchall()]
-            if "is_admin" not in cols:
-                cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
-                conn.commit()
-        finally:
-            conn.close()
+   def _ensure_is_admin_column():
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # Only try to alter if the 'users' table exists
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        if not cur.fetchone():
+            return  # users table not created yet; skip
+
+        cur.execute("PRAGMA table_info(users)")
+        cols = [r[1] for r in cur.fetchall()]
+        if "is_admin" not in cols:
+            cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+    except Exception:
+        # Never let this break startup; it's best-effort
+        pass
+    finally:
+        conn.close()
 
     _ensure_is_admin_column()
 
