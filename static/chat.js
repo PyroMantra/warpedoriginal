@@ -264,7 +264,8 @@ gotHistory = true;
       }
       return null;
     }
-    var minimizeBtn = header.querySelector('[data-action="minimize"], .minimize') || findButtonByText(header, 'minimize');
+   var minimizeBtn = header.querySelector('#chat-min, [data-action="minimize"], .minimize')
+  || findButtonByText(header, 'minimize');
 
     // Restore minimized state
     try {
