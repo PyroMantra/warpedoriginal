@@ -79,7 +79,7 @@ print(f"[socketio] async_mode={ASYNC_MODE}")
 
 
 
-# -----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 # Auth DB
 DEFAULT_DB_PATH = os.path.join("data", "auth.db")
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
