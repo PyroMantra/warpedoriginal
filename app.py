@@ -81,14 +81,17 @@ print(f"[socketio] async_mode={ASYNC_MODE}")
 
 # ------------------------------------------------------------------------------
 # Auth DB
-# ------------------------------------------------------------------------------
-DB_PATH = os.path.join("data", "auth.db")
-os.makedirs("data", exist_ok=True)
+DEFAULT_DB_PATH = os.path.join("data", "auth.db")
+DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
+
+# make sure the folder exists
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_auth_db():
     conn = get_db()
@@ -123,9 +126,6 @@ def is_admin():
 
 import admin_ext
 admin_ext.init_admin(app, get_db)
-
-
-
 
 # ------------------------------------------------------------------------------
 # Gallery folders / helpers
@@ -233,7 +233,198 @@ def __envcheck():
     }
 
 
+# --- Biome Event Generator (reads: data/Layer List (7).xlsx -> events) -----
+from flask import render_template, request, jsonify
+import pandas as pd
+import random
+import os
 
+# Biomes list (includes Anywhere)
+BIOMES = [
+    "Grasslands","Sundune","Sakura","Frostreach","Volcanica",
+    "Grimwell","Elysian","Desolation","Bloodgrounds","Anywhere"
+]
+
+# Exact path to your Excel (relative to the app folder)
+EVENTS_XLSX = os.path.join(app.root_path, "data", "Layer List (7).xlsx")
+EVENTS_SHEET = "events"  # tab name
+
+def read_events_df() -> pd.DataFrame:
+    """Read the 'events' sheet and drop blank rows."""
+    if not os.path.exists(EVENTS_XLSX):
+        raise FileNotFoundError(f"Excel not found at {EVENTS_XLSX}")
+    try:
+        df = pd.read_excel(EVENTS_XLSX, sheet_name=EVENTS_SHEET, engine="openpyxl")
+    except Exception:
+        # fallback if openpyxl isn't installed
+        df = pd.read_excel(EVENTS_XLSX, sheet_name=EVENTS_SHEET)
+    return df.dropna(how="all")
+
+def _norm_key(s: str) -> str:
+    return "".join(ch for ch in str(s or "").lower() if ch.isalnum())
+
+def _find_col(df: pd.DataFrame, candidates) -> str | None:
+    """
+    Find a column name ignoring case/spacing/punctuation.
+
+    First try exact matches (normalized),
+    then fall back to substring matches so things like
+    'Event Description' will match 'Event' or 'Description'.
+    """
+    want_list = [_norm_key(c) for c in candidates]
+
+    # exact match
+    for col in df.columns:
+        col_key = _norm_key(col)
+        if col_key in want_list:
+            return col
+
+    # substring fallback
+    for col in df.columns:
+        col_key = _norm_key(col)
+        for w in want_list:
+            if not w:
+                continue
+            if w in col_key or col_key in w:
+                return col
+
+    return None
+
+
+def _pick_pool_80_20(df: pd.DataFrame, selected_biome: str) -> pd.DataFrame:
+    """Return either the Selected biome rows (80%) or Anywhere rows (20%)."""
+    biome_col = _find_col(df, ["Biome"])
+    if not biome_col:
+        raise ValueError("The 'events' sheet needs a 'Biome' column.")
+
+    key = str(selected_biome).strip().lower()
+    anywhere = df[df[biome_col].astype(str).str.strip().str.lower() == "anywhere"]
+    selected = df[df[biome_col].astype(str).str.strip().str.lower() == key]
+
+    # If user picked Anywhere, it's 100% Anywhere
+    if key == "anywhere":
+        return anywhere
+
+    # Graceful fallbacks if one side is empty
+    if selected.empty and anywhere.empty:
+        return df.iloc[0:0]
+    if selected.empty:
+        return anywhere
+    if anywhere.empty:
+        return selected
+
+    # 80% from selected, 20% from anywhere
+    return anywhere if random.random() < 0.20 else selected
+
+def _row_to_event(row: pd.Series, df_for_headers: pd.DataFrame) -> dict:
+    """Convert one Excel row into an event dictionary used by the API.
+
+    This version is intentionally very explicit:
+    - If there is a column literally called 'Event', we always take that as
+      the description.
+    - Otherwise we fall back to several candidate names and finally to
+      a heuristic pick of the first long text cell.
+    """
+    import pandas as _pd
+
+    # --- helper: first column from a list that actually exists in this row ---
+    def first_present(cols):
+        for c in cols:
+            if c and c in row.index:
+                return c
+        return None
+
+    # Prefer literal names, but still fall back to _find_col
+    num_col  = first_present(["Event #", "Event No"]) or _find_col(
+        df_for_headers, ["Event #", "Event Num", "Event Number", "#", "ID"]
+    )
+    name_col = first_present(["Name"]) or _find_col(
+        df_for_headers, ["Name", "Event Name", "Title"]
+    )
+    bio_col  = first_present(["Biome"]) or _find_col(
+        df_for_headers, ["Biome"]
+    )
+
+    # *** DESCRIPTION: ALWAYS prefer the 'Event' column ***
+    txt_col  = first_present(["Event"]) or _find_col(
+        df_for_headers,
+        [
+            "Event",
+            "Event Description",
+            "Description",
+            "Desc",
+            "Event Text",
+            "Text",
+            "Story",
+            "Flavor",
+            "Flavor Text",
+        ],
+    )
+
+    o1_col   = first_present(["Option 1"]) or _find_col(
+        df_for_headers, ["Option 1", "Opt 1", "Choice 1"]
+    )
+    o2_col   = first_present(["Option 2"]) or _find_col(
+        df_for_headers, ["Option 2", "Opt 2", "Choice 2"]
+    )
+    o3_col   = first_present(["Option 3"]) or _find_col(
+        df_for_headers, ["Option 3", "Opt 3", "Choice 3"]
+    )
+    o4_col   = first_present(["Option 4"]) or _find_col(
+        df_for_headers, ["Option 4", "Opt 4", "Choice 4"]
+    )
+
+    def v(col):
+        return (row[col] if col and col in row and not _pd.isna(row[col]) else None)
+
+    # --- description value with a last-resort heuristic ---
+    event_text = v(txt_col)
+
+    # If description is empty, grab the first "long" text cell that isn't
+    # the name, biome, number or an option.
+    if event_text is None or (isinstance(event_text, str) and not event_text.strip()):
+        ignore = {c for c in [num_col, name_col, bio_col, o1_col, o2_col, o3_col, o4_col] if c}
+        for col in df_for_headers.columns:
+            if col in ignore:
+                continue
+            val = row.get(col)
+            if isinstance(val, str) and len(val.strip()) >= 10:
+                event_text = val.strip()
+                break
+
+    return {
+        "eventNumber": v(num_col),
+        "name":        v(name_col),
+        "biome":       v(bio_col),
+        "eventText":   event_text,
+        "option1":     v(o1_col),
+        "option2":     v(o2_col),
+        "option3":     v(o3_col),
+        "option4":     v(o4_col),
+    }
+
+# ---- Page (no selection-mode dropdown needed) ----
+@app.route("/event-generator")
+@login_required
+def event_generator():
+    return render_template(
+        "event_generator.html",
+        biomes=BIOMES,
+        selected_biome=request.args.get("biome", "Grasslands"),
+    )
+
+# ---- API: one random event as JSON, with 80/20 weighting ----
+@app.route("/api/events/random")
+def api_events_random():
+    biome = request.args.get("biome", "Grasslands")
+    df = read_events_df()
+    pool = _pick_pool_80_20(df, biome)
+    if pool.empty:
+        return jsonify({"error": "No events found for that selection."}), 404
+
+    row = pool.sample(1).iloc[0]
+    return jsonify(_row_to_event(row, df))
+# ---------------------------------------------------------------------------
 
 @app.route("/")
 @login_required
@@ -264,6 +455,7 @@ def home():
         {"label": "Xp-Chart", "endpoint": "xp_gallery"},
         {"label": "Game Guide", "endpoint": "guide"},
         {"label": "Quests", "endpoint": "view_sheet", "arg": "Quests"},
+        {"label": "Bestiary", "endpoint": "bestiary"},
         # NOTE: removed {"label": "Random Quest", "endpoint": "quest_generator"} from Data
 
     ]
@@ -439,6 +631,95 @@ def xp_gallery():
     if os.path.isdir(XP_FOLDER):
         files = sorted([f for f in os.listdir(XP_FOLDER) if f.lower().endswith(".png")])
     return render_template("xp.html", png_files=files)   # template is lowercase
+
+@app.route("/bestiary")
+@login_required
+def bestiary():
+    sheet_name = "Bestiary"
+
+    if sheet_name not in sheets:
+        return "Sheet 'Bestiary' not found in the main Excel.", 404
+
+    df = sheets[sheet_name].copy()
+
+    # Clean headers and drop empty rows
+    df.columns = [str(c).strip() for c in df.columns]
+    df = df.dropna(how="all")
+
+    if "Character name" not in df.columns:
+        return "The Bestiary sheet needs a 'Character name' column.", 500
+
+    df = df[df["Character name"].notna()]
+
+    import pandas as pd
+
+    def fmt_cell(x):
+        if pd.isna(x):
+            return ""
+        if isinstance(x, (int, float)):
+            if isinstance(x, float) and float(x).is_integer():
+                return str(int(x))
+            return str(x)
+        return str(x)
+
+    df = df.applymap(fmt_cell)
+
+    raw_creatures = df.to_dict(orient="records")
+
+    # Excel headers for resistances
+    resistance_fields = [
+        "Light R", "Dark R", "Fire R", "Frost R",
+        "Wind R", "Earth R", "Lightning R", "Bleed R", "Poison R",
+    ]
+
+    # Fixed colors by element (roughly matching your Excel colors)
+    color_map = {
+        "Light":     "text-slate-200 border-slate-400/60 bg-slate-500/10",
+        "Dark":      "text-white border-white/60 bg-white/10",
+        "Fire":      "text-red-400 border-red-500/60 bg-red-500/10",
+        "Frost":     "text-sky-300 border-sky-500/60 bg-sky-500/10",
+        "Wind":      "text-teal-300 border-teal-500/60 bg-teal-500/10",
+        "Earth":     "text-amber-300 border-amber-500/60 bg-amber-500/10",
+        "Lightning": "text-yellow-300 border-yellow-500/60 bg-yellow-500/10",
+        "Bleed":     "text-rose-400 border-rose-500/60 bg-rose-500/10",
+        "Poison":    "text-emerald-400 border-emerald-500/60 bg-emerald-500/10",
+    }
+
+    formatted_creatures = []
+
+    for row in raw_creatures:
+        res_list = []
+
+        for key in resistance_fields:
+            raw_val = row.get(key, "")
+            if raw_val is None or raw_val == "":
+                continue
+
+            # parse numeric to percentage if possible
+            value_str = str(raw_val)
+            try:
+                val = float(str(raw_val))
+                pct = int(round(val * 100))    # e.g. 0.5 -> 50
+                value_str = f"{pct}%"
+            except ValueError:
+                pass  # leave value_str as-is if not numeric
+
+            label = key.replace(" R", "")     # "Light R" -> "Light"
+            css = color_map.get(label, "text-white border-white/25 bg-white/5")
+
+            res_list.append({
+                "label": label,
+                "value": value_str,
+                "css": css,
+            })
+
+        row["resistances"] = res_list
+        formatted_creatures.append(row)
+
+    return render_template(
+        "bestiary.html",
+        creatures=formatted_creatures,
+    )
 
 
 # … other imports …

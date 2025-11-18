@@ -1,0 +1,200 @@
+{% extends "layout.html" %}
+{% block title %}Biome Event Generator{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto p-6">
+  <a href="/" class="text-blue-400 hover:underline">&larr; Back</a>
+  <h1 class="text-2xl font-bold mt-2 mb-4">Biome Event Generator</h1>
+
+  <style>
+    /* keep the on-screen card crisp */
+    .smooth-text, #eventCard, #eventCard *{
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+      box-sizing: border-box;
+    }
+    #eventCard { overflow: hidden; padding-top: 14px !important; }
+
+    .chip-row { display:flex; align-items:center; gap:8px; }
+    .chip {
+      display:inline-flex; align-items:center; justify-content:center;
+      height:24px; padding:0 12px; border-radius:9999px; white-space:nowrap; line-height:24px;
+      font-variant-numeric: tabular-nums lining-nums; font-feature-settings: "tnum" 1, "lnum" 1;
+    }
+    .chip--biome { background:#525252; color:#fff; font-size:14px; }
+    .chip--num   { background:rgba(64,64,64,.7); color:#e5e7eb; font-size:12px; }
+
+    .event-title { font-size:28px; line-height:1.2; margin:6px 0 4px 0; }
+    /* added bottom margin here to give space before options */
+    .event-text  {
+      font-size:18px;
+      line-height:1.35;
+      white-space:pre-wrap;
+      margin:0 0 18px 0;
+    }
+
+    .opt-card  {
+      overflow-wrap:anywhere; word-break:break-word; hyphens:auto;
+      padding:10px 12px 12px 12px !important;
+      border-radius:0.5rem; border:1px solid #404040; background:rgba(38,38,38,.3);
+    }
+    .opt-title { font-size:20px; font-weight:700; margin:0 0 6px 0; color:#e5e7eb; }
+    .opt-text  { font-size:18px; line-height:1.35; white-space:pre-wrap; color:#fff; }
+
+    /* Legend styles */
+    .legend-box{
+      margin-top:14px;
+      border:1px dashed rgba(255,255,255,.18);
+      background:rgba(17,24,39,.45);
+      border-radius:12px;
+      padding:12px 14px;
+    }
+    .legend-title{
+      font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+      color:rgba(229,231,235,.8); margin-bottom:8px;
+    }
+    .legend-row{ display:flex; flex-direction:column; gap:8px; }
+    .legend-item{ display:flex; align-items:center; gap:12px; }
+    .legend-text{ font-size:14px; color:rgba(229,231,235,.95); }
+
+    /* Make legend text align by giving badge a fixed column width */
+    .legend-badge{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:96px;            /* adjust as you like */
+      text-align:center;
+    }
+  </style>
+
+  <div class="rounded-lg border border-neutral-700 bg-neutral-800/60 p-4">
+    <form class="flex flex-col md:flex-row gap-3 items-start md:items-end">
+      <div>
+        <label class="block text-sm mb-1">Biome</label>
+        <select id="biome" class="bg-neutral-900 border border-neutral-600 rounded px-3 py-2">
+          {% for b in biomes %}
+          <option value="{{ b }}" {% if selected_biome == b %}selected{% endif %}>{{ b }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex gap-2">
+        <button id="roll" type="button" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500">🎲 Roll Event</button>
+      </div>
+    </form>
+    <p class="text-xs text-neutral-400 mt-2">
+      Uses 80% from the selected biome and 20% from Anywhere. If you pick <em>Anywhere</em>, it’s 100% Anywhere.
+    </p>
+  </div>
+
+  <div id="result" class="mt-5"></div>
+</div>
+
+<script>
+  /* --- classify/clean options based on punctuation before '(' --- */
+  function classifyOption(label) {
+    const s = String(label || '');
+    const i = s.indexOf('(');
+    if (i === -1) return 'neutral';
+    let j = i - 1; while (j >= 0 && /\s/.test(s[j])) j--;
+    const ch = s[j];
+    if (ch === '!' || ch === '！') return 'end';
+    if (ch === '.' || ch === '．') return 'chains';
+    return 'neutral';
+  }
+  function cleanLabel(label) {
+    return String(label || '').replace(/([!.！．])\s*(?=\()/, '');
+  }
+
+  function renderOption(n, raw) {
+    if (!raw) return '';
+    const kind = classifyOption(raw);
+    const text = cleanLabel(raw);
+    let badgeHTML = '';
+    if (kind === 'end') {
+      badgeHTML = `<span class="legend-badge text-xs px-2 py-0.5 rounded-md ring-1 ring-white/10 bg-white/5 text-red-300">⏹ Ends</span>`;
+    } else if (kind === 'chains') {
+      badgeHTML = `<span class="legend-badge text-xs px-2 py-0.5 rounded-md ring-1 ring-white/10 bg-white/5 text-emerald-300">➕ Chains</span>`;
+    }
+
+    return `
+      <div class="opt-card">
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="opt-title">Option ${n}</div>
+          ${badgeHTML}
+        </div>
+        <div class="opt-text" aria-label="${text}">${text}</div>
+      </div>
+    `;
+  }
+
+  function stripNrText(s){
+    return String(s || '')
+      .replace(/^\s*(?:nr\.?|no\.?|nº|number|#)\s*[:\-]?\s*\d+\s*$/im, '')
+      .replace(/^\s*(?:nr\.?|no\.?|nº|number|#)\s*[:\-]?\s*\d+\s*/i, '')
+      .trim();
+  }
+  function cleanEventNumber(x){
+    let s = String(x ?? '').trim();
+    if (!s) return '';
+    s = s.replace(/^(?:\s*(?:nr|no|nº|number|#)\.?\s*[:\-]?\s*)+/i, '');
+    const m = s.match(/\d+/);
+    return m ? m[0] : s;
+  }
+
+  let __lastEvent = null;
+
+  async function roll() {
+    const biome = document.getElementById('biome').value;
+    const r = Math.random().toString(36).slice(2);
+    const res = await fetch(`/api/events/random?biome=${encodeURIComponent(biome)}&r=${r}`);
+    const out = document.getElementById('result');
+
+    if (!res.ok) { out.innerHTML = `<div class="text-red-400">No events found for "${biome}".</div>`; return; }
+
+    const ev   = await res.json();
+    __lastEvent = ev;
+    const num  = cleanEventNumber(ev.eventNumber);
+    const title= stripNrText(ev.name);
+    const text = stripNrText(ev.eventText);
+
+    out.innerHTML = `
+      <div id="eventCard" class="smooth-text rounded-lg border border-neutral-700 bg-neutral-800/50 p-4">
+        <div class="chip-row mb-1">
+          <span class="chip chip--biome">${ev.biome || 'Unknown'}</span>
+          ${num ? `<span class="chip chip--num">Nr.&nbsp;${num}</span>` : ''}
+        </div>
+        <h2 class="event-title">${title || '(Unnamed Event)'}</h2>
+        <p class="event-text">${text || ''}</p>
+
+        <div class="grid md:grid-cols-2 gap-3">
+          ${renderOption(1, ev.option1)}
+          ${renderOption(2, ev.option2)}
+          ${renderOption(3, ev.option3)}
+          ${renderOption(4, ev.option4)}
+          ${(!ev.option1 && !ev.option2 && !ev.option3 && !ev.option4)
+              ? '<div class="text-neutral-400">No options listed.</div>' : ''}
+        </div>
+
+        <!-- Legend (explanations) -->
+        <div class="legend-box">
+          <div class="legend-title">Legend</div>
+          <div class="legend-row">
+            <div class="legend-item">
+              <span class="legend-badge text-xs px-2 py-0.5 rounded-md ring-1 ring-white/10 bg-white/5 text-red-300">⏹ Ends</span>
+              <span class="legend-text">Choosing this option ends the Event.</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-badge text-xs px-2 py-0.5 rounded-md ring-1 ring-white/10 bg-white/5 text-emerald-300">➕ Chains</span>
+              <span class="legend-text">Choosing this option allows you to select an option which was not previously selected.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('roll').addEventListener('click', roll);
+  roll();
+</script>
+{% endblock %}
