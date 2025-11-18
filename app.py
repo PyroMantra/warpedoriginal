@@ -81,17 +81,15 @@ print(f"[socketio] async_mode={ASYNC_MODE}")
 
 # ----------------------------------------------------------------------------
 # Auth DB
-DEFAULT_DB_PATH = os.path.join("data", "auth.db")
+DEFAULT_DB_PATH = os.path.join("data", "auth.db")  # local default is fine
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
 
-# make sure the folder exists
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
 
 def init_auth_db():
     conn = get_db()
