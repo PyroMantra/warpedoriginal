@@ -1004,17 +1004,22 @@ def classes_view():
 
     headers = table_df.columns.tolist()
     rows = table_df.values.tolist()
-
     ability_data = defaultdict(lambda: defaultdict(list))
     for _, row in data_df.iterrows():
-        aff = row.get("Affinity", "").strip()
-        typ = row.get("Type", "").strip()
+        aff = (row.get("Affinity") or "").strip()
+        typ = (row.get("Type") or "").strip()
         if not aff or not typ:
             continue
+
+        # Read ranks, default to empty string, then fall back to "N/A" if still blank
+        r1 = (row.get("Rank I") or "").strip()
+        r2 = (row.get("Rank II") or "").strip()
+        r3 = (row.get("Rank III") or "").strip()
+
         ability_data[aff][typ].append({
-            "Rank I": row.get("Rank I", "N/A") or "N/A",
-            "Rank II": row.get("Rank II", "N/A") if typ != "Innate" else "N/A",
-            "Rank III": row.get("Rank III", "N/A") if typ != "Innate" else "N/A",
+            "Rank I": r1 or "N/A",
+            "Rank II": r2 or "N/A",
+            "Rank III": r3 or "N/A",
         })
 
     affinity_df.columns = affinity_df.columns.str.strip().str.upper()
