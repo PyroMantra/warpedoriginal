@@ -30,9 +30,8 @@ except Exception:
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
 
-# Paths that work the same locally + on Railway/Gunicorn
+# Absolute paths (Linux/Gunicorn safe)
 DATA_DIR = os.path.join(app.root_path, "data")
-STATIC_DIR = os.path.join(app.root_path, "static")
 
 
 # Trust Railway proxy and keep https scheme/host (MUST be after app is created)
@@ -107,7 +106,7 @@ def sentient_generator_view():
 
 # ---------------------------------------------------------------------------
 # Auth DB
-DEFAULT_DB_PATH = os.path.join(DATA_DIR, "auth.db")  # cwd-independent
+DEFAULT_DB_PATH = os.path.join("data", "auth.db")  # local default is fine
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -280,24 +279,6 @@ def __envcheck():
         "GOOGLE_CLIENT_ID": (os.getenv("GOOGLE_CLIENT_ID") or "")[:8] + "..." if os.getenv("GOOGLE_CLIENT_ID") else "missing",
         "GOOGLE_CLIENT_SECRET": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
         "OAUTHLIB_INSECURE_TRANSPORT": os.getenv("OAUTHLIB_INSECURE_TRANSPORT", "missing"),
-    }
-
-@app.route("/__files")
-@login_required
-def __files():
-    """Quick sanity check for Railway: where files are, and whether they exist."""
-    import glob
-    return {
-        "cwd": os.getcwd(),
-        "app_root": app.root_path,
-        "DATA_DIR": DATA_DIR,
-        "STATIC_DIR": STATIC_DIR,
-        "EXCEL_PATH": EXCEL_PATH,
-        "EXCEL_exists": os.path.exists(EXCEL_PATH),
-        "EXCEL_SENTIENT_PATH": EXCEL_SENTIENT_PATH,
-        "EXCEL_SENTIENT_exists": os.path.exists(EXCEL_SENTIENT_PATH),
-        "data_files": sorted([os.path.basename(p) for p in glob.glob(os.path.join(DATA_DIR, "*"))])[:50],
-        "static_files": sorted([os.path.basename(p) for p in glob.glob(os.path.join(STATIC_DIR, "*"))])[:50],
     }
 
 
@@ -730,7 +711,7 @@ def bestiary():
             return str(x)
         return str(x)
 
-    df = df.applymap(fmt_cell)
+    df = df.apply(lambda col: col.map(fmt_cell))
 
     raw_creatures = df.to_dict(orient="records")
 
@@ -798,79 +779,72 @@ import pandas as pd
 @app.route("/view/<sheet>")
 @login_required
 def view_sheet(sheet):
-    try:
-        if sheet not in sheets:
-            return f"Sheet '{sheet}' not found.", 404
+    if sheet not in sheets:
+        return f"Sheet '{sheet}' not found.", 404
 
-        # hide .0 for integers
-        def fmt_cell(x):
-            if pd.isna(x):
-                return ""
-            if isinstance(x, (int, np.integer)):
-                return str(x)
-            if isinstance(x, (float, np.floating)):
-                if np.isfinite(x) and float(x).is_integer():
-                    return str(int(x))
-                return str(x)
+    # hide .0 for integers
+    def fmt_cell(x):
+        if pd.isna(x):
+            return ""
+        if isinstance(x, (int, np.integer)):
             return str(x)
+        if isinstance(x, (float, np.floating)):
+            if np.isfinite(x) and float(x).is_integer():
+                return str(int(x))
+            return str(x)
+        return str(x)
 
-        df = sheets[sheet].copy()
-        df = df.applymap(fmt_cell)
+    df = sheets[sheet].copy()
+    df = df.apply(lambda col: col.map(fmt_cell))
 
-        # default payloads
-        row_colors = None
-        kin_legend = None
-        col_colors = None
-        headers_with_colors = None
-        rows_with_colors = None
+    # default payloads
+    row_colors = None
+    kin_legend = None
+    col_colors = None
+    headers_with_colors = None
+    rows_with_colors = None
 
-        if sheet.strip().upper() == "LEGACY":
-            KIN_COLORS = {
-                "LIVING":    {"bg": "#2a2a23", "border": "#494936", "chip": "#3a3a2d"},
-                "FAE":       {"bg": "#232a2f", "border": "#364954", "chip": "#2b3840"},
-                "CONSTRUCT": {"bg": "#2a272f", "border": "#4a4457", "chip": "#353044"},
-                "UNDEAD":    {"bg": "#2f262a", "border": "#574149", "chip": "#402d34"},
-                "DEMON":     {"bg": "#312524", "border": "#5a3c39", "chip": "#442f2c"},
-                "DIVINE":    {"bg": "#292b2f", "border": "#434651", "chip": "#33363f"},
-            }
-            DEFAULT_COLOR = {"bg": "#242424", "border": "#3a3a3a", "chip": "#2c2c2c"}
+    if sheet.strip().upper() == "LEGACY":
+        KIN_COLORS = {
+            "LIVING":    {"bg": "#2a2a23", "border": "#494936", "chip": "#3a3a2d"},
+            "FAE":       {"bg": "#232a2f", "border": "#364954", "chip": "#2b3840"},
+            "CONSTRUCT": {"bg": "#2a272f", "border": "#4a4457", "chip": "#353044"},
+            "UNDEAD":    {"bg": "#2f262a", "border": "#574149", "chip": "#402d34"},
+            "DEMON":     {"bg": "#312524", "border": "#5a3c39", "chip": "#442f2c"},
+            "DIVINE":    {"bg": "#292b2f", "border": "#434651", "chip": "#33363f"},
+        }
+        DEFAULT_COLOR = {"bg": "#242424", "border": "#3a3a3a", "chip": "#2c2c2c"}
 
-            headers_list = df.columns.tolist()
+        headers_list = df.columns.tolist()
 
-            # per-column colors (keep first column neutral)
-            col_colors = []
-            for i, h in enumerate(headers_list):
-                if i == 0:
-                    col_colors.append(DEFAULT_COLOR)
-                else:
-                    key = str(h).strip().upper()
-                    col_colors.append(KIN_COLORS.get(key, DEFAULT_COLOR))
+        # per-column colors (keep first column neutral)
+        col_colors = []
+        for i, h in enumerate(headers_list):
+            if i == 0:
+                col_colors.append(DEFAULT_COLOR)
+            else:
+                key = str(h).strip().upper()
+                col_colors.append(KIN_COLORS.get(key, DEFAULT_COLOR))
 
-            # legend from headers (skip first col)
-            kin_legend = [{"kin": h, **KIN_COLORS.get(str(h).strip().upper(), DEFAULT_COLOR)}
-                          for h in headers_list[1:]]
+        # legend from headers (skip first col)
+        kin_legend = [{"kin": h, **KIN_COLORS.get(str(h).strip().upper(), DEFAULT_COLOR)}
+                      for h in headers_list[1:]]
 
-            # pre-zip (no Jinja |zip needed)
-            headers_with_colors = list(zip(headers_list, col_colors))
-            rows_with_colors = [list(zip(row, col_colors)) for row in df.values.tolist()]
+        # pre-zip (no Jinja |zip needed)
+        headers_with_colors = list(zip(headers_list, col_colors))
+        rows_with_colors = [list(zip(row, col_colors)) for row in df.values.tolist()]
 
-        return render_template(
-            "view_sheet.html",
-            sheet=sheet,
-            headers=df.columns.tolist(),
-            rows=df.values.tolist(),
-            row_colors=row_colors,
-            kin_legend=kin_legend,
-            col_colors=col_colors,
-            headers_with_colors=headers_with_colors,
-            rows_with_colors=rows_with_colors,
-        )
-    except Exception:
-        app.logger.exception("view_sheet failed")
-        if os.getenv("SHOW_TRACEBACK", "").lower() in ("1","true","yes","on"):
-            import traceback
-            return f"<pre>{html.escape(traceback.format_exc())}</pre>", 500
-        return "Internal error rendering this sheet. Check Railway logs.", 500
+    return render_template(
+        "view_sheet.html",
+        sheet=sheet,
+        headers=df.columns.tolist(),
+        rows=df.values.tolist(),
+        row_colors=row_colors,
+        kin_legend=kin_legend,
+        col_colors=col_colors,
+        headers_with_colors=headers_with_colors,
+        rows_with_colors=rows_with_colors,
+    )
 
 
 from urllib.parse import unquote
@@ -898,7 +872,7 @@ def generate(sheet):
 
 @app.route("/potion-generator")
 def potion_generator():
-    potion_df = pd.read_excel(os.path.join(STATIC_DIR, "Book 10.xlsx"), sheet_name="Sheet1")
+    potion_df = pd.read_excel("static/Book 10.xlsx", sheet_name="Sheet1")
     potion_map = {
         str(row["Concat"]).strip(): row["POTION"]
         for _, row in potion_df.iterrows()
@@ -1032,7 +1006,7 @@ def admin_required(f):
 @app.route("/races-table")
 @login_required
 def races_table():
-    path = os.path.join(STATIC_DIR, "notion", "Races Main 207ec6426bd5807b925cddd6c35d0f14_all.csv")
+    path = "static/notion/Races Main 207ec6426bd5807b925cddd6c35d0f14_all.csv"
     df = pd.read_csv(path).fillna("")
     df.columns = df.columns.str.strip()
 
@@ -1056,7 +1030,7 @@ def races_table():
 @app.route("/notion-db/<db>")
 @login_required
 def view_notion_db(db):
-    path = os.path.join(STATIC_DIR, "notion", f"{db}.csv")
+    path = f"static/notion/{db}.csv"
     if not os.path.exists(path):
         return f"{db} database not found.", 404
     df = pd.read_csv(path).fillna("N/A")
@@ -1072,7 +1046,7 @@ def guide():
 @app.route("/classes-view")
 @login_required
 def classes_view():
-    path = os.path.join(STATIC_DIR, "Data", "Normalized_Abilities.xlsx")
+    path = os.path.join("static", "Data", "Normalized_Abilities.xlsx")
 
     table_df = pd.read_excel(path, sheet_name="Table").fillna("")
     data_df = pd.read_excel(path, sheet_name="Data").fillna("")
