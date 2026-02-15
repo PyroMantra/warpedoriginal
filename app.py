@@ -30,6 +30,10 @@ except Exception:
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
 
+# Absolute paths (Linux/Gunicorn safe)
+DATA_DIR = os.path.join(app.root_path, "data")
+
+
 # Trust Railway proxy and keep https scheme/host (MUST be after app is created)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
@@ -102,11 +106,13 @@ def sentient_generator_view():
 
 # ---------------------------------------------------------------------------
 # Auth DB
-DEFAULT_DB_PATH = os.path.join("data", "auth.db")  # local default is fine
+DEFAULT_DB_PATH = os.path.join(DATA_DIR, "auth.db")  # cwd-independent
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
+# If env var provided a relative path, treat it as relative to the app folder
+if DB_PATH and not os.path.isabs(DB_PATH):
+    DB_PATH = os.path.join(app.root_path, DB_PATH)
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -188,10 +194,10 @@ def debug_sentient():
 # ------------------------------------------------------------------------------
 # Data / Excel loading
 # ------------------------------------------------------------------------------
-EXCEL_PATH = os.path.join("data", "Layer List (7).xlsx")
+EXCEL_PATH = os.path.join(DATA_DIR, "Layer List (7).xlsx")
 sheets = pd.read_excel(EXCEL_PATH, sheet_name=None)
 
-EXCEL_SENTIENT_PATH = os.path.join("data", "New Microsoft Excel Worksheet (2).xlsx")
+EXCEL_SENTIENT_PATH = os.path.join(DATA_DIR, "New Microsoft Excel Worksheet (2).xlsx")
 
 RACES = load_races(EXCEL_SENTIENT_PATH)
 GEAR  = load_gear(EXCEL_SENTIENT_PATH)

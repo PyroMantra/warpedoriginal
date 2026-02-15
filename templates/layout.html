@@ -13,15 +13,8 @@
       background: linear-gradient(to bottom, #2f2f2f, #1f1f1f);
       color: #ffffff;
     }
-    .card {
-      background: rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(8px);
-    }
-    table {
-      border-collapse: collapse;
-      width: auto;
-      table-layout: auto;
-    }
+    .card { background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(8px); }
+    table { border-collapse: collapse; width: auto; table-layout: auto; }
     th, td {
       border: 1px solid #555;
       padding: 0.5rem 0.75rem;
@@ -29,14 +22,8 @@
       transition: background-color 0.2s, color 0.2s;
       white-space: nowrap;
     }
-    td:hover {
-      background-color: #555;
-      color: #ffffff;
-    }
-    td:focus, td:active {
-      outline: none;
-      background-color: #555;
-    }
+    td:hover { background-color: #555; color: #ffffff; }
+    td:focus, td:active { outline: none; background-color: #555; }
     .abilities-section {
       color: #ffffff;
       padding-left: 2rem;
@@ -49,54 +36,19 @@
       flex: 1;
       max-width: none;
     }
-    input, select, textarea {
-      background-color: #2f2f2f;
-      color: white;
-      border: 1px solid #888;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: #ffa500;
-      background-color: #3f3f3f;
-    }
-    option {
-      background-color: #1f1f1f;
-      color: #ffffff;
-    }
-    .ability-text {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      text-align: left;
-    }
-    .search-bar {
-      text-align: right;
-      margin-bottom: 1rem;
-    }
-    .rank-buttons {
-      display: flex;
-      flex-direction: row;
-      justify-content: flex-start;
-      gap: 1rem;
-      margin-top: 0.25rem;
-      margin-bottom: 1rem;
-    }
+    input, select, textarea { background-color: #2f2f2f; color: white; border: 1px solid #888; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #ffa500; background-color: #3f3f3f; }
+    option { background-color: #1f1f1f; color: #ffffff; }
+    .ability-text { white-space: pre-wrap; word-wrap: break-word; text-align: left; }
+    .search-bar { text-align: right; margin-bottom: 1rem; }
+    .rank-buttons { display: flex; flex-direction: row; justify-content: flex-start; gap: 1rem; margin-top: 0.25rem; margin-bottom: 1rem; }
     .rank-buttons button {
-      background-color: #444;
-      color: white;
-      border: 1px solid #888;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.25rem;
-      cursor: pointer;
+      background-color: #444; color: white; border: 1px solid #888;
+      padding: 0.25rem 0.75rem; border-radius: 0.25rem; cursor: pointer;
       transition: background-color 0.2s;
     }
-    .rank-buttons button:hover {
-      background-color: #666;
-    }
-    .roll-header td {
-      font-weight: bold !important;
-      font-size: 1.2rem !important;
-      color: #ffa500;
-    }
+    .rank-buttons button:hover { background-color: #666; }
+    .roll-header td { font-weight: bold !important; font-size: 1.2rem !important; color: #ffa500; }
     .bg-color-1 { background-color: #00B0F0; }
     .bg-color-2 { background-color: #4472C4; }
     .bg-color-3 { background-color: #4472C4; }
@@ -105,6 +57,7 @@
     .bg-color-8, .bg-color-9 { background-color: #FF0000; }
     .bg-color-10 { background-color: #595959; }
   </style>
+
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/classes_fix.css') }}">
 </head>
