@@ -108,26 +108,28 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/classes_fix.css') }}">
 </head>
-<body class="min-h-screen {{ sheet|replace(' ', '-') }} flex flex-col" data-endpoint="{{ request.endpoint }}">
+
+<body class="min-h-screen {{ (sheet|default(''))|replace(' ', '-') }} flex flex-col" data-endpoint="{{ request.endpoint }}">
   <header class="bg-gradient-to-r from-orange-800 to-orange-600 p-4 shadow-md">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
       <h1 class="text-3xl font-bold text-white tracking-wide">Across the Planes</h1>
+
       <nav class="navbar">
         <div class="container mx-auto flex items-center gap-6 py-3">
           <a href="{{ url_for('home') }}" class="text-2xl font-bold text-white"></a>
 
           {% if session.get('user_id') %}
-          <!-- Bumped font size here -->
           <div class="ml-auto flex items-center gap-6 text-xl md:text-2xl leading-none">
-            <a href="{{ url_for('potion_generator') }}" class="text-white hover:text-orange-300">Potions</a>
+            <!-- Top orange nav: ONLY these 3 -->
             <a href="{{ url_for('races_table') }}" class="text-white hover:text-orange-300">Races</a>
             <a href="{{ url_for('classes_view') }}" class="text-white hover:text-orange-300">Classes</a>
-<span class="text-white/70">|</span>
+            <a href="{{ url_for('factions_gallery') }}" class="text-white hover:text-orange-300">Factions</a>
+
+            <span class="text-white/70">|</span>
             <span class="text-white/90">{{ session.get('username') or session.get('email') }}</span>
             <a href="{{ url_for('logout') }}" class="text-red-300 hover:text-red-500">Logout</a>
           </div>
           {% else %}
-          <!-- And here for guests -->
           <div class="ml-auto flex items-center gap-6 text-xl md:text-2xl leading-none">
             <a href="{{ url_for('login') }}" class="text-white hover:text-orange-300">Login</a>
             <a href="{{ url_for('register') }}" class="text-white hover:text-orange-300">Register</a>
@@ -143,48 +145,48 @@
   </main>
 
   <footer class="text-center text-sm text-white py-4">
-    &copy; 2025  | Across the Planes
+    &copy; 2025 | Across the Planes
   </footer>
-</div>
-<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
-<script src="{{ url_for('static', filename='chat.js') }}"></script>
-<script data-brand-fallback="1">
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
-    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
-      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
-      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
-    }
-  });
-});
-</script>
-</div>
-</div>
-</div>
-</div>
-<div id="global-chat">
-  <div class="chat-header">
-    <div class="title">Global Chat</div>
-    <div class="controls">
-      <button id="chat-min" class="btn" type="button">–</button>
+
+  <!-- Global Chat -->
+  <div id="global-chat">
+    <div class="chat-header">
+      <div class="title">Global Chat</div>
+      <div class="controls">
+        <button id="chat-min" class="btn" type="button">–</button>
+      </div>
     </div>
+    <div id="chat-messages"></div>
+    <form id="chat-form">
+      <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+      <button id="chat-send" type="submit">Send</button>
+    </form>
   </div>
-  <div id="chat-messages"></div>
-  <form id="chat-form">
-    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
-    <button id="chat-send" type="submit">Send</button>
-  </form>
-</div>
-<script>
-(function(){
-  try {
-    var ep = document.body.getAttribute('data-endpoint') || '';
-    if (ep === 'classes_view') {
-      document.body.classList.add('classes_view');
-    }
-  } catch (e) {}
-})();
-</script>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>window.CURRENT_USER_NAME = "{{ current_user_name|default('') }}";</script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
+
+  <script data-brand-fallback="1">
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+      if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+        if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+        else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+      }
+    });
+  });
+  </script>
+
+  <script>
+  (function(){
+    try {
+      var ep = document.body.getAttribute('data-endpoint') || '';
+      if (ep === 'classes_view') {
+        document.body.classList.add('classes_view');
+      }
+    } catch (e) {}
+  })();
+  </script>
 </body>
 </html>
