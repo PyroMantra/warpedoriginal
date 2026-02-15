@@ -15,6 +15,8 @@ from werkzeug.utils import secure_filename
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from authlib.integrations.flask_client import OAuth
 import pandas as pd
+from sentient_generator import load_races, load_gear, combine_race_and_gear
+from sentient_logic import generate_sentient, RANK_CONFIG
 
 # Optional: load .env
 try:
@@ -77,6 +79,25 @@ socketio = SocketIO(app, async_mode=ASYNC_MODE, cors_allowed_origins="*")
 print(f"[socketio] async_mode={ASYNC_MODE}")
 # --- end Socket.IO setup ---
 
+from flask import request, render_template
+
+@app.route("/sentient/generator", methods=["GET", "POST"])
+def sentient_generator_view():
+    rank_keys = list(RANK_CONFIG.keys())
+    # default rank on first load
+    selected_rank = request.form.get("rank") or "Elite"
+
+    result = None
+    if request.method == "POST":
+        # actually generate the sentient
+        result = generate_sentient(selected_rank, RACES, GEAR)
+
+    return render_template(
+        "sentient_generator.html",
+        ranks=rank_keys,
+        selected_rank=selected_rank,
+        result=result,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -146,15 +167,41 @@ os.makedirs(LANDMARKS_FOLDER, exist_ok=True)
 XP_FOLDER = os.path.join(app.root_path, 'static', 'xp')
 os.makedirs(XP_FOLDER, exist_ok=True)
 
+@app.route("/debug/sentient")
+def debug_sentient():
+    race = RACES["Human:Dunian"]
+    weapon = GEAR[10]
+    boots  = GEAR[350]
+
+    gear_list = [weapon, boots]
+    sentient = combine_race_and_gear(race, gear_list)
+
+    gear_names = [g.name for g in gear_list]
+
+    return {
+        "race": sentient.race_key,
+        "gear": gear_names,              # ← names instead of IDs
+        "stats": sentient.stats,
+        "resists": sentient.resists,
+    }
+
 # ------------------------------------------------------------------------------
 # Data / Excel loading
 # ------------------------------------------------------------------------------
 EXCEL_PATH = os.path.join("data", "Layer List (7).xlsx")
 sheets = pd.read_excel(EXCEL_PATH, sheet_name=None)
 
+EXCEL_SENTIENT_PATH = os.path.join("data", "New Microsoft Excel Worksheet (2).xlsx")
+
+RACES = load_races(EXCEL_SENTIENT_PATH)
+GEAR  = load_gear(EXCEL_SENTIENT_PATH)
+
 
 import merchant_ext
 merchant_ext.init_merchant(app, get_db, sheets)
+
+import forge_helper_ext
+forge_helper_ext.init_forge_helper(app)
 
 # Remove non-generic sheets from general viewer:
 sheets = {k: v for k, v in sheets.items() if k not in ["Classes", "Races", "Abilities"]}
@@ -1205,7 +1252,6 @@ def _healthz():
 # Register once even if code gets merged/duplicated in the future
 if "healthz_ok" not in app.view_functions and "healthz" not in app.view_functions:
     app.add_url_rule("/healthz", endpoint="healthz_ok", view_func=_healthz)
-
 
 # ------------------------------------------------------------------------------
 # Debug / misc
