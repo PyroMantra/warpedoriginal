@@ -776,11 +776,169 @@ def bestiary():
 import numpy as np
 import pandas as pd
 
+
+def _parse_roll_information(excel_path: str):
+    # Parses the 'Roll Information' sheet into a flat list of scenarios:
+    #   [{id, label, category, scenario, outcomes:{'1':'...', ...}}, ...]
+    import pandas as _pd
+    import re as _re
+
+    df_raw = _pd.read_excel(excel_path, sheet_name="Roll Information", header=None)
+    df_raw = df_raw.fillna("")
+
+    current_category = "Rolls"
+    scenarios = []
+
+    def _cat_short(s: str) -> str:
+        s = (s or "").strip()
+        # e.g. "MIGHT ROLLS (Benefit from Might)" -> "Might"
+        parts = _re.split(r"\s+ROLLS\b", s, flags=_re.IGNORECASE)
+        base = (parts[0] if parts else s).strip()
+        return (base or "Rolls").title()
+
+    nrows, ncols = df_raw.shape
+    i = 0
+    while i < nrows:
+        row0 = str(df_raw.iat[i, 0]).strip()
+        row1 = str(df_raw.iat[i, 1]).strip() if ncols > 1 else ""
+
+        # Category row (first column blank, second column has "...ROLLS...")
+        if row0 == "" and row1 and _re.search(r"\bROLLS\b", row1, flags=_re.IGNORECASE):
+            current_category = row1
+
+        # Header row starts a block
+        if row0.lower() == "roll":
+            header_cols = []
+            for c in range(1, ncols):
+                name = str(df_raw.iat[i, c]).strip()
+                if name:
+                    header_cols.append((c, name))
+
+            outcomes = {c: {} for c, _ in header_cols}
+            j = i + 1
+            while j < nrows:
+                r = str(df_raw.iat[j, 0]).strip()
+                if not r:
+                    break
+                if r.lower() == "roll":
+                    break
+                try:
+                    roll_n = int(float(r))
+                except Exception:
+                    j += 1
+                    continue
+
+                for c, _name in header_cols:
+                    val = str(df_raw.iat[j, c]).strip()
+                    outcomes[c][roll_n] = val
+                j += 1
+
+            cat = _cat_short(current_category)
+            for c, scen in header_cols:
+                label = f"{cat} — {scen}"
+                sid = _re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+                out_map = {str(k): v for k, v in sorted(outcomes[c].items(), key=lambda kv: kv[0])}
+                scenarios.append({
+                    "id": sid,
+                    "label": label,
+                    "category": cat,
+                    "scenario": scen,
+                    "outcomes": out_map,
+                })
+
+            i = j
+            continue
+
+        i += 1
+
+    return scenarios
+
+
+def _parse_roll_status_table(excel_path: str):
+    """Parse the Status Roll table inside 'Roll Information' sheet (if present)."""
+    import pandas as _pd
+
+    df_raw = _pd.read_excel(excel_path, sheet_name="Roll Information", header=None)
+    df_raw = df_raw.fillna("")
+
+    nrows, ncols = df_raw.shape
+
+    def _cell(i, c):
+        try:
+            return str(df_raw.iat[i, c]).strip()
+        except Exception:
+            return ""
+
+    header_idx = None
+    header_cols = None
+
+    for i in range(nrows):
+        c0 = _cell(i, 0).lower()
+        c1 = _cell(i, 1).lower()
+        if c0 == "status roll" and c1 == "random status roll":
+            header_idx = i
+            cols = []
+            for c in range(ncols):
+                name = _cell(i, c)
+                if name:
+                    cols.append((c, name))
+                else:
+                    if len(cols) > 0:
+                        break
+            header_cols = cols
+            break
+
+    if header_idx is None or not header_cols:
+        return []
+
+    norm = {name.lower(): c for c, name in header_cols}
+    c_status = norm.get("status roll", header_cols[0][0] if len(header_cols) > 0 else 0)
+    c_random = norm.get("random status roll", header_cols[1][0] if len(header_cols) > 1 else 1)
+    c_negative = norm.get("negative status roll", header_cols[2][0] if len(header_cols) > 2 else 2)
+    c_type = norm.get("type", header_cols[3][0] if len(header_cols) > 3 else (header_cols[-1][0] if header_cols else 3))
+
+    rows = []
+    j = header_idx + 1
+    while j < nrows:
+        v0 = _cell(j, c_status)
+        v1 = _cell(j, c_random)
+        v2 = _cell(j, c_negative)
+        v3 = _cell(j, c_type)
+
+        if not (v0 or v1 or v2 or v3):
+            break
+
+        rows.append({
+            "status_roll": v0,
+            "random_status_roll": v1,
+            "negative_status_roll": v2,
+            "type": v3,
+        })
+        j += 1
+
+    return rows
+
+
+
 @app.route("/view/<sheet>")
 @login_required
 def view_sheet(sheet):
     if sheet not in sheets:
         return f"Sheet '{sheet}' not found.", 404
+
+    # Special UI for Roll Information (d20 picker + card)
+    if sheet.strip().lower() == "roll information":
+        roll_tables = _parse_roll_information(EXCEL_PATH)
+        status_rows = _parse_roll_status_table(EXCEL_PATH)
+        return render_template(
+            "roll_information.html",
+            sheet=sheet,
+            roll_tables=roll_tables,
+            current_user_name=_display_name_from_session(),
+            is_admin=is_admin(),
+                    status_rows=status_rows,
+        )
+
 
     # hide .0 for integers
     def fmt_cell(x):

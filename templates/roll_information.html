@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ sheet }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Sirin+Stencil&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Sirin Stencil', sans-serif; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; }
+    .btn { border-radius: 12px; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); }
+    .btn:hover { background: rgba(255,255,255,0.08); }
+    .btn.active { border-color: rgba(251,146,60,0.9); background: rgba(251,146,60,0.12); }
+    select { background: rgba(0,0,0,0.70); }
+option { background-color: #0b0b0f; color: #e5e7eb; }
+    .row { border-radius: 12px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); }
+    .row.active { border-color: rgba(251,146,60,0.9); background: rgba(251,146,60,0.10); }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}">
+</head>
+<body class="min-h-screen bg-zinc-900 text-zinc-100 p-6">
+
+  <div class="max-w-6xl mx-auto">
+    <div class="flex items-center justify-between gap-4">
+      <div class="text-3xl font-bold tracking-wide">{{ sheet }}</div>
+      <a class="btn px-4 py-2 text-sm" href="{{ url_for('home') }}">← Back to Home</a>
+    </div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-2">
+      <!-- Left: scenario + d20 buttons -->
+            <div class="grid gap-6">
+<div class="card p-5">
+        <label class="block text-sm text-zinc-400">Scenario</label>
+        <select id="scenarioSelect" class="mt-2 w-full rounded-xl px-3 py-2 border border-white/10 text-zinc-100 bg-zinc-950/70"></select>
+
+        <div class="mt-5 text-sm text-zinc-400">Roll</div>
+        <div id="d20Grid" class="mt-3 grid grid-cols-5 gap-2"></div>
+      </div>
+
+      
+
+      {% if status_rows and status_rows|length %}
+      <div class="card p-5">
+        <div class="text-sm text-zinc-400 mb-3">Status Rolls</div>
+        <div class="overflow-auto max-h-[520px] rounded-xl border border-white/10">
+          <table class="w-full text-sm">
+            <thead class="bg-white/5">
+              <tr>
+                <th class="text-left p-3 border-b border-white/10">#</th>
+                <th class="text-left p-3 border-b border-white/10">Random Status</th>
+                <th class="text-left p-3 border-b border-white/10">Negative Roll</th>
+                <th class="text-left p-3 border-b border-white/10">Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in status_rows %}
+              <tr class="hover:bg-white/5">
+                <td class="p-3 border-b border-white/5 text-zinc-300 whitespace-nowrap">{{ r.status_roll }}</td>
+                <td class="p-3 border-b border-white/5 whitespace-pre-wrap">{{ r.random_status_roll }}</td>
+                <td class="p-3 border-b border-white/5 text-zinc-300 whitespace-nowrap">{{ r.negative_status_roll }}</td>
+                <td class="p-3 border-b border-white/5 text-zinc-300 whitespace-nowrap">{{ r.type }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+      </div>
+
+<!-- Right: all outcomes at a glance -->
+      <div class="card p-5">
+        <div class="text-sm text-zinc-400" id="resultScenario"></div>
+        <div class="mt-2 flex items-baseline justify-between gap-3">
+          <div class="text-2xl font-semibold" id="resultRoll">Pick a roll</div>
+          <div class="text-sm text-zinc-400" id="hintText">All 20 outcomes shown below</div>
+        </div>
+        <div class="mt-3 text-lg leading-relaxed whitespace-pre-wrap" id="resultText">
+          Select a d20 result to highlight it.
+        </div>
+
+        <div class="mt-5 border-t border-white/10 pt-4">
+          <div class="text-sm text-zinc-400 mb-3">All outcomes</div>
+          <div id="allOutcomes" class="grid gap-2"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const TABLES = {{ roll_tables | tojson }};
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    const d20Grid = document.getElementById('d20Grid');
+    const resultScenario = document.getElementById('resultScenario');
+    const resultRoll = document.getElementById('resultRoll');
+    const resultText = document.getElementById('resultText');
+    const allOutcomes = document.getElementById('allOutcomes');
+
+    let currentTable = null;
+    let currentRoll = null;
+
+    function setActiveButton(n){
+      [...d20Grid.querySelectorAll('button[data-roll]')].forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.roll) === n);
+      });
+    }
+
+    function renderAll(){
+      allOutcomes.innerHTML = '';
+      if (!currentTable) return;
+
+      for (let i=1; i<=20; i++){
+        const key = String(i);
+        const txt = (currentTable.outcomes && currentTable.outcomes[key]) ? currentTable.outcomes[key] : '';
+        const row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'row p-3 text-left hover:bg-white/5 transition';
+        row.dataset.roll = key;
+
+        if (currentRoll === i) row.classList.add('active');
+
+        row.innerHTML = `
+          <div class="grid grid-cols-[64px_1fr] gap-3 items-start">
+            <div class="text-zinc-300 font-semibold">${i}</div>
+            <div class="text-zinc-100 whitespace-pre-wrap leading-snug">${txt || '—'}</div>
+          </div>
+        `;
+
+        row.addEventListener('click', () => {
+          currentRoll = i;
+          setActiveButton(i);
+          renderResult();
+          renderAll();
+        });
+
+        allOutcomes.appendChild(row);
+      }
+    }
+
+    function renderResult(){
+      if (!currentTable){
+        resultScenario.textContent = '';
+        resultRoll.textContent = 'Pick a roll';
+        resultText.textContent = 'Select a scenario and a d20 result.';
+        return;
+      }
+
+      resultScenario.textContent = currentTable.label;
+
+      if (!currentRoll){
+        resultRoll.textContent = 'Pick a roll';
+        resultText.textContent = 'Select a d20 result to highlight it.';
+        return;
+      }
+
+      resultRoll.textContent = `d20 = ${currentRoll}`;
+      const key = String(currentRoll);
+      const txt = (currentTable.outcomes && currentTable.outcomes[key]) ? currentTable.outcomes[key] : '';
+      resultText.textContent = txt || 'No result for this roll.';
+    }
+
+    function setScenarioByIndex(idx){
+      currentTable = TABLES[idx] || null;
+      currentRoll = null;
+      setActiveButton(-1);
+      renderResult();
+      renderAll();
+    }
+
+    // Build dropdown
+    TABLES.forEach((t, idx) => {
+      const opt = document.createElement('option');
+      opt.value = String(idx);
+      opt.textContent = t.label;
+      scenarioSelect.appendChild(opt);
+    });
+
+    scenarioSelect.addEventListener('change', () => {
+      setScenarioByIndex(Number(scenarioSelect.value));
+    });
+
+    // Build d20 buttons
+    for (let i=1; i<=20; i++){
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.roll = String(i);
+      btn.className = 'btn px-3 py-2 text-base';
+      btn.textContent = String(i);
+      btn.addEventListener('click', () => {
+        currentRoll = i;
+        setActiveButton(i);
+        renderResult();
+        renderAll();
+      });
+      d20Grid.appendChild(btn);
+    }
+
+    // Init
+    if (TABLES.length > 0){
+      scenarioSelect.value = "0";
+      setScenarioByIndex(0);
+    } else {
+      resultScenario.textContent = 'No roll tables found in the sheet.';
+      resultText.textContent = '';
+    }
+  </script>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>window.CURRENT_USER_NAME = "{{ current_user_name|default('') }}";</script>
+  <script src="{{ url_for('static', filename='chat.js') }}"></script>
+</body>
+</html>
