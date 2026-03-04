@@ -1,262 +1,332 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213648">
 {% extends "layout.html" %}
+
+{% block title %}Classes & Abilities{% endblock %}
+
 {% block content %}
-<h1>Classes & Abilities</h1>
-
 <style>
-  :root{
-    --col-class: 59,130,246;      /* blue */
-    --col-affinity: 34,197,94;    /* green */
-    --col-mastery: 168,85,247;    /* purple */
-    --col-trait: 168,85,247;      /* purple */
-    --col-bonus: 245,158,11;      /* amber */
-    --col-penalty: 239,68,68;     /* red */
-    --col-origin: 14,165,233;     /* cyan */
+  /* --- Classes page layout (compact + readable) --- */
+      .classes-grid{
+    display: grid;
+    /* Wider, less wasted space on big screens */
+    grid-template-columns: minmax(0, 1150px) minmax(420px, 1fr);
+    gap: 1.5rem;
+    align-items: stretch;
+
+    /* Use most of the viewport, but keep a soft cap */
+    max-width: min(2100px, 98vw);
+    margin: 0 auto;
+    padding: 0 12px;
+  }
+  @media (max-width: 1100px){
+    .classes-grid{ grid-template-columns: 1fr; }
   }
 
-  /* ---- Classes tab visual polish ---- */
-  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  .panel{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 1rem;
+    backdrop-filter: blur(8px);
+  }
 
-  /* Column themes */
-  .col-class th, .col-class td { background: rgba(59,130,246,0.10); }        /* blue-ish for Classes */
-  .col-affinity th, .col-affinity td { background: rgba(34,197,94,0.10); }    /* green for Affinities */
-  .col-mastery th, .col-mastery td { background: rgba(168,85,247,0.10); }     /* purple for Masteries */
+  .table-wrap{
+    overflow: auto;
+border-radius: 0.75rem;
+  }
 
-  /* Make pills inside cells for multiple values (affinities / masteries) */
-  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
-  .col-affinity .pill { background: rgba(34,197,94,0.18); }
-  .col-mastery .pill { background: rgba(168,85,247,0.18); }
-  .col-class .pill { background: rgba(59,130,246,0.18); }
 
-  /* Hover / selection */
-  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
-  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
-  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
+  /* Make the classes table area fill the panel height */
+  .table-panel{
+    height: calc(100vh - 190px);
+    min-height: 640px;
+    display: flex;
+    flex-direction: column;
+  }
+  .table-panel .table-wrap{
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
 
-  /* Ability detail headings */
-  .ability-text h3 { margin-top: 1rem; font-size: 1.35rem; letter-spacing: 0.3px; }
-  .ability-text h3::before { content: ''; display: inline-block; width: 6px; height: 1.2em; margin-right: 8px; vertical-align: -2px; border-radius: 2px; background: linear-gradient(180deg, #ffa500, #ff6b00); }
-  /* Specific key colors */
-  .ability-text h3:contains("Innate")::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
-  .ability-text h3:contains("Tier I")::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
-  .ability-text h3:contains("Tier II")::before { background: linear-gradient(180deg, #34d399, #10b981); }
-  .ability-text h3:contains("Tier III")::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
-  .ability-text h3:contains("Ultimate")::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
 
-  /* Fallback for browsers without :contains() (JS will also set classes) */
-  .ability-text h3.h-innate { font-size: 1.4rem; }
-  .ability-text h3.h-tier-i { font-size: 1.4rem; }
-  .ability-text h3.h-tier-ii { font-size: 1.4rem; }
-  .ability-text h3.h-tier-iii { font-size: 1.4rem; }
-  .ability-text h3.h-ultimate { font-size: 1.45rem; }
-
-  /* Right panel readability */
-  #affinity-name { font-size: 1.6rem; margin-bottom: 0.25rem; }
-  #affinity-difficulty { }
-  .abilities-section ul { margin: 0.5rem 0 1rem; padding-left: 1.2rem; }
-  .abilities-section li { margin: 0.25rem 0; }
-
-  .ability-text h3.h-innate::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
-  .ability-text h3.h-tier-i::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
-  .ability-text h3.h-tier-ii::before { background: linear-gradient(180deg, #34d399, #10b981); }
-  .ability-text h3.h-tier-iii::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
-  .ability-text h3.h-ultimate::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
-
-<style>
-.col-class th, .col-class td { background: rgba(var(--col-class),0.10); }
-.col-affinity th, .col-affinity td { background: rgba(var(--col-affinity),0.10); }
-.col-mastery th, .col-mastery td { background: rgba(var(--col-mastery),0.10); }
-
-  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
+  table.classes-table{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+  }
+  .classes-table thead th{
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(6px);
+    text-align: left;
+    font-weight: 700;
+  }
+  .classes-table th, .classes-table td{
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    vertical-align: top;
+  }
   .classes-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
-  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
-  .col-class .pill { background: rgba(var(--col-class),0.18); }
-  .col-affinity .pill { background: rgba(var(--col-affinity),0.18); }
-  .col-mastery .pill { background: rgba(var(--col-mastery),0.18); }
-  .col-trait .pill { background: rgba(var(--col-trait),0.18); }
-  .col-bonus .pill { background: rgba(var(--col-bonus),0.18); }
-  .col-penalty .pill { background: rgba(var(--col-penalty),0.18); }
-  .col-origin .pill { background: rgba(var(--col-origin),0.18); }
-  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
-  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
-  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
 
-  /* Difficulty color variants for affinity pills */
-  .pill-diff-simple    { color:#22c55e; border:1px solid rgba(34,197,94,0.6); background: rgba(34,197,94,0.12); }
-  .pill-diff-neutral   { color:#facc15; border:1px solid rgba(250,204,21,0.6); background: rgba(250,204,21,0.12); }
-  .pill-diff-challenging{ color:#fb923c; border:1px solid rgba(251,146,60,0.6); background: rgba(251,146,60,0.12); }
-  .pill-diff-hardcore  { color:#ef4444; border:1px solid rgba(239,68,68,0.6); background: rgba(239,68,68,0.12); }
-  .pill-diff-grimcore  { color:#f8fafc; border:1px solid rgba(17,17,17,0.9); background:#111111; }
+  .pill-row{ display:flex; flex-wrap: wrap; gap: 6px; }
+  .pill{
+    display:inline-flex;
+    align-items:center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    user-select:none;
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+  }
+  button.pill{ cursor:pointer; }
+  button.pill:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.12); }
+  button.pill.is-selected{ outline: 2px solid var(--select-outline, #ffa500); outline-offset: 2px; }
 
-/* === Mastery Panel UI === */
-.mastery-panel { --accent:#94a3b8; --accent-soft: rgba(148,163,184,0.15); --border: rgba(148,163,184,0.5); }
-.mastery-panel.mastery-offense   { --accent:#f97316; --accent-soft: rgba(249,115,22,0.14); --border: rgba(249,115,22,0.5); }
-.mastery-panel.mastery-defense   { --accent:#6b7280; --accent-soft: rgba(107,114,128,0.14); --border: rgba(107,114,128,0.5); }
-.mastery-panel.mastery-arcane    { --accent:#3b82f6; --accent-soft: rgba(59,130,246,0.14); --border: rgba(59,130,246,0.5); }
-.mastery-panel.mastery-agility   { --accent:#22c55e; --accent-soft: rgba(34,197,94,0.14); --border: rgba(34,197,94,0.5); }
-.mastery-panel.mastery-intellect { --accent:#14b8a6; --accent-soft: rgba(20,184,166,0.14); --border: rgba(20,184,166,0.5); }
-.mastery-panel.mastery-stealth   { --accent:#a855f7; --accent-soft: rgba(168,85,247,0.14); --border: rgba(168,85,247,0.5); }
+  /* Mastery pills use mastery accent variables */
+  button.pill.pill-mastery{
+    background: var(--accent-bg, rgba(168,85,247,0.10));
+    border-color: var(--accent-border, rgba(168,85,247,0.35));
+    --select-outline: var(--accent-ring, #ffa500);
+  }
 
-.mastery-subtle { color:#a3a3a3; margin:0 0 .5rem 0; }
-.mastery-list { list-style: none; margin:0; padding:0; }
-.mastery-list li {
-  background: var(--accent-soft);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--accent);
-  border-radius: 10px;
-  padding: 8px 10px;
-  margin: 6px 0;
-  line-height: 1.35;
-}
-.mastery-badge {
-  display:inline-block; min-width:1.6em; text-align:center;
-  padding: 2px 6px; margin-right: 8px; border-radius: 999px;
-  border: 1px solid var(--border); color: #fff; background: var(--accent);
-  font-size: .85rem;
-}
-.tag {
-  display:inline-block; padding: 1px 6px; border-radius: 999px;
-  border: 1px solid var(--border); color:#fff; background: var(--accent);
-  font-size: .75rem; margin-right:6px;
-}
-/* Tone down mastery cell pills by default */
-.col-mastery .pill { background: rgba(168,85,247,0.12) !important; border: 1px solid rgba(168,85,247,0.35) !important; color:#fff !important; }
+  /* Mastery palette (so each mastery is visually distinct) */
+  .mastery-offense{ --accent-bg: rgba(249,115,22,0.14); --accent-border: rgba(249,115,22,0.55); --accent-ring: rgba(249,115,22,0.75); --accent-text: rgba(253,186,116,1); }
+  .mastery-defense{ --accent-bg: rgba(59,130,246,0.14); --accent-border: rgba(59,130,246,0.55); --accent-ring: rgba(59,130,246,0.75); --accent-text: rgba(147,197,253,1); }
+  .mastery-stealth{ --accent-bg: rgba(168,85,247,0.14); --accent-border: rgba(168,85,247,0.55); --accent-ring: rgba(168,85,247,0.75); --accent-text: rgba(216,180,254,1); }
+  .mastery-arcane{ --accent-bg: rgba(99,102,241,0.14); --accent-border: rgba(99,102,241,0.55); --accent-ring: rgba(99,102,241,0.75); --accent-text: rgba(199,210,254,1); }
+  .mastery-intellect{ --accent-bg: rgba(20,184,166,0.14); --accent-border: rgba(20,184,166,0.55); --accent-ring: rgba(20,184,166,0.75); --accent-text: rgba(153,246,228,1); }
+  .mastery-agility{ --accent-bg: rgba(34,197,94,0.14); --accent-border: rgba(34,197,94,0.55); --accent-ring: rgba(34,197,94,0.75); --accent-text: rgba(134,239,172,1); }
 
+  /* Class tint */
+  .pill-class{ background: rgba(59,130,246,0.14); border-color: rgba(59,130,246,0.45); }
 
-/* Class details font-size tweak (v19) */
-#class-details { font-size: 1.22rem; line-height: 1.58; }
+  /* Affinity difficulty tints */
+  .pill-diff-simple{ background: rgba(34,197,94,0.14); border-color: rgba(34,197,94,0.55); }
+  .pill-diff-neutral{ background: rgba(250,204,21,0.14); border-color: rgba(250,204,21,0.55); }
+  .pill-diff-challenging{ background: rgba(251,146,60,0.14); border-color: rgba(251,146,60,0.55); }
+  .pill-diff-hardcore{ background: rgba(239,68,68,0.14); border-color: rgba(239,68,68,0.55); }
+  .pill-diff-grimcore{ background: rgba(148,163,184,0.14); border-color: rgba(148,163,184,0.45); }
 
-#class-details b, #class-details strong { color: #ffffff; }
-#class-details em, #class-details i { color: #cbd5e1; }
+  /* Right panel */
+  .abilities-section{ min-width: 0; }
+  .detail-header{ margin-bottom: 0.25rem; }
+  .detail-meta{ font-size: 0.95rem; opacity: 0.95; }
+  .rank-buttons{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.4rem 0 0.7rem;
+  }
+  .rank-buttons button{
+    background-color: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    padding: 0.35rem 0.85rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+  .rank-buttons button:hover{ background-color: rgba(255,255,255,0.12); }
 
+  .ability-text{ white-space: pre-wrap; word-wrap: break-word; text-align: left; }
+  .ability-text h3{ margin-top: 0.85rem; font-size: 1.15rem; font-weight: 700; }
+  .ability-text ul{ margin-top: 0.4rem; padding-left: 1.2rem; }
+  .ability-text li{ margin: 0.35rem 0; }
 
-/* === Compact table (v21): fit without horizontal scroll at 100% zoom === */
-#classes-table { table-layout: fixed; width: 100%; max-width: 100%; }
-#classes-table th, #classes-table td { padding: 6px 8px; }
-#classes-table th { font-size: 0.95rem; }
-#classes-table .pill {
-  white-space: normal; /* allow wrap */
-  word-break: break-word;
-  line-height: 1.15;
-  padding: 4px 10px;
-  font-size: 0.96rem;
-}
+  .mastery-panel{ border-radius: 0.85rem; padding: 0.85rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.10); }
+  .mastery-panel.themable{ border-color: var(--accent-border, rgba(255,255,255,0.10)); box-shadow: 0 0 0 1px rgba(0,0,0,0.35) inset; }
+  .mastery-panel.themable .mastery-subtle{ color: var(--accent-text, rgba(255,255,255,0.75)); }
 
+  .mastery-subtle{ opacity: 0.75; letter-spacing: 0.08em; text-transform: uppercase; font-size: 0.85rem; margin-bottom: 0.35rem; }
+  .mastery-list{ margin: 0.25rem 0 0; padding-left: 1.25rem; }
+  .mastery-list li{ margin: 0.45rem 0; }
+  .mastery-badge{ display:inline-flex; align-items:center; justify-content:center; width: 1.4rem; height: 1.4rem; border-radius: 9999px; margin-right: 0.5rem; background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.18); font-weight: 800; font-size: 0.85rem; }
+
+  /* --- Class details card (collision-proof + removes wasted space) --- */
+  body.classes_view .cls-right{
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    gap: 0 !important;
+  }
+  body.classes_view .cls-title{
+    margin: 0 0 12px 0 !important;
+    line-height: 1.02 !important;
+    font-size: clamp(2.2rem, 2.7vw, 3.2rem) !important;
+    font-weight: 800 !important;
+  }
+  body.classes_view .cls-meta,
+  body.classes_view .cls-desc{
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body.classes_view .cls-meta{ margin-bottom: 6px !important; }
+  body.classes_view .cls-desc{ margin-bottom: 10px !important; opacity: 0.9; }
+
+  body.classes_view #cls-card{
+    margin-top: 10px !important;
+    padding: 18px 18px !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255,255,255,0.10) !important;
+    background: rgba(0,0,0,0.20) !important;
+  }
+  body.classes_view .cls-section{
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body.classes_view .cls-section + .cls-section{
+    margin-top: 16px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid rgba(255,255,255,0.08) !important;
+  }
+  body.classes_view .cls-label{
+    margin: 0 0 10px 0 !important;
+    font-size: 0.90rem !important;
+    letter-spacing: 0.18em !important;
+    text-transform: uppercase !important;
+    opacity: 0.70 !important;
+  }
+  body.classes_view .cls-lines{
+    margin: 0 !important;
+    font-size: 1.22rem !important;
+    line-height: 1.55 !important;
+    font-weight: 700 !important;
+  }
+  body.classes_view .cls-lines ul{
+    margin: 0 !important;
+    padding-left: 1.25rem !important;
+  }
+  body.classes_view .cls-lines li{ margin: 0.35rem 0 !important; }
+
+  /* Kill any legacy spacing from older versions of this page */
+  body.classes_view #class-details{ display: none !important; }
 </style>
-</style>
 
-
-<div style="display: flex; gap: 2rem; align-items: flex-start;">
-  <!-- Left Table -->
-  <div style="flex: 0 0 60%; overflow-x: auto;">
-    <table border="1" class="classes-table" id="classes-table" style="width: 100%; table-layout: auto;">
-      <thead>
-        <tr>
-          {% for header in headers %}
-            <th>{{ header }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in rows %}
-          <tr>
-            {% for cell in row %}
-              <td class="selectable" data-col-idx="{{ loop.index0 }}" onclick="selectAffinity('{{ cell }}')">{{ cell }}</td>
-            {% endfor %}
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Right Side -->
-  <div class="abilities-section" style="flex: 1; overflow-wrap: break-word; word-wrap: break-word;">
-    <h2 id="affinity-name">Select an Affinity</h2>
-    <p id="affinity-difficulty" style="font-weight: bold;"></p>
-    <p id="affinity-description" style="margin-bottom: 1rem;"></p>
-
-    <div class="rank-buttons" style="margin-bottom: 1rem;">
-      <button onclick="setRank('Rank I')">Rank I</button>
-      <button onclick="setRank('Rank II')">Rank II</button>
-      <button onclick="setRank('Rank III')">Rank III</button>
-    </div>
-
-    <div id="class-details" style="margin-bottom: 1rem; font-style: italic;"></div>
-    <div id="abilities-output" class="ability-text"></div>
-  </div>
-
-<script>
-(function(){
-  const table = document.getElementById('classes-table');
-  if(!table) return;
-  const headRow = table.tHead && table.tHead.rows[0];
-  if(!headRow) return;
-
-  // Map column index -> type
-  const colType = {};
-  for (let i=0;i<headRow.cells.length;i++){
-    const text = (headRow.cells[i].textContent||'').toLowerCase();
-    if (text.includes('class')) colType[i] = 'class';
-    else if (text.includes('affinit')) colType[i] = 'affinity';
-    else if (text.includes('master')) colType[i] = 'mastery';
-  }
-
-  // Add classes to headers and cells
-  const typeToClass = {class: 'col-class', affinity:'col-affinity', mastery:'col-mastery'};
-  for (let i=0;i<headRow.cells.length;i++){
-    const t = colType[i];
-    if (!t) continue;
-    headRow.cells[i].classList.add(typeToClass[t]);
-  }
-  for (const row of table.tBodies[0].rows){
-    for (let i=0;i<row.cells.length;i++){
-      const t = colType[i];
-      if (!t) continue;
-      row.cells[i].classList.add(typeToClass[t]);
-      // If it's affinity/mastery, convert comma/semicolon/pipe separated values into pills
-      if (t==='affinity' || t==='mastery'){
-        const raw = row.cells[i].textContent || '';
-        const parts = raw.split(/\s*[;,|]\s*/).filter(Boolean);
-        if (parts.length > 1){
-          row.cells[i].innerHTML = parts.map(p => `<span class="pill">${p}</span>`).join('');
-        } else {
-          // single value -> still wrap for consistency
-          row.cells[i].innerHTML = `<span class="pill">${raw}</span>`;
-        }
-      } else if (t==='class'){
-        // Classes column also wrap as a pill for visual hierarchy
-        const raw = row.cells[i].textContent || '';
-        row.cells[i].innerHTML = `<span class="pill">${raw}</span>`;
-      }
-    }
-  }
-
-  // Track selection to help readability
-  window.selectAffinity = function(value){
-    // Clear old selection
-    table.querySelectorAll('td.is-selected').forEach(td => td.classList.remove('is-selected'));
-    // Find and highlight first matching cell
-    for (const row of table.tBodies[0].rows){
-      for (const td of row.cells){
-        if ((td.textContent||'').trim() === String(value).trim()){ td.classList.add('is-selected'); break; }
-      }
-    }
-    // Call original function if defined
-    if (typeof window._selectAffinityCore === 'function') return window._selectAffinityCore(value);
-  };
-
-  // Preserve original selectAffinity logic
-  if (typeof window._selectAffinityCore !== 'function' && typeof window.selectAffinity === 'function'){
-    window._selectAffinityCore = window.selectAffinity;
-  }
-})();
-</script>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-4xl font-bold">Classes &amp; Abilities</h1>
+  <a href="{{ url_for('home') }}" class="px-4 py-2 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10">&larr; Back to Home</a>
 </div>
 
+{# --- Identify column indices (Mastery, Class, Affinity...) from headers --- #}
+{% set ns = namespace(mastery=[], affinity=[], class_idx=None) %}
+{% for h in headers %}
+  {% set hl = (h|string)|lower %}
+  {% if 'mastery' in hl %}
+    {% set _ = ns.mastery.append(loop.index0) %}
+  {% elif ns.class_idx is none and hl.strip() == 'class' %}
+    {% set ns.class_idx = loop.index0 %}
+  {% elif 'affinity' in hl %}
+    {% set _ = ns.affinity.append(loop.index0) %}
+  {% endif %}
+{% endfor %}
+
+<div class="classes-grid">
+  <!-- LEFT: Compact table (no more 10+ columns) -->
+  <section class="panel p-4 min-w-0 table-panel">
+    <div class="table-wrap">
+      <table id="classes-table" class="classes-table">
+        <colgroup>
+          <col style="width: 120px;">
+          <col style="width: 120px;">
+          <col style="width: 180px;">
+          <col>
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Mastery 1</th>
+            <th>Mastery 2</th>
+            <th>Class</th>
+            <th>Affinities</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            {# Mastery 1 #}
+            <td>
+              {% if ns.mastery|length > 0 %}
+                {% set v = (row[ns.mastery[0]]|string).strip() %}
+                {% if v %}
+                  <div class="pill-row">
+                    <button type="button" class="pill pill-mastery mastery-{{ v|lower|replace(" ", "-") }}" data-kind="mastery" data-value="{{ v|e }}">{{ v }}</button>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </td>
+
+            {# Mastery 2 #}
+            <td>
+              {% if ns.mastery|length > 1 %}
+                {% set v = (row[ns.mastery[1]]|string).strip() %}
+                {% if v %}
+                  <div class="pill-row">
+                    <button type="button" class="pill pill-mastery mastery-{{ v|lower|replace(" ", "-") }}" data-kind="mastery" data-value="{{ v|e }}">{{ v }}</button>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </td>
+
+            {# Class #}
+            <td>
+              {% if ns.class_idx is not none %}
+                {% set v = (row[ns.class_idx]|string).strip() %}
+                {% if v %}
+                  <div class="pill-row">
+                    <button type="button" class="pill pill-class" data-kind="class" data-value="{{ v }}">{{ v }}</button>
+                  </div>
+                {% endif %}
+              {% endif %}
+            </td>
+
+            {# Affinities (all combined in one cell) #}
+            <td>
+              <div class="pill-row">
+                {% for i in ns.affinity %}
+                  {% set a = (row[i]|string).strip() %}
+                  {% if a %}
+                    {% set diff = (affinity_info.get(a, {}).get('difficulty', '')|string)|lower %}
+                    {% set diff_key = 'simple' if 'simple' in diff else ('neutral' if 'neutral' in diff else ('challenging' if 'challenging' in diff else ('hardcore' if 'hardcore' in diff else ('grimcore' if 'grimcore' in diff else '')))) %}
+                    <button type="button" class="pill {% if diff_key %}pill-diff-{{ diff_key }}{% endif %}" data-kind="affinity" data-value="{{ a }}">{{ a }}</button>
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- RIGHT: Details panel -->
+  <aside class="panel p-6 abilities-section cls-right">
+    <div class="detail-header">
+      <div class="flex items-baseline justify-between gap-4">
+        <h2 id="affinity-name" class="cls-title">Select something</h2>
+        <div id="affinity-difficulty" class="detail-meta cls-meta"></div>
+      </div>
+      <div id="affinity-description" class="cls-desc"></div>
+      <div id="class-details" class="text-base opacity-90" style="display:none;"></div>
+    </div>
+
+    <!-- Class card (shown only when a Class is selected) -->
+    <div id="cls-card" style="display:none;"></div>
+
+    <div class="rank-buttons" id="rank-buttons" style="display:none;">
+      <button type="button" onclick="setRank('Rank I')">Rank I</button>
+      <button type="button" onclick="setRank('Rank II')">Rank II</button>
+      <button type="button" onclick="setRank('Rank III')">Rank III</button>
+    </div>
+
+    <div class="panel-scroll"><div id="abilities-output" class="ability-text"></div></div>
+  </aside>
+</div>
 
 <script>
   const abilityData = {{ ability_data | tojson }};
@@ -266,387 +336,211 @@
   let currentAffinity = null;
   let currentRank = 'Rank I';
 
-  function selectAffinity(value) {
-  currentAffinity = value;
-  document.getElementById("affinity-name").innerText = value;
-  // Highlight the selected cell in the table for readability
-  try {
-    const table = document.getElementById('classes-table');
-    if (table) {
-      table.querySelectorAll('td.is-selected').forEach(td => td.classList.remove('is-selected'));
-      outer: for (const row of table.tBodies[0].rows) {
-        for (const td of row.cells) {
-          if ((td.textContent||'').trim() === String(value).trim()) { td.classList.add('is-selected'); break outer; }
-        }
-      }
-    }
-  } catch(_){}
+  const masteryTheme = {
+    'Offense':   { cls: 'mastery-offense',   color: '#fb923c' },
+    'Defense':   { cls: 'mastery-defense',   color: '#93c5fd' },
+    'Stealth':   { cls: 'mastery-stealth',   color: '#d8b4fe' },
+    'Arcane':    { cls: 'mastery-arcane',    color: '#c7d2fe' },
+    'Intellect': { cls: 'mastery-intellect', color: '#99f6e4' },
+    'Agility':   { cls: 'mastery-agility',   color: '#86efac' },
+  };
 
 
-  const isClass = classInfo.hasOwnProperty(value);
-  const isAffinity = affinityInfo.hasOwnProperty(value);
+  // Mastery data (kept here so Mastery pills can show info in the same right panel)
+  const masteryData = {
+    "Offense": ["+1 Attribute Point","Master Unarmed: Unarmed Type gains +1 Scaling.","(≈) Hit Harder: Basic Attack Target with +1 Extra Scaling on your highest Scaling Attribute. (2/Day)","+1 Might","Master Strength Weapon: Master Strength Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.","(≈) Shield Break: Basic Attack Target, if the Basic Attack Lands their Defense is reduced by 50% of the Damage Blocked. (2/Day)","+2 Base Strength","Master Dual Wield: You may Dual Wield Two Handed Weapons; Bows are excluded.","(P) Offense is the best Defense: Basic Attacking with a Roll of 16 or Higher gives you a Preparation Stack.","+0.5 Crit Multiplier","Master Tactical Combat: You can select your Banners Starting Tiles in Combat up to 2 Tiles from closest Hostile Entity.","(≈) Prominence: Archform; Gain 1 Crit Multiplier, 1 Scaling and Unstoppable; Your Attacks have Precise; Basic Attacks have +2 Roll Modifier; Lasts 5 Turns. (1/Vendal)"],
+    "Defense": ["+1 Stat Point","Master Shield/Buckler: Master Shield or Buckler; Mastered Type Give 50% More Stats.","(≈) Lucky Block: [Requires Shield/Buckler] Counter; Block Target Projectile/Strike reducing Damage equal to your Defense. (2/Day)","10% Elemental Resistance","Master Heavy Armor: Armor Pieces no longer give negative Stats.","(P) Tenacity: Gain 1 Extra Counter Action .","+2 Base Defense & 2 Base Dispersion","Master Heavy Combat: Your Basic Attack now also scales with 50% of your Defense.","(✦:≈) The Iron Dome: Toggle; Gain a Shield That gives 10 Defense, 10 Dispersion and 30% Deflect. (5% Current Health/Turn)","+50 Max Health","Master Protection: You may choose as Counter to redirect Projectiles or Strikes to you as long as the Original Target is in your Melee Range.","(≈) Resilience: Archform; Gain Resilient; +50% Elemental Resistance; Defense and Dispersion are combined into 1 Stat called Resilience; Lasts 5 Turns. (1/Vendal)"],
+    "Arcane": ["+1 Attribute Point","Master Hand Catalyst: Your Unarmed Basic Attacks become Ranged, have +5 Base Damage and deal Magic Damage.","(✦:^) Orb of Power: Summon an Orb surrounding you which constantly gives you 1 Power per Turn until end of combat. (2/Day)","+1 Wisdom","Master Power Weapon: Master Power Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.","(✦:o) Arcane Release: Push Everything in Melee Range 1 Tile away and deal Magic Damage equal to Power. (1/Day)","+2 Base Power","Master Mana Pool Expansion: Gain 20 Max Mana at the Start of Day.","(✦:≈) Arcanic Influx: Double your current Power until End of Combat. (1/Day)","+50 Max Mana","Master the Arcane: All Magic Damage you deal becomes Arcane Damage.","(≈) Emergence: Archform; Gain Surge; Gain 10 Power; Refresh all other Ability Cooldowns and Restore 100 Mana Upon Cast; Lasts 5 Turns. (1/Vendal)"],
+    "Agility": ["+1 Attribute Point","Master Throwable Type: Throwables of that Type gain 0.5 Scaling.","(≈) Power Dodge: Counter; Dodge with +5 Roll Modifier. (0.5 Stamina)","+1 Mobility","Master Dexterity Weapon: Master Dexterity Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.","(≈) Sprint: Move up to 3 Tiles. (1 Stamina)","+2 Base Dexterity","Master Dodging: Your Dodges gain +2 on their Roll.","(≈) Tempo Switch: Counter; Your next Action will have Flash or Blitz. (1/Combat)","+1 Stamina","Master Breathing: Your Traversal Attempt Rolls have a +2 Roll Modifier.","(≈) Celerity: Archform; Gain 4 Mobility; Gain 1 Extra Flash Action per Turn; Your Actions have Flash; Lasts 5 Turns. (1/Day)"],
+    "Intellect": ["+1 Stat Point","Master Cognition: Whenever you gain Experience gain 50 more; Does not count itself.","(≈) The Great Work: Create a Great Work; It occupies a Slot in your Inventory and may be Sold for 300 Gold. (1/Day; 1 Stamina)","+10% Fortitude","Master Deduction: You will always know who is the Highest Level Hero, Richest Hero, Hero with largest Banner and what Biome they are in.","(≈) Emotional Manipulation: The next Purchase you will make at Target Zone will be 50% Cheaper. (1/Zone)","+1 on Landmark Rolls","Master Philosophy: Upon Engaging Combat with a Sentient Roll D20; Rolling between 16-20 will Convert Sentients up to Bosses to your Banner.","(≈) Magnum Opus: Consume a Great Work, a Legendary Item and a Legendary Gear to Create a Random Artifact of Legendary Rarity.","+1 Roll Modifier","Master Rationality: You become immune to Confusion, Charm and Fear.","(≈) Brilliance: Archform; Gain Enlightment; You are able to detect Invisible Entities; +4 Roll Modifier; Lasts 5 Turns. (1/Vendal)"],
+    "Stealth": ["+1 Stat Point","Master Vital Spots: Vitals gain +0.5 Crit Multiplier.","(✦:≈) Smoke Cloud: Become Invisible for 1 Turn. (2/Day)","10% Deflection","Master Sharp Weapon: Master Sharp Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.","(P) Shadowboom: Everytime you Become Invisible you create a shadowy explosion dealing 10 True Damage.","+3 Flee Roll","Master Art of Stealth: Gain the Stealth Condition.","(≈) Unseen Threat: Basic Attack target Dealing 10 True Damage for each turn you were invisibe previously. (1/Day)","+0.5 Scaling","Master Sneaking: Become Invisible for 2 Turns on Combat Start.","(≈) Concealment: Archform; Gain Ethereal and Invisible; If Invisibility is lost it gets reapplied at the Start of your Turn; Lasts 5 Turns. (1/Vendal)"],
+  };
 
-  // Set affinity info
-  document.getElementById("affinity-difficulty").innerText =
-    isAffinity ? `Difficulty: ${affinityInfo[value].difficulty}` : '';
-  // Color code difficulty
-  (function() {
-    const el = document.getElementById("affinity-difficulty");
-    const diff = isAffinity ? String(affinityInfo[value].difficulty || '').trim().toLowerCase() : '';
+  function clearSelection(){
+    document.querySelectorAll('#classes-table button.pill.is-selected').forEach(b => b.classList.remove('is-selected'));
+  }
+
+  function setDifficultyColor(diffText){
+    const el = document.getElementById('affinity-difficulty');
+    if (!el) return;
+    const diff = String(diffText || '').trim().toLowerCase();
     const colors = {
-      'simple': '#22c55e',      // green
-      'neutral': '#facc15',     // yellow
-      'challenging': '#fb923c', // orange
-      'hardcore': '#ef4444',    // red
-      'grimcore': '#111111'     // black
+      simple: '#22c55e',
+      neutral: '#facc15',
+      challenging: '#fb923c',
+      hardcore: '#ef4444',
+      grimcore: '#e5e7eb',
     };
-    el.style.color = colors[diff] || '#f1f5f9'; // fallback (slate-100)
-  })();
+    const key = Object.keys(colors).find(k => diff.includes(k));
+    el.style.color = key ? colors[key] : '#f1f5f9';
+  }
 
-  document.getElementById("affinity-description").innerText =
-    isAffinity ? affinityInfo[value].description : '';
+  function renderAbilities(){
+    const container = document.getElementById('abilities-output');
+    if (!container) return;
+    const data = currentAffinity ? abilityData[currentAffinity] : null;
+    if (!currentAffinity || !data){
+      container.innerHTML = '';
+      return;
+    }
+    let html = '';
+    for (const [category, abilities] of Object.entries(data)){
+      html += `<h3>${category}</h3><ul>`;
+      for (const ab of abilities){
+        html += `<li>${ab[currentRank] || ab['Rank I'] || ''}</li>`;
+      }
+      html += `</ul>`;
+    }
+    container.innerHTML = html;
+  }
 
-  // Set class info
-  document.getElementById("class-details").innerText =
-    isClass ? `🎓 Class\n\nStarting Bonus: ${classInfo[value].bonus} | Starting Weapon: ${classInfo[value].weapon}` : '';
-
-  // Optional: different styling
-  document.getElementById("class-details").style.color = isClass ? "#7af" : "#aaa";
-
-  colorizeAffinityColumns();
-  renderAbilities();
-}
-
-
-
-  function setRank(rank) {
+  function setRank(rank){
     currentRank = rank;
     renderAbilities();
   }
+  window.setRank = setRank;
 
-  function renderAbilities() {
-  const container = document.getElementById("abilities-output");
-  const data = abilityData[currentAffinity];
-
-if (!currentAffinity || !abilityData[currentAffinity]) {
-  container.innerHTML = '';
-  return;
-}
-
-
-  let html = '';
-  for (const [category, abilities] of Object.entries(data)) {
-    const key = String(category).toLowerCase();
-    let hClass = '';
-    if(key.includes('innate')) hClass='h-innate';
-    else if(key.includes('tier i') || key.includes('rank i')) hClass='h-tier-i';
-    else if(key.includes('tier ii') || key.includes('rank ii')) hClass='h-tier-ii';
-    else if(key.includes('tier iii') || key.includes('rank iii')) hClass='h-tier-iii';
-    else if(key.includes('ultimate')) hClass='h-ultimate';
-    html += `<h3 class="${hClass}">${category}</h3><ul>`;
-    for (const ab of abilities) {
-      html += `<li>${ab[currentRank] || ab['Rank I']}</li>`;
-    }
-    html += '</ul>';
-  }
-  container.innerHTML = html;
-}
-
-
-
-  // === Colorize affinity columns ===
-  function colorizeAffinityColumns() {
-    try {
-      const tbl = document.getElementById('classes-table');
-      if (!tbl || !tbl.tHead || !tbl.tBodies[0]) return;
-      const headers = Array.from(tbl.tHead.rows[0].cells).map(th => (th.textContent||'').toLowerCase());
-      const affIdx = [];
-      headers.forEach((h, i) => { if (h.includes('affinity')) affIdx.push(i); });
-      if (!affIdx.length) return;
-
-      const colors = {
-        'simple':   {fg:'#22c55e', bg:'rgba(34,197,94,0.12)',  border:'1px solid rgba(34,197,94,0.6)'},
-        'neutral':  {fg:'#facc15', bg:'rgba(250,204,21,0.12)', border:'1px solid rgba(250,204,21,0.6)'},
-        'challenging': {fg:'#fb923c', bg:'rgba(251,146,60,0.12)', border:'1px solid rgba(251,146,60,0.6)'},
-        'hardcore': {fg:'#ef4444', bg:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.6)'},
-        'grimcore': {fg:'#f8fafc', bg:'#2f3136', border:'1px solid rgba(148,163,184,0.35)'},
-      };
-
-      function escapeHtml(str){const d=document.createElement('div');d.appendChild(document.createTextNode(str));return d.innerHTML;}
-
-      for (const row of Array.from(tbl.tBodies[0].rows)) {
-        for (const idx of affIdx) {
-          const td = row.cells[idx]; if (!td) continue;
-
-          // Avoid re-wrapping if we've already processed this cell
-          if (td.dataset.pillified === '1') continue;
-
-          const raw = (td.textContent || '').trim();
-          if (!raw || raw === '-' || raw === '–') { td.textContent=''; td.dataset.pillified='1'; continue; }
-
-          const diff = (((affinityInfo[raw] || {}).difficulty) || '').toString().trim().toLowerCase();
-          const c = colors[diff];
-          const fg = '#f8fafc';
-          const style = c ? `color:${fg};background:${c.bg};border:${c.border};` : `color:${fg};`;
-
-          td.innerHTML = `<span class="pill" style="${style}">${escapeHtml(raw)}</span>`;
-          td.dataset.pillified = '1';
-        }
-      }
-    } catch (e) {
-      // no-op
-      console && console.debug && console.debug('pillify failed', e);
-    }
-  }
-  // === End colorize ===
-
-  // Run once after load
-  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', colorizeAffinityColumns); } else { colorizeAffinityColumns(); }
-</script>
-
-<style>
-  :root{
-    --col-class: 59,130,246;      /* blue */
-    --col-affinity: 34,197,94;    /* green */
-    --col-mastery: 168,85,247;    /* purple */
-    --col-trait: 168,85,247;      /* purple */
-    --col-bonus: 245,158,11;      /* amber */
-    --col-penalty: 239,68,68;     /* red */
-    --col-origin: 14,165,233;     /* cyan */
-  }
-
-  td.selectable {
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-  }
-  td.selectable:hover {
-    background: #444;
-  }
-  #class-details {
-    font-style: italic;
-    margin-top: 0.5rem;
-  }
-
-  .ability-text h3.h-innate::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
-  .ability-text h3.h-tier-i::before { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
-  .ability-text h3.h-tier-ii::before { background: linear-gradient(180deg, #34d399, #10b981); }
-  .ability-text h3.h-tier-iii::before { background: linear-gradient(180deg, #a78bfa, #8b5cf6); }
-  .ability-text h3.h-ultimate::before { background: linear-gradient(180deg, #f43f5e, #ef4444); }
-
-<style>
-.col-class th, .col-class td { background: rgba(var(--col-class),0.10); }
-.col-affinity th, .col-affinity td { background: rgba(var(--col-affinity),0.10); }
-.col-mastery th, .col-mastery td { background: rgba(var(--col-mastery),0.10); }
-
-  .classes-table { width: 100%; border-collapse: separate; border-spacing: 0; }
-  .classes-table th, .classes-table td { padding: 10px 12px; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,0.08); }
-  .classes-table thead th { position: sticky; top: 0; background: rgba(255,255,255,0.06); backdrop-filter: blur(6px); z-index: 1; text-align: left; }
-  .classes-table tbody tr:nth-child(odd){ background: rgba(255,255,255,0.02); }
-  .pill { display: inline-block; padding: 2px 8px; margin: 2px 4px 2px 0; border-radius: 9999px; font-size: 0.95rem; line-height: 1.6; background: rgba(255,255,255,0.10); }
-  .col-class .pill { background: rgba(var(--col-class),0.18); }
-  .col-affinity .pill { background: rgba(var(--col-affinity),0.18); }
-  .col-mastery .pill { background: rgba(var(--col-mastery),0.18); }
-  .col-trait .pill { background: rgba(var(--col-trait),0.18); }
-  .col-bonus .pill { background: rgba(var(--col-bonus),0.18); }
-  .col-penalty .pill { background: rgba(var(--col-penalty),0.18); }
-  .col-origin .pill { background: rgba(var(--col-origin),0.18); }
-  td.selectable { cursor: pointer; transition: background 0.2s ease, transform 0.1s ease; }
-  td.selectable:hover { background: rgba(255,255,255,0.10); transform: translateY(-1px); }
-  td.selectable.is-selected { outline: 2px solid #ffa500; outline-offset: -2px; }
-</style>
-</style>
-
-<script>
-
-
-// Mastery panel + colors + rank button toggle (v16) — embeds mastery JSON
-(function() {
-  const table = document.getElementById('classes-table');
-  const rankPanel = document.querySelector('.rank-buttons');
-  const masteryData = {"Offense": ["+1 Attribute Point", "Master Unarmed: Unarmed Type gains +1 Scaling.", "(\u2248) Hit Harder: Basic Attack Target with +1 Extra Scaling on your highest Scaling Attribute. (2/Day)", "+1 Might", "Master Strength Weapon: Master Strength Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2248) Shield Break: Basic Attack Target, if the Basic Attack Lands their Defense is reduced by 50% of the Damage Blocked. (2/Day)", "+2 Base Strength", "Master Dual Wield: You may Dual Wield Two Handed Weapons; Bows are excluded.", "(P) Offense is the best Defense: Basic Attacking with a Roll of 16 or Higher gives you a Preparation Stack.", "+0.5 Crit Multiplier", "Master Tactical Combat: You can select your Banners Starting Tiles in Combat up to 2 Tiles from closest Hostile Entity.", "(\u2248) Prominence: Archform; Gain 1 Crit Multiplier, 1 Scaling and Unstoppable; Your Attacks have Precise; Basic Attacks have +2 Roll Modifier; Lasts 5 Turns. (1/Vendal)"], "Defense": ["+1 Stat Point", "Master Shield/Buckler: Master Shield or Buckler; Mastered Type Give 50% More Stats.", "(\u2248) Lucky Block: [Requires Shield/Buckler] Counter; Block Target Projectile/Strike reducing Damage equal to your Defense. (2/Day)", "10% Elemental Resistance", "Master Heavy Armor: Armor Pieces no longer give negative Stats.", "(P) Tenacity: Gain 1 Extra Counter Action .", "+2 Base Defense & 2 Base Dispersion", "Master Heavy Combat: Your Basic Attack now also scales with 50% of your Defense.", "(\u2756:\u2248) The Iron Dome: Toggle; Gain a Shield That gives 10 Defense, 10 Dispersion and 30% Deflect. (5% Current Health/Turn)", "+50 Max Health", "Master Protection: You may choose as Counter to redirect Projectiles or Strikes to you as long as the Original Target is in your Melee Range.", "(\u2248) Resilience: Archform; Gain Resilient; +50% Elemental Resistance; Defense and Dispersion are combined into 1 Stat called Resilience; Lasts 5 Turns. (1/Vendal)"], "Arcane": ["+1 Attribute Point", "Master Hand Catalyst: Your Unarmed Basic Attacks become Ranged, have +5 Base Damage and deal Magic Damage.", "(\u2756:^) Orb of Power: Summon an Orb surrounding you which constantly gives you 1 Power per Turn until end of combat. (2/Day)", "+1 Wisdom", "Master Power Weapon: Master Power Weapon Type; Weapons of chosen Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2756:o) Arcane Release: Push Everything in Melee Range 1 Tile away and deal Magic Damage equal to Power. (1/Day)", "+2 Base Power", "Master Mana Pool Expansion: Gain 20 Max Mana at the Start of Day.", "(\u2756:\u2248) Arcanic Influx: Double your current Power until End of Combat. (1/Day)", "+50 Max Mana", "Master the Arcane: All Magic Damage you deal becomes Arcane Damage.", "(\u2248) Emergence: Archform; Gain Surge; Gain 10 Power; Refresh all other Ability Cooldowns and Restore 100 Mana Upon Cast; Lasts 5 Turns. (1/Vendal)"], "Agility": ["+1 Attribute Point", "Master Throwable Type: Throwables of that Type gain 0.5 Scaling.", "(\u2248) Power Dodge: Counter; Dodge with +5 Roll Modifier. (0.5 Stamina)", "+1 Mobility", "Master Dexterity Weapon: Master Dexterity Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(\u2248) Sprint: Move up to 3 Tiles. (1 Stamina)", "+2 Base Dexterity", "Master Dodging: Your Dodges gain +2 on their Roll.", "(\u2248) Tempo Switch: Counter; Your next Action will have Flash or Blitz. (1/Combat)", "+1 Stamina", "Master Breathing: Your Traversal Attempt Rolls have a +2 Roll Modifier.", "(\u2248) Celerity: Archform; Gain 4 Mobility; Gain 1 Extra Flash Action per Turn; Your Actions have Flash; Lasts 5 Turns. (1/Day)"], "Intellect": ["+1 Stat Point", "Master Cognition: Whenever you gain Experience gain 50 more; Does not count itself.", "(\u2248) The Great Work: Create a Great Work; It occupies a Slot in your Inventory and may be Sold for 300 Gold. (1/Day; 1 Stamina)", "+10% Fortitude", "Master Deduction: You will always know who is the Highest Level Hero, Richest Hero, Hero with largest Banner and what Biome they are in.", "(\u2248) Emotional Manipulation: The next Purchase you will make at Target Zone will be 50% Cheaper. (1/Zone)", "+1 on Landmark Rolls", "Master Philosophy: Upon Engaging Combat with a Sentient Roll D20; Rolling between 16-20 will Convert Sentients up to Bosses to your Banner.", "(\u2248) Magnum Opus: Consume a Great Work, a Legendary Item and a Legendary Gear to Create a Random Artifact of Legendary Rarity.", "+1 Roll Modifier", "Master Rationality: You become immune to Confusion, Charm and Fear.", "(\u2248) Brilliance: Archform; Gain Enlightment; You are able to detect Invisible Entities; +4 Roll Modifier; Lasts 5 Turns. (1/Vendal)"], "Stealth": ["+1 Stat Point", "Master Vital Spots: Vitals gain +0.5 Crit Multiplier.", "(\u2756:\u2248) Smoke Cloud: Become Invisible for 1 Turn. (2/Day)", "10% Deflection", "Master Sharp Weapon: Master Sharp Weapon Type; Weapons of that Type will Scale in Off-Hand and gain 0.5 Scaling in Main Hand.", "(P) Shadowboom: Everytime you Become Invisible you create a shadowy explosion dealing 10 True Damage.", "+3 Flee Roll", "Master Art of Stealth: Gain the Stealth Condition.", "(\u2248) Unseen Threat: Basic Attack target Dealing 10 True Damage for each turn you were invisibe previously. (1/Day)", "+0.5 Scaling", "Master Sneaking: Become Invisible for 2 Turns on Combat Start.", "(\u2248) Concealment: Archform; Gain Ethereal and Invisible; If Invisibility is lost it gets reapplied at the Start of your Turn; Lasts 5 Turns. (1/Vendal)"]};
-  window.__MASTERY_DATA__ = masteryData;
-
-  function headerText(i) {
-    if (!table || !table.tHead || !table.tHead.rows[0] || !table.tHead.rows[0].cells[i]) return '';
-    return (table.tHead.rows[0].cells[i].textContent||'').toLowerCase();
-  }
-  function isAffinityCol(i) { return headerText(i).includes('affinit'); }
-  function isMasteryCol(i) { return headerText(i).includes('master'); }
-  function masteryColIdxs(){
-    if (!table || !table.tHead || !table.tHead.rows[0]) return [];
-    const cells = Array.from(table.tHead.rows[0].cells);
-    return cells.map((c,i)=>((c.textContent||'').toLowerCase().includes('master') ? i : -1)).filter(i=>i>=0);
-  }
-  function keyFrom(txt) {
-    const t = (txt||'').trim().toLowerCase();
-    if (t.startsWith('offense')) return 'offense';
-    if (t.startsWith('defense')) return 'defense';
-    if (t.startsWith('arcane'))  return 'arcane';
-    if (t.startsWith('agility')) return 'agility';
-    if (t.startsWith('intellect') || t.startsWith('inttellect')) return 'intellect';
-    if (t.startsWith('stealth')) return 'stealth';
-    return null;
-  }
-
-  const SOFT = {
-    defense:  { bg:'rgba(107,114,128,0.16)', border:'1px solid rgba(107,114,128,0.60)' },
-    arcane:   { bg:'rgba(59,130,246,0.16)',  border:'1px solid rgba(59,130,246,0.60)'  },
-    stealth:  { bg:'rgba(168,85,247,0.16)',  border:'1px solid rgba(168,85,247,0.60)' },
-    intellect:{ bg:'rgba(20,184,166,0.16)',  border:'1px solid rgba(20,184,166,0.60)'  },
-    offense:  { bg:'rgba(249,115,22,0.16)',  border:'1px solid rgba(249,115,22,0.60)'  },
-    agility:  { bg:'rgba(34,197,94,0.16)',   border:'1px solid rgba(34,197,94,0.60)'   },
-  };
-  function colorizeMasteryPills(){
-    try{
-      const idxs = masteryColIdxs();
-      if (!table || !table.tBodies.length || !idxs.length) return;
-      const rows = Array.from(table.tBodies[0].rows);
-      for (const row of rows){
-        for (const i of idxs){
-          const td = row.cells[i]; if (!td) continue;
-          const pills = td.querySelectorAll('.pill');
-          pills.forEach(p => {
-            const k = keyFrom(p.textContent);
-            const c = k && SOFT[k];
-            if (c){
-              p.style.setProperty('background', c.bg, 'important');
-              p.style.setProperty('border', c.border, 'important');
-              p.style.setProperty('color', '#ffffff', 'important');
-            }
-          });
-        }
-      }
-    }catch(_e){}
-  }
-
-  function esc(s){ const d=document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
-  function leadingTag(text){ const m=/^\(([^)]+)\)\s*/.exec(text); return m?'<span class="tag">'+esc(m[1])+'</span> ':''; }
-  function stripLeading(text){ return text.replace(/^\(([^)]+)\)\s*/, ''); }
   function renderMasteryPanel(name){
-    const key = keyFrom(name) || 'generic';
-    const items = masteryData[(name||'').trim()] || masteryData[name?.charAt(0)+name?.slice(1).toLowerCase()] || [];
-    let html = '<div class="mastery-panel mastery-'+key+'"><div class="mastery-subtle">Mastery</div><ol class="mastery-list">';
-    for (let i=0;i<items.length;i++){ const raw = items[i]; html += '<li><span class="mastery-badge">'+(i+1)+'</span>'+leadingTag(raw)+esc(stripLeading(raw))+'</li>'; }
-    html += '</ol></div>';
     const titleEl = document.getElementById('affinity-name');
     const diffEl  = document.getElementById('affinity-difficulty');
     const descEl  = document.getElementById('affinity-description');
     const classEl = document.getElementById('class-details');
+    const cardEl  = document.getElementById('cls-card');
     const outEl   = document.getElementById('abilities-output');
-    if (titleEl) titleEl.textContent = (name||'').toString();
-    if (diffEl) { diffEl.textContent=''; diffEl.style.display='none'; }
+    const rankEl  = document.getElementById('rank-buttons');
+    if (rankEl) rankEl.style.display = 'none';
+    if (cardEl){ cardEl.innerHTML = ''; cardEl.style.display = 'none'; }
+
+    const rawKey = String(name || '').trim();
+    const key = rawKey ? (rawKey.charAt(0).toUpperCase() + rawKey.slice(1).toLowerCase()) : '';
+    const theme = masteryTheme[key] || masteryTheme[String(rawKey || '').toUpperCase()] || null;
+    if (titleEl) { titleEl.textContent = key || rawKey; titleEl.style.color = theme?.color || '#f8fafc'; }
+    if (diffEl) { diffEl.textContent = ''; diffEl.style.color = '#f1f5f9'; }
     if (descEl) descEl.textContent = '';
     if (classEl) classEl.textContent = '';
-    if (outEl) outEl.innerHTML = html;
-  }
 
-  document.addEventListener('click', function(e){
-    const td = e.target.closest && e.target.closest('td');
-    if (!td || !td.closest || !td.closest('#classes-table')) return;
-    window.__lastClickType = isMasteryCol(td.cellIndex) ? 'mastery' : (isAffinityCol(td.cellIndex)?'affinity':'other');
-    if (rankPanel) rankPanel.style.display = (window.__lastClickType==='affinity') ? '' : 'none';
-    setTimeout(colorizeMasteryPills, 0);
-  }, true);
-
-  (function(){
-    const orig = window.selectAffinity;
-    window.selectAffinity = function(value){
-      if (window.__lastClickType === 'mastery'){ renderMasteryPanel(value); window.__lastClickType = null; return; }
-      if (typeof orig === 'function') orig(value);
-      const diffEl = document.getElementById('affinity-difficulty');
-      if (diffEl) diffEl.style.display = (window.__lastClickType==='affinity') ? '' : 'none';
-      window.__lastClickType = null;
-    };
-  })();
-
-  if (rankPanel) rankPanel.style.display = 'none';
-  function passes(){ colorizeMasteryPills(); setTimeout(colorizeMasteryPills,50); setTimeout(colorizeMasteryPills,200); }
-  if (document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', passes); } else { passes(); }
-})();
-</script>
-
-<script>
-<script>
-// Class details formatter (v20): reentrant-safe, no infinite loops
-(function(){
-  function splitAndBold(raw){
-    // Replace pipe separators with line breaks and bold the labels
-    // Works whether there is a space around the pipe or not
-    let t = raw.replace(/\s*\|\s*/g, "\n");
-    t = t.replace(/(Starting Bonus:)/i, "<strong>$1</strong>");
-    t = t.replace(/(Starting Weapon:)/i, "<strong>$1</strong>");
-    return t.replace(/\n/g, "<br>");
-  }
-
-  function formatClassDetails(){
-    const el = document.getElementById("class-details");
-    if (!el) return;
-    const txt = (el.textContent || "").trim();
-    if (!txt) return;
-    if (!(/Starting Bonus:/i.test(txt) || /Starting Weapon:/i.test(txt))) return;
-
-    const newHTML = splitAndBold(txt);
-    // Only update if content actually changes to avoid mutation loops
-    if (el.innerHTML !== newHTML){
-      el.innerHTML = newHTML;
+    const items = masteryData[key] || masteryData[rawKey] || masteryData[String(rawKey || '').toUpperCase()] || [];
+    if (!outEl) return;
+    if (!items.length){
+      const cls = theme?.cls || '';
+      outEl.innerHTML = `<div class="mastery-panel themable ${cls}"><div class="mastery-subtle">Mastery</div><div>No details found.</div></div>`;
+      return;
     }
-  }
-
-  // Observe changes but avoid loops by comparing before/after
-  function observe(){
-    const el = document.getElementById("class-details");
-    if (!el) return;
-    const mo = new MutationObserver(function(){
-      // Defer formatting to end of tick and only once
-      Promise.resolve().then(formatClassDetails);
-    });
-    mo.observe(el, {childList:true, characterData:true, subtree:true});
-    // Initial pass
-    formatClassDetails();
-  }
-
-  // Also format after table clicks that might update the right pane
-  document.addEventListener("click", function(e){
-    if (e.target && e.target.closest && e.target.closest("#classes-table")){
-      setTimeout(formatClassDetails, 0);
+    const cls = theme?.cls || '';
+    let html = `<div class="mastery-panel themable ${cls}"><div class="mastery-subtle">Mastery</div><ol class="mastery-list">`;
+    for (let i=0;i<items.length;i++){
+      const raw = String(items[i] || '');
+      html += `<li><span class="mastery-badge">${i+1}</span>${raw}</li>`;
     }
-  }, true);
-
-  if (document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", observe);
-  } else {
-    observe();
+    html += '</ol></div>';
+    outEl.innerHTML = html;
   }
-})();
-</script></script>
-{% endblock %}
-<script data-brand-fallback="1">
-document.addEventListener('DOMContentLoaded', function(){
-  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
-    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
-      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
-      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+
+  function renderClassOrAffinity(value){
+    const nameEl = document.getElementById('affinity-name');
+    const diffEl = document.getElementById('affinity-difficulty');
+    const descEl = document.getElementById('affinity-description');
+    const classEl = document.getElementById('class-details');
+    const rankEl  = document.getElementById('rank-buttons');
+
+    const isClass = Object.prototype.hasOwnProperty.call(classInfo, value);
+    const isAffinity = Object.prototype.hasOwnProperty.call(affinityInfo, value);
+
+    const card = document.getElementById('cls-card');
+
+    function escapeHtml(str){
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
     }
+
+    function toBullets(text){
+      const t = String(text || '').trim();
+      if(!t) return '<div class="cls-lines"></div>';
+      const parts = t.split(';').map(s => s.trim()).filter(Boolean);
+      if(parts.length <= 1){
+        return `<div class="cls-lines">${escapeHtml(t)}</div>`;
+      }
+      return `<div class="cls-lines"><ul>${parts.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul></div>`;
+    }
+
+    if (nameEl) { nameEl.textContent = value; nameEl.style.color = '#f8fafc'; }
+
+    if (diffEl){
+      const dif = isAffinity ? `Difficulty: ${affinityInfo[value].difficulty}` : '';
+      diffEl.textContent = dif;
+      diffEl.style.display = dif ? '' : 'none';
+      setDifficultyColor(isAffinity ? affinityInfo[value].difficulty : '');
+    }
+
+    if (descEl){
+      const d = isAffinity ? (affinityInfo[value].description || '') : '';
+      descEl.textContent = d;
+      descEl.style.display = d ? '' : 'none';
+    }
+
+    // Hide legacy class line; use the card instead
+    if (classEl){ classEl.textContent = ''; classEl.style.display = 'none'; }
+
+    if (card){
+      if (isClass){
+        const bonus = classInfo[value]?.bonus || '';
+        const weapon = classInfo[value]?.weapon || '';
+        card.innerHTML = `
+          <div class="cls-section">
+            <div class="cls-label">Starting Bonus</div>
+            ${toBullets(bonus)}
+          </div>
+          <div class="cls-section">
+            <div class="cls-label">Starting Weapon</div>
+            ${toBullets(weapon)}
+          </div>
+        `;
+        card.style.display = '';
+      } else {
+        card.innerHTML = '';
+        card.style.display = 'none';
+      }
+    }
+
+    if (rankEl) rankEl.style.display = isAffinity ? '' : 'none';
+
+    currentAffinity = isAffinity ? value : null;
+    currentRank = 'Rank I';
+    renderAbilities();
+  }
+
+  // Public click handler (called by the pills)
+  function selectThing(kind, value, el){
+    clearSelection();
+    if (el && el.classList) el.classList.add('is-selected');
+
+    const v = String(value || '').trim();
+    if (!v) return;
+
+    if (kind === 'mastery'){
+      renderMasteryPanel(v);
+      return;
+    }
+    renderClassOrAffinity(v);
+  }
+  window.selectThing = selectThing;
+
+  // Click handling via event delegation (no inline onclick -> works even with quotes/apostrophes)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('#classes-table button.pill[data-kind]');
+    if (!btn) return;
+    e.preventDefault();
+    selectThing(btn.dataset.kind, btn.dataset.value, btn);
   });
-});
-</script>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
 
-<div id="global-chat">
-  <div class="chat-header">
-    <div class="title">Global Chat</div>
-    <div class="controls">
-      <button id="chat-min" class="btn" type="button">–</button>
-    </div>
-  </div>
-  <div id="chat-messages"></div>
-  <form id="chat-form">
-    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
-    <button id="chat-send" type="submit">Send</button>
-  </form>
-</div>
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const first = document.querySelector('#classes-table button.pill');
+    if (first) first.focus({preventScroll:true});
+  });
+</script>
+{% endblock %}

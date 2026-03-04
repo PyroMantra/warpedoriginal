@@ -1,0 +1,237 @@
+.races-page {
+  max-width: none;
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px 18px 28px;
+}
+
+.races-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.races-title {
+  margin: 0;
+}
+
+.races-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.effects-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: #ddd;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.effects-toggle input {
+  transform: translateY(1px);
+}
+
+.races-page.hide-effects th.col-effects,
+.races-page.hide-effects td.col-effects {
+  display: none !important;
+}
+
+.races-search {
+  min-width: 320px;
+}
+
+.races-table-card {
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.races-table-wrap {
+  max-height: calc(100vh - 210px);
+  overflow: auto;
+}
+
+.races-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.races-table th,
+.races-table td {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 10px;
+  vertical-align: middle;
+  font-size: 14px;
+}
+
+.races-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(36, 36, 36, 0.92);
+  backdrop-filter: blur(10px);
+}
+
+.races-table thead tr:first-child th {
+  top: 0;
+}
+
+.races-table thead tr:nth-child(2) th {
+  top: 44px; /* height of first header row */
+  background: rgba(44, 44, 44, 0.92);
+}
+
+.races-table th.group {
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.races-table th.col-kin { width: 56px; }
+.races-table th.col-race { width: 160px; }
+.races-table th.col-subtype { width: 160px; }
+.races-table th.col-health { width: 84px; }
+.races-table th.col-mana { width: 84px; }
+.races-table th.col-conditions { width: 220px; }
+.races-table th.col-effects { width: 320px; }
+.races-table th.col-stat { width: 84px; }
+.races-table th.col-res { width: 70px; }
+
+.th-health { background: rgba(239, 68, 68, 0.82) !important; }
+.th-mana { background: rgba(59, 130, 246, 0.82) !important; }
+.th-conditions { background: rgba(148, 163, 184, 0.28) !important; }
+.th-defense { background: rgba(249, 115, 22, 0.75) !important; }
+.th-dispersion { background: rgba(56, 189, 248, 0.70) !important; }
+.th-strength { background: rgba(248, 113, 113, 0.70) !important; }
+.th-dexterity { background: rgba(34, 197, 94, 0.60) !important; }
+.th-power { background: rgba(59, 130, 246, 0.60) !important; }
+.th-stamina { background: rgba(34, 197, 94, 0.60) !important; }
+.th-fortitude { background: rgba(168, 85, 247, 0.60) !important; }
+.th-res { background: rgba(107, 114, 128, 0.55) !important; }
+
+.kin-cell {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 900;
+  text-align: center;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  padding: 12px 6px;
+}
+
+.kin-living { background: rgba(34, 197, 94, 0.25); }
+.kin-fae { background: rgba(59, 130, 246, 0.22); }
+.kin-construct { background: rgba(234, 179, 8, 0.22); }
+.kin-undead   { background: rgba(168, 85, 247, 0.18); }
+.kin-demon { background: rgba(239, 68, 68, 0.15); }
+.kin-divine   { background: rgba(20, 184, 166, 0.20); }
+.kin-eldritch { background: rgba(163, 230, 53, 0.18); }
+.kin-other { background: rgba(148, 163, 184, 0.14); }
+
+.race-cell {
+  background: rgba(255, 255, 255, 0.03);
+  font-weight: 800;
+}z
+
+.subtype-cell {
+  font-weight: 700;
+}
+
+.num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.conditions {
+  font-size: 13px;
+  opacity: 0.95;
+}
+
+.res-cell {
+  text-align: center;
+  color: #111;
+  font-weight: 900;
+  border-right: 1px solid rgba(0,0,0,0.25) !important;
+}
+
+.hoverable {
+  cursor: help;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
+}
+
+.races-tooltip{
+  position: fixed;
+  z-index: 9999;
+  max-width: 520px;
+  padding: 14px 16px;
+  border-radius: 14px;
+
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+
+  color: rgba(255,255,255,0.96);
+  background: rgba(0,0,0,0.90);
+  border: 1px solid rgba(255,255,255,0.18);
+
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 120ms ease, transform 120ms ease;
+  pointer-events: none;
+}
+.races-tooltip.show{
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Nice scrollbars (WebKit) */
+.races-table-wrap::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.races-table-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+.races-table-wrap::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+
+/* Conditions chips */
+.cond-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 0 6px 6px 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  line-height: 16px;
+  color: rgba(255,255,255,0.92);
+  white-space: nowrap;
+}
+.cond-chip.hoverable { cursor: help; }
+
+.th-effects { background: #2c3137; color: #f3f4f6; }
+.effects-cell { padding: 10px 10px; font-size: 12px; line-height: 1.25; white-space: normal; }
+.effects-cell .effects { white-space: normal; }

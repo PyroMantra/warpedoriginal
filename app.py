@@ -5,7 +5,7 @@ import random
 import sqlite3
 from pathlib import Path
 from datetime import datetime
-from functools import wraps
+from functools import wraps, lru_cache
 from collections import defaultdict, deque
 
 from flask import Flask, render_template, redirect, url_for, session, request, send_from_directory, flash
@@ -29,10 +29,6 @@ except Exception:
 # Flask / App setup
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
-
-# Absolute paths (Linux/Gunicorn safe)
-DATA_DIR = os.path.join(app.root_path, "data")
-
 
 # Trust Railway proxy and keep https scheme/host (MUST be after app is created)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
@@ -192,10 +188,61 @@ def debug_sentient():
 # ------------------------------------------------------------------------------
 # Data / Excel loading
 # ------------------------------------------------------------------------------
-EXCEL_PATH = os.path.join(DATA_DIR, "Layer List (7).xlsx")
-sheets = pd.read_excel(EXCEL_PATH, sheet_name=None)
+def _find_layer_list_xlsx() -> str:
+    """Best-effort resolver for the Layer List workbook.
 
-EXCEL_SENTIENT_PATH = os.path.join(DATA_DIR, "New Microsoft Excel Worksheet (2).xlsx")
+    Supports local dev + Railway/Gunicorn where cwd can vary.
+    """
+    env_path = os.environ.get("LAYER_LIST_XLSX") or os.environ.get("LAYER_LIST_PATH")
+    if env_path and os.path.exists(env_path):
+        return env_path
+
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(base_dir, "data", "Layer List (7).xlsx"),
+        os.path.join(base_dir, "data", "Layer List.xlsx"),
+        os.path.join(base_dir, "Layer List (7).xlsx"),
+        os.path.join(base_dir, "Layer List.xlsx"),
+        os.path.join("data", "Layer List (7).xlsx"),
+        os.path.join("data", "Layer List.xlsx"),
+    ]
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
+
+    # Last resort: pick any xlsx that starts with "Layer List".
+    try:
+        for root in [base_dir, os.path.join(base_dir, "data"), os.getcwd(), os.path.join(os.getcwd(), "data")]:
+            if not root or not os.path.isdir(root):
+                continue
+            for fn in os.listdir(root):
+                if fn.lower().startswith("layer list") and fn.lower().endswith(".xlsx"):
+                    cand = os.path.join(root, fn)
+                    if os.path.exists(cand):
+                        return cand
+    except Exception:
+        pass
+
+    return os.path.join("data", "Layer List (7).xlsx")
+
+
+EXCEL_PATH = _find_layer_list_xlsx()
+
+RACES_SHEET_DF = None
+CONDITIONS_MAP = None
+# Used to invalidate CONDITIONS_MAP when the Excel file changes.
+_CONDITIONS_MAP_MTIME = None
+try:
+    sheets_all = pd.read_excel(EXCEL_PATH, sheet_name=None)
+    RACES_SHEET_DF = sheets_all.get("Races")
+    sheets = sheets_all
+except Exception as e:
+    print(f"Failed to load Layer List workbook '{EXCEL_PATH}': {e}")
+    sheets = {}
+    RACES_SHEET_DF = None
+CONDITIONS_MAP = None
+
+EXCEL_SENTIENT_PATH = os.path.join("data", "New Microsoft Excel Worksheet (2).xlsx")
 
 RACES = load_races(EXCEL_SENTIENT_PATH)
 GEAR  = load_gear(EXCEL_SENTIENT_PATH)
@@ -212,6 +259,51 @@ sheets = {k: v for k, v in sheets.items() if k not in ["Classes", "Races", "Abil
 
 SHEET_NAMES = list(sheets.keys())
 generator_sheets = [name for name in SHEET_NAMES if "Generator" in name]
+
+# ------------------------------------------------------------------------------
+# Races (Excel-driven) helpers
+
+@lru_cache(maxsize=4)
+def _load_races_df_cached(excel_path: str, mtime: float) -> pd.DataFrame:
+    """Load and sanitize the Races sheet. Cached by file mtime."""
+    df = pd.read_excel(excel_path, sheet_name="Races")
+    df = df.dropna(how="all")
+
+    # The workbook can contain other tables below; keep only the actual race rows.
+    if "SUBTYPES" in df.columns:
+        df = df[df["SUBTYPES"].notna()].copy()
+
+    # In case of merged cells, fill down.
+    for col in ["KIN", "RACES"]:
+        if col in df.columns:
+            df[col] = df[col].ffill()
+
+    return df
+
+
+def load_races_excel_df() -> pd.DataFrame:
+    """Return the cleaned Races dataframe from the Layer List workbook."""
+    global RACES_SHEET_DF
+    try:
+        if RACES_SHEET_DF is not None and isinstance(RACES_SHEET_DF, pd.DataFrame) and not RACES_SHEET_DF.empty:
+            df = RACES_SHEET_DF.copy()
+            df = df.dropna(how="all")
+            if "SUBTYPES" in df.columns:
+                df = df[df["SUBTYPES"].notna()].copy()
+            for col in ["KIN", "RACES"]:
+                if col in df.columns:
+                    df[col] = df[col].ffill()
+            return df
+    except Exception:
+        pass
+
+    if not os.path.exists(EXCEL_PATH):
+        raise FileNotFoundError(
+            f"Layer List workbook not found at '{EXCEL_PATH}'. Set LAYER_LIST_XLSX or place it in ./data/."
+        )
+
+    mtime = os.path.getmtime(EXCEL_PATH)
+    return _load_races_df_cached(EXCEL_PATH, mtime)
 
 # ------------------------------------------------------------------------------
 # Helpers: user display name
@@ -659,7 +751,8 @@ def quest_generator():
     formatted = []
     for row in picks:
         out = {k: fmt_cell(v) for k, v in row.items()}
-        out.pop("_norm_diff", None)
+        # Keep _norm_diff so the template can color-code difficulty.
+        # The template already hides this helper column from the visible fields.
         formatted.append(out)
 
     columns = list(df.columns)  # preserve original order
@@ -711,7 +804,7 @@ def bestiary():
             return str(x)
         return str(x)
 
-    df = df.apply(lambda col: col.map(fmt_cell))
+    df = df.applymap(fmt_cell)
 
     raw_creatures = df.to_dict(orient="records")
 
@@ -776,169 +869,11 @@ def bestiary():
 import numpy as np
 import pandas as pd
 
-
-def _parse_roll_information(excel_path: str):
-    # Parses the 'Roll Information' sheet into a flat list of scenarios:
-    #   [{id, label, category, scenario, outcomes:{'1':'...', ...}}, ...]
-    import pandas as _pd
-    import re as _re
-
-    df_raw = _pd.read_excel(excel_path, sheet_name="Roll Information", header=None)
-    df_raw = df_raw.fillna("")
-
-    current_category = "Rolls"
-    scenarios = []
-
-    def _cat_short(s: str) -> str:
-        s = (s or "").strip()
-        # e.g. "MIGHT ROLLS (Benefit from Might)" -> "Might"
-        parts = _re.split(r"\s+ROLLS\b", s, flags=_re.IGNORECASE)
-        base = (parts[0] if parts else s).strip()
-        return (base or "Rolls").title()
-
-    nrows, ncols = df_raw.shape
-    i = 0
-    while i < nrows:
-        row0 = str(df_raw.iat[i, 0]).strip()
-        row1 = str(df_raw.iat[i, 1]).strip() if ncols > 1 else ""
-
-        # Category row (first column blank, second column has "...ROLLS...")
-        if row0 == "" and row1 and _re.search(r"\bROLLS\b", row1, flags=_re.IGNORECASE):
-            current_category = row1
-
-        # Header row starts a block
-        if row0.lower() == "roll":
-            header_cols = []
-            for c in range(1, ncols):
-                name = str(df_raw.iat[i, c]).strip()
-                if name:
-                    header_cols.append((c, name))
-
-            outcomes = {c: {} for c, _ in header_cols}
-            j = i + 1
-            while j < nrows:
-                r = str(df_raw.iat[j, 0]).strip()
-                if not r:
-                    break
-                if r.lower() == "roll":
-                    break
-                try:
-                    roll_n = int(float(r))
-                except Exception:
-                    j += 1
-                    continue
-
-                for c, _name in header_cols:
-                    val = str(df_raw.iat[j, c]).strip()
-                    outcomes[c][roll_n] = val
-                j += 1
-
-            cat = _cat_short(current_category)
-            for c, scen in header_cols:
-                label = f"{cat} — {scen}"
-                sid = _re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
-                out_map = {str(k): v for k, v in sorted(outcomes[c].items(), key=lambda kv: kv[0])}
-                scenarios.append({
-                    "id": sid,
-                    "label": label,
-                    "category": cat,
-                    "scenario": scen,
-                    "outcomes": out_map,
-                })
-
-            i = j
-            continue
-
-        i += 1
-
-    return scenarios
-
-
-def _parse_roll_status_table(excel_path: str):
-    """Parse the Status Roll table inside 'Roll Information' sheet (if present)."""
-    import pandas as _pd
-
-    df_raw = _pd.read_excel(excel_path, sheet_name="Roll Information", header=None)
-    df_raw = df_raw.fillna("")
-
-    nrows, ncols = df_raw.shape
-
-    def _cell(i, c):
-        try:
-            return str(df_raw.iat[i, c]).strip()
-        except Exception:
-            return ""
-
-    header_idx = None
-    header_cols = None
-
-    for i in range(nrows):
-        c0 = _cell(i, 0).lower()
-        c1 = _cell(i, 1).lower()
-        if c0 == "status roll" and c1 == "random status roll":
-            header_idx = i
-            cols = []
-            for c in range(ncols):
-                name = _cell(i, c)
-                if name:
-                    cols.append((c, name))
-                else:
-                    if len(cols) > 0:
-                        break
-            header_cols = cols
-            break
-
-    if header_idx is None or not header_cols:
-        return []
-
-    norm = {name.lower(): c for c, name in header_cols}
-    c_status = norm.get("status roll", header_cols[0][0] if len(header_cols) > 0 else 0)
-    c_random = norm.get("random status roll", header_cols[1][0] if len(header_cols) > 1 else 1)
-    c_negative = norm.get("negative status roll", header_cols[2][0] if len(header_cols) > 2 else 2)
-    c_type = norm.get("type", header_cols[3][0] if len(header_cols) > 3 else (header_cols[-1][0] if header_cols else 3))
-
-    rows = []
-    j = header_idx + 1
-    while j < nrows:
-        v0 = _cell(j, c_status)
-        v1 = _cell(j, c_random)
-        v2 = _cell(j, c_negative)
-        v3 = _cell(j, c_type)
-
-        if not (v0 or v1 or v2 or v3):
-            break
-
-        rows.append({
-            "status_roll": v0,
-            "random_status_roll": v1,
-            "negative_status_roll": v2,
-            "type": v3,
-        })
-        j += 1
-
-    return rows
-
-
-
 @app.route("/view/<sheet>")
 @login_required
 def view_sheet(sheet):
     if sheet not in sheets:
         return f"Sheet '{sheet}' not found.", 404
-
-    # Special UI for Roll Information (d20 picker + card)
-    if sheet.strip().lower() == "roll information":
-        roll_tables = _parse_roll_information(EXCEL_PATH)
-        status_rows = _parse_roll_status_table(EXCEL_PATH)
-        return render_template(
-            "roll_information.html",
-            sheet=sheet,
-            roll_tables=roll_tables,
-            current_user_name=_display_name_from_session(),
-            is_admin=is_admin(),
-                    status_rows=status_rows,
-        )
-
 
     # hide .0 for integers
     def fmt_cell(x):
@@ -953,7 +888,105 @@ def view_sheet(sheet):
         return str(x)
 
     df = sheets[sheet].copy()
-    df = df.apply(lambda col: col.map(fmt_cell))
+    df = df.applymap(fmt_cell)
+
+
+    # Special-case: Roll Information uses a dedicated UI (d20 selector + all outcomes)
+    if sheet.strip().lower() == "roll information":
+        # The sheet is arranged in blocks that start with a row where column A == "Roll".
+        # Each block contains 1-20 outcomes for one or more scenarios across columns.
+        df_roll = df.fillna("")
+
+        cols = df_roll.columns.tolist()
+        first_col = cols[0]
+
+        def _group_for_col(idx: int) -> str:
+            """Return the nearest non-'Unnamed' header to the left (handles merged Excel headers)."""
+            if idx <= 0 or idx >= len(cols):
+                return ""
+            name = _norm(cols[idx])
+            if name and not name.lower().startswith("unnamed"):
+                return name
+            j = idx - 1
+            while j >= 1:
+                prev = _norm(cols[j])
+                if prev and not prev.lower().startswith("unnamed"):
+                    return prev
+                j -= 1
+            return ""
+
+        def _scale_from_group(group_header: str) -> str:
+            u = (group_header or "").upper()
+            if "MOBILITY" in u:
+                return "Mobility"
+            if "WISDOM" in u:
+                return "Wisdom"
+            if "MIGHT" in u:
+                return "Might"
+            if "NEUTRAL" in u or "NOTHING" in u:
+                return "Nothing"
+            return "Nothing"
+
+        def _norm(v):
+            s = str(v or "")
+            # normalize non-breaking spaces from Excel exports
+            s = s.replace("\xa0", " ").replace(" ", " ")
+            return s.strip()
+
+        # Find the start of each d20 block
+        roll_starts = df_roll.index[df_roll[first_col].astype(str).str.strip().str.lower() == "roll"].tolist()
+        roll_starts.sort()
+
+        # Find the Status table start (if present)
+        status_starts = df_roll.index[df_roll[first_col].astype(str).str.strip().str.lower() == "status roll"].tolist()
+        status_start = status_starts[0] if status_starts else len(df_roll)
+
+        roll_tables = []
+        for i, start in enumerate(roll_starts):
+            end = roll_starts[i + 1] if i + 1 < len(roll_starts) else status_start
+            for c_idx in range(1, len(cols)):
+                col = cols[c_idx]
+                group_header = _group_for_col(c_idx)
+                scales_with = _scale_from_group(group_header)
+
+                label = _norm(df_roll.at[start, col])
+                if not label:
+                    continue
+                outcomes = {}
+                for r in range(start + 1, end):
+                    roll_val = _norm(df_roll.at[r, first_col])
+                    if roll_val.isdigit():
+                        n = int(roll_val)
+                        if 1 <= n <= 20:
+                            outcomes[str(n)] = _norm(df_roll.at[r, col])
+                if outcomes:
+                    roll_tables.append({"label": label, "outcomes": outcomes, "scales_with": scales_with, "group": group_header})
+
+        status_rows = []
+        if status_starts:
+            s0 = status_starts[0]
+            c_roll = first_col
+            c_rand = cols[1] if len(cols) > 1 else None
+            c_neg = cols[2] if len(cols) > 2 else None
+            c_type = cols[3] if len(cols) > 3 else None
+
+            for r in range(s0 + 1, len(df_roll)):
+                v = _norm(df_roll.at[r, c_roll])
+                if not v or not v.isdigit():
+                    continue
+                status_rows.append({
+                    "status_roll": v,
+                    "random_status_roll": _norm(df_roll.at[r, c_rand]) if c_rand else "",
+                    "negative_status_roll": _norm(df_roll.at[r, c_neg]) if c_neg else "",
+                    "type": _norm(df_roll.at[r, c_type]) if c_type else "",
+                })
+
+        return render_template(
+            "roll_information.html",
+            sheet="Roll Info",
+            roll_tables=roll_tables,
+            status_rows=status_rows,
+        )
 
     # default payloads
     row_colors = None
@@ -1161,29 +1194,234 @@ def admin_required(f):
 
 # ------------------------ Tables/Views ------------------------
 
+@lru_cache(maxsize=2)
+def _load_conditions_map_cached(path: str, mtime: float) -> dict:
+    # Condition->Effect mapping from the Races sheet (cols A:B starting at row 111)
+    try:
+        # Row 111 (1-indexed) -> skip first 110 rows
+        df = pd.read_excel(path, sheet_name="Races", usecols="A:B", skiprows=110)
+    except Exception:
+        return {}
+
+    df = df.dropna(how="all")
+    if df.empty or df.shape[1] < 2:
+        return {}
+
+    mapping: dict[str, str] = {}
+    for _, row in df.iterrows():
+        cond = str(row.iloc[0]).strip() if row.iloc[0] is not None else ""
+        eff = str(row.iloc[1]).strip() if row.iloc[1] is not None else ""
+        if not cond or cond.lower() == "nan":
+            continue
+        if not eff or eff.lower() == "nan":
+            continue
+        mapping[str(cond).strip().lower()] = eff
+
+    return mapping
+
+
+def load_conditions_map() -> dict:
+    global CONDITIONS_MAP
+    try:
+        # Conditions live in the same Layer List workbook used for races.
+        mtime = os.path.getmtime(EXCEL_PATH)
+    except Exception:
+        mtime = 0
+
+    cached_mtime = getattr(load_conditions_map, "_cached_mtime", None)
+
+    if CONDITIONS_MAP is None or cached_mtime != mtime:
+        if cached_mtime != mtime:
+            _load_conditions_map_cached.cache_clear()
+        CONDITIONS_MAP = _load_conditions_map_cached(EXCEL_PATH, mtime)
+        setattr(load_conditions_map, "_cached_mtime", mtime)
+
+    return CONDITIONS_MAP
+
+
 @app.route("/races-table")
+@app.route("/races")
+@app.route("/races_table")
 @login_required
 def races_table():
-    path = "static/notion/Races Main 207ec6426bd5807b925cddd6c35d0f14_all.csv"
-    df = pd.read_csv(path).fillna("")
-    df.columns = df.columns.str.strip()
+    """Races page (Excel-driven).
 
-    if "RACE" in df.columns and "SUBTYPE" in df.columns:
-        df["RACE"] = df["RACE"].apply(lambda x: x.split(" (")[0] if isinstance(x, str) else x)
-        cols = df.columns.tolist()
-        if cols.index("RACE") > cols.index("SUBTYPE"):
-            race_idx, sub_idx = cols.index("RACE"), cols.index("SUBTYPE")
-            cols[race_idx], cols[sub_idx] = cols[sub_idx], cols[race_idx]
-            df = df[cols]
+    Uses the **Races** tab from the Layer List workbook.
+    Shows columns A–V in the UI, and uses the description columns for hover.
+    """
 
-    stamina_col = next((c for c in df.columns if c.lower() == "stamina"), None)
-    if stamina_col:
-        df[stamina_col] = df[stamina_col].apply(lambda x: round(float(x)) if str(x).replace(".", "", 1).isdigit() else x)
+    df = load_races_excel_df().fillna("")
 
-    for col in [c for c in df.columns if "resistance" in c.lower()]:
-        df[col] = df[col].apply(lambda x: f"{float(x)*100:.0f}%" if str(x).replace(".", "", 1).isdigit() else x)
+    # Optional search (server-side to keep rowspans consistent)
+    q = (request.args.get("q") or "").strip()
+    if q:
+        ql = q.lower()
+        def _contains(col):
+            return df[col].astype(str).str.lower().str.contains(ql, na=False)
+        mask = False
+        for col in ["KIN", "RACES", "SUBTYPES", "CONDITIONS"]:
+            if col in df.columns:
+                mask = mask | _contains(col)
+        df = df[mask]
 
-    return render_template("races_table.html", headers=df.columns.tolist(), rows=df.values.tolist())
+    base_cols = [
+        "KIN",
+        "RACES",
+        "SUBTYPES",
+        "HEALTH",
+        "MANA",
+        "CONDITIONS",
+        "CONDITION EFFECTS",
+        "DEFENSE",
+        "DISPERSION",
+        "STRENGTH",
+        "DEXTERITY",
+        "POWER",
+        "STAMINA",
+        "FORTITUDE",
+    ]
+    # Elemental resistances (Excel columns N..V)
+    # NOTE: names must match the header text in the Races sheet exactly.
+    res_cols = [
+        "LIGHT RESISTANCE",
+        "DARK RESISTANCE",
+        "FIRE RESISTANCE",
+        "FROST RESISTANCE",
+        "WIND RESISTANCE",
+        "EARTH RESISTANCE",
+        "LIGHTNING RESISTANCE",
+        "BLEED RESISTANCE",
+        "POISON RESISTANCE",
+    ]
+    hover_cols = {
+        "race_desc": "Race Description",
+        "subtype_desc": "Subtype Description",
+    }
+
+    keep_cols = [c for c in base_cols + res_cols if c in df.columns]
+    extra_cols = [c for c in hover_cols.values() if c in df.columns]
+    df_view = df[keep_cols + extra_cols].copy()
+
+    # Condition effects map (from the Conditions block in the same Excel sheet)
+    cond_effect = load_conditions_map()
+
+    def _split_conditions(val):
+        if val is None:
+            return []
+        s = str(val).strip()
+        if not s:
+            return []
+        return [p.strip() for p in re.split(r'[;,\n]+', s) if p and p.strip()]
+
+
+    def _as_int(v):
+        try:
+            if v == "" or v is None:
+                return ""
+            fv = float(v)
+            if abs(fv - round(fv)) < 1e-9:
+                return str(int(round(fv)))
+            return str(fv)
+        except Exception:
+            return str(v)
+
+    def _pct_str(v):
+        try:
+            if v == "" or v is None:
+                return ""
+            fv = float(v)
+            return f"{int(round(fv * 100))}%"
+        except Exception:
+            return str(v)
+
+    def _pct_color(v):
+        try:
+            fv = float(v)
+        except Exception:
+            return ""
+        fv = max(-1.0, min(1.0, fv))
+        if fv >= 0.70:
+            return "#22c55e"
+        if fv >= 0.40:
+            return "#4ade80"
+        if fv >= 0.20:
+            return "#86efac"
+        if fv >= 0.05:
+            return "#fde047"
+        if fv > -0.05:
+            return "#fbbf24"
+        if fv > -0.20:
+            return "#fb923c"
+        if fv > -0.40:
+            return "#f87171"
+        return "#ef4444"
+
+    # Build rows for the template
+    rows = []
+    for _, r in df_view.iterrows():
+        row = {
+            "KIN": r.get("KIN", ""),
+            "RACES": r.get("RACES", ""),
+            "SUBTYPES": r.get("SUBTYPES", ""),
+            "race_desc": str(r.get(hover_cols["race_desc"], "")).strip(),
+            "subtype_desc": str(r.get(hover_cols["subtype_desc"], "")).strip(),
+        }
+
+        # Build hoverable condition tokens (Condition -> Effect from the Excel Conditions block).
+        row['condition_effects'] = str(r.get('CONDITION EFFECTS', '')).strip()
+
+        row['conditions_list'] = [
+            {'name': c, 'effect': cond_effect.get(c.lower(), '')}
+            for c in _split_conditions(r.get('CONDITIONS', ''))
+        ]
+
+        # Stats
+        for c in base_cols[3:]:
+            if c in ('CONDITIONS', 'CONDITION EFFECTS'):
+                continue
+            if c in df_view.columns:
+                row[c] = _as_int(r.get(c, ""))
+
+        # Resistances as % + heat color
+        res = []
+        for c in res_cols:
+            if c in df_view.columns:
+                val_raw = r.get(c, "")
+                res.append({"key": c, "text": _pct_str(val_raw), "bg": _pct_color(val_raw)})
+        row["res"] = res
+
+        rows.append(row)
+
+    # Compute rowspans (Excel-like merged cells for KIN and RACES)
+    for row in rows:
+        row["kin_rowspan"] = 0
+        row["race_rowspan"] = 0
+
+    i = 0
+    while i < len(rows):
+        kin = rows[i]["KIN"]
+        j = i
+        while j < len(rows) and rows[j]["KIN"] == kin:
+            j += 1
+        rows[i]["kin_rowspan"] = j - i
+
+        k = i
+        while k < j:
+            race = rows[k]["RACES"]
+            m = k
+            while m < j and rows[m]["RACES"] == race:
+                m += 1
+            rows[k]["race_rowspan"] = m - k
+            k = m
+        i = j
+
+    return render_template(
+        "races_table.html",
+        q=q,
+        rows=rows,
+        base_cols=[c for c in base_cols if c in keep_cols],
+        res_cols=[c for c in res_cols if c in keep_cols],
+    )
 
 @app.route("/notion-db/<db>")
 @login_required

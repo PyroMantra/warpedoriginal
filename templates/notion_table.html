@@ -9,6 +9,174 @@
   <a class="button top-right" href="/">← Back to Home</a>
   <h1>{{ db }}</h1>
 
+  {% if db == 'Damage Calculation' %}
+  <style>
+    .dc-card{background:#242424;border:1px solid #3a3a3a;border-radius:14px;padding:16px;margin:14px 0 18px 0;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+    .dc-grid{display:grid;grid-template-columns:repeat(6,minmax(140px,1fr));gap:10px}
+    @media (max-width:1200px){.dc-grid{grid-template-columns:repeat(3,minmax(160px,1fr));}}
+    @media (max-width:720px){.dc-grid{grid-template-columns:repeat(2,minmax(140px,1fr));}}
+    .dc-field label{display:block;font-size:.85rem;opacity:.9;margin:0 0 6px 2px}
+    .dc-field input,.dc-field select{width:100%;padding:.55rem .6rem;background:#2f2f2f;color:#fff;border:1px solid #666;border-radius:10px;outline:none}
+    .dc-field input:focus,.dc-field select:focus{border-color:#9aa0a6}
+    .dc-results{margin-top:12px;border-top:1px solid #3a3a3a;padding-top:12px;display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:10px}
+    @media (max-width:900px){.dc-results{grid-template-columns:repeat(2,minmax(160px,1fr));}}
+    .dc-kpi{background:#1f1f1f;border:1px solid #3a3a3a;border-radius:14px;padding:12px}
+    .dc-kpi .t{font-size:.85rem;opacity:.9;margin-bottom:6px}
+    .dc-kpi .v{font-size:1.5rem;font-weight:700}
+    .dc-note{margin-top:10px;font-size:.95rem;opacity:.95}
+    .dc-note b{color:#f5d76e}
+  </style>
+
+  <div class="dc-card" id="damageCalcCard">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div style="font-size:1.15rem;font-weight:700;">Basic Attack Damage Calculator</div>
+      <div style="opacity:.8;font-size:.9rem;">Rounding: <b>standard</b> (0.5+ rounds up)</div>
+    </div>
+
+    <div class="dc-grid" style="margin-top:12px;">
+      <div class="dc-field">
+        <label>Roll (D20)</label>
+        <input id="dc_roll" type="number" min="1" max="20" value="10">
+      </div>
+      <div class="dc-field">
+        <label>Min Damage Range</label>
+        <input id="dc_min_in" type="number" min="0" step="1" value="6">
+      </div>
+      <div class="dc-field">
+        <label>Max Damage Range</label>
+        <input id="dc_max_in" type="number" min="0" step="1" value="14">
+      </div>
+      <div class="dc-field">
+        <label>Crit Multiplier</label>
+        <input id="dc_crit" type="number" min="0" step="0.1" value="2">
+      </div>
+      <div class="dc-field">
+        <label>% Damage Increase</label>
+        <input id="dc_inc" type="number" min="0" step="1" value="0">
+      </div>
+      <div class="dc-field">
+        <label>Target Flat Resistance</label>
+        <input id="dc_flat" type="number" step="1" value="0">
+      </div>
+      <div class="dc-field">
+        <label>Target % Resistance</label>
+        <input id="dc_pct" type="number" min="0" max="100" step="1" value="0">
+      </div>
+    </div>
+
+    <div class="dc-results">
+      <div class="dc-kpi">
+        <div class="t">Basic Attack Min</div>
+        <div class="v" id="dc_min">–</div>
+      </div>
+      <div class="dc-kpi">
+        <div class="t">Basic Attack Max</div>
+        <div class="v" id="dc_max">–</div>
+      </div>
+      <div class="dc-kpi">
+        <div class="t">Raw Damage</div>
+        <div class="v" id="dc_raw">–</div>
+      </div>
+      <div class="dc-kpi" style="background:#233022;">
+        <div class="t">Damage post Res.</div>
+        <div class="v" id="dc_post">–</div>
+      </div>
+    </div>
+
+    <div class="dc-note" id="dc_note"></div>
+  </div>
+
+  <script>
+    (function(){
+      const pctByRoll = {
+        6:0.10,7:0.20,8:0.30,9:0.40,10:0.50,11:0.60,12:0.70,13:0.80,14:0.90,15:1.00,
+        17:0.25,18:0.75
+      };
+
+      const el = (id) => document.getElementById(id);
+      const inputs = ['dc_roll','dc_min_in','dc_max_in','dc_crit','dc_inc','dc_flat','dc_pct'].map(el);
+
+      function n(v, fallback=0){
+        const x = Number(v);
+        return Number.isFinite(x) ? x : fallback;
+      }
+
+      function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+      // Standard rounding ("half up") for positive numbers: 0.5+ rounds up, otherwise down.
+      function rnd(x){ return Math.floor(x + 0.5); }
+
+      function compute(){
+        let roll = clamp(rnd(n(el('dc_roll').value,10)), 1, 20);
+        let minIn = Math.max(0, n(el('dc_min_in').value, 0));
+        let maxIn = Math.max(0, n(el('dc_max_in').value, 0));
+        let crit = Math.max(0, n(el('dc_crit').value, 1));
+        let inc = Math.max(0, n(el('dc_inc').value, 0)) / 100;
+        let flatRes = Math.max(0, n(el('dc_flat').value, 0));
+        let pctRes = clamp(n(el('dc_pct').value, 0) / 100, 0, 1.0);
+
+        // Basic min/max from explicit min/max range inputs
+        let minD = Math.max(0, rnd(minIn));
+        let maxD = Math.max(minD, rnd(maxIn));
+
+        el('dc_min').textContent = String(minD);
+        el('dc_max').textContent = String(maxD);
+
+        let note = '';
+        let raw = 0;
+
+        if (roll >= 2 && roll <= 5){
+          raw = 0;
+          note = 'Roll ' + roll + ': <b>Miss</b> (0%).';
+        } else if (roll === 1){
+          const avg = (minD + maxD) / 2;
+          raw = rnd(avg * 0.5);
+          note = 'Roll 1: <b>Fumble</b> — you hit yourself at 50% damage (and other penalties).';
+        } else if (roll === 16){
+          raw = rnd(minD * crit);
+          note = 'Roll 16: <b>Lowest damage crit</b>.';
+        } else if (roll === 19){
+          raw = rnd(maxD * crit);
+          note = 'Roll 19: <b>Highest damage crit</b>.';
+        } else if (roll === 20){
+          raw = rnd(maxD * (crit + 1));
+          note = 'Roll 20: <b>Highest damage crit + Vital</b> (+1 crit multiplier).';
+        } else {
+          const pct = pctByRoll[roll];
+          if (typeof pct !== 'number'){
+            raw = 0;
+            note = 'Roll ' + roll + ': no damage mapping found.';
+          } else {
+            // Map percent into min..max range
+            raw = rnd(minD + (maxD - minD) * pct);
+            // 17 & 18 are crits (apply crit multiplier)
+            if (roll === 17 || roll === 18){
+              raw = rnd(raw * crit);
+              note = 'Roll ' + roll + ': <b>Crit</b> at ' + Math.round(pct*100) + '% of your damage range.';
+            } else {
+              note = 'Roll ' + roll + ': ' + Math.round(pct*100) + '% of your damage range.';
+            }
+          }
+        }
+
+        // Damage increase (buffs, scaling, etc.)
+        const increased = rnd(raw * (1 + inc));
+
+        // Resistances (apply % reduction first, then flat reduction)
+        const afterPct = rnd(increased * (1 - pctRes));
+        const post = Math.max(0, afterPct - flatRes);
+
+        el('dc_raw').textContent = String(increased);
+        el('dc_post').textContent = String(post);
+        el('dc_note').innerHTML = note;
+      }
+
+      inputs.forEach(i => i && i.addEventListener('input', compute));
+      compute();
+    })();
+  </script>
+  {% endif %}
+
+
   <div class="search-bar" style="text-align:right; margin-bottom:1rem;">
     <input type="text" id="search" placeholder="Search {{ db }}..." style="padding: 0.6rem; width: 300px; background-color: #2f2f2f; color: white; border: 1px solid #888;">
   </div>

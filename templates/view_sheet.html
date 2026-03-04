@@ -17,10 +17,54 @@
     th { background:#3a3a3a; }
     tr:nth-child(even) td { background:#222; }
 
+    /* Quests: Difficulty color coding (Easy/Medium/Hard) */
+    .diff-pill{display:inline-block;padding:2px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);font-size:.85rem;line-height:1;white-space:nowrap;}
+    .diff-easy{--diff-accent: rgba(86, 214, 137, .95);}
+    .diff-medium{--diff-accent: rgba(255, 213, 79, .95);}
+    .diff-hard{--diff-accent: rgba(255, 99, 99, .95);}
+    .diff-easy .diff-pill{border-color: rgba(86, 214, 137, .55); background: rgba(86, 214, 137, .12);}
+    .diff-medium .diff-pill{border-color: rgba(255, 213, 79, .55); background: rgba(255, 213, 79, .12);}
+    .diff-hard .diff-pill{border-color: rgba(255, 99, 99, .60); background: rgba(255, 99, 99, .12);}
+    tr.diff-easy td:first-child, tr.diff-medium td:first-child, tr.diff-hard td:first-child{ position:relative; }
+    tr.diff-easy td:first-child::before,
+    tr.diff-medium td:first-child::before,
+    tr.diff-hard td:first-child::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:6px; background: var(--diff-accent, #777); opacity:.85; }
+
     /* compact first column */
     .legacy-table th:first-child,
 .legacy-table td:first-child { width:3%; max-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     td, th { overflow:hidden; text-overflow:ellipsis; }
+
+
+/* Legacy: path selection buttons (Level 6) */
+.legacy-table .legacy-path-title{
+  font-size: 0.85rem;
+  opacity: 0.8;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.legacy-table .legacy-path-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.legacy-table .legacy-path-btn{
+  background:#2b2b2b;
+  color:#fff;
+  border:1px solid #666;
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:0.9rem;
+  cursor:pointer;
+  line-height:1;
+}
+.legacy-table .legacy-path-btn:hover{ background:#3a3a3a; }
+.legacy-table .legacy-path-btn.active{
+  background:#666;
+  border-color:#aaa;
+}
+
 
 /* Only Resonance = 5% */
 .resonance-table th:first-child,
@@ -40,6 +84,347 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+
+/* Clarifications & Mechanics: color accents + column filter */
+.clar-wrap{margin: 6px 0 16px;}
+.clar-toolbar{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.clar-title{
+  font-size:0.85rem;
+  opacity:0.8;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.clar-chips{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+.clar-chip{
+  background:rgba(255,255,255,0.06);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:0.9rem;
+  cursor:pointer;
+  line-height:1;
+}
+.clar-chip:hover{ background:rgba(255,255,255,0.09); }
+.clar-chip.active{
+  background:rgba(255,255,255,0.14);
+  border-color: var(--chip, rgba(255,255,255,0.35));
+  box-shadow:0 0 0 3px rgba(255,255,255,0.06);
+}
+.clar-search input{
+  width:min(460px, 70vw);
+  padding:.55rem .7rem;
+  background:#333;
+  color:#fff;
+  border:1px solid #555;
+  border-radius:10px;
+  outline:none;
+}
+.clar-search input:focus{
+  border-color:rgba(255,255,255,0.35);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.07);
+}
+.clar-meta{font-size:0.85rem;opacity:0.75;margin-top:6px;}
+.clarifications-table th{ position:sticky; top:0; z-index:1; }
+.clarifications-table td{ vertical-align:top; }
+/* Informatorium: keep keyword column narrow so Meaning starts closer to the left */
+.informatorium-table { table-layout: auto; }
+.informatorium-table th:first-child,
+.informatorium-table td:first-child {
+  width: 260px;
+  max-width: 260px;
+  white-space: nowrap;
+}
+.informatorium-table th:nth-child(2),
+.informatorium-table td:nth-child(2) {
+  white-space: normal;
+}
+
+  /* Informatorium: sectioned encyclopedia browser (search + categories + entries)
+   The raw table remains as a fallback and is only hidden if the UI successfully builds. */
+.info-wrap{margin:10px 0 16px;}
+.info-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.info-left{display:flex;flex-direction:column;gap:8px;min-width:min(560px, 100%);} 
+.info-title{font-size:0.85rem;opacity:0.8;letter-spacing:.08em;text-transform:uppercase;}
+.info-search input{width:min(720px, 88vw);padding:.55rem .7rem;background:#333;color:#fff;border:1px solid #555;border-radius:10px;outline:none;}
+.info-search input:focus{border-color:rgba(255,255,255,0.35);box-shadow:0 0 0 3px rgba(255,255,255,0.07);} 
+.info-meta{font-size:0.85rem;opacity:0.75;}
+.info-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.info-btn{background:rgba(255,255,255,0.06);color:#fff;border:1px solid rgba(255,255,255,0.18);border-radius:10px;padding:8px 10px;font-size:0.9rem;cursor:pointer;}
+.info-btn:hover{background:rgba(255,255,255,0.10);} 
+.info-list{display:flex;flex-direction:column;gap:12px;}
+
+/* Main category */
+details.info-main{position:relative;border:1px solid #333;border-radius:16px;background:#1f1f1f;overflow:hidden;}
+details.info-main::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent, #777);}
+details.info-main[open]{border-color:rgba(255,255,255,0.26);box-shadow:0 0 0 3px rgba(255,255,255,0.04);}
+details.info-main > summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 14px 12px 18px;background:linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0));}
+details.info-main > summary::-webkit-details-marker{display:none;}
+.info-main-head{display:flex;flex-direction:column;gap:4px;min-width:0;}
+.info-main-title{font-weight:900;font-size:1.05rem;letter-spacing:.01em;display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;}
+.info-count{font-size:0.85rem;opacity:0.75;font-weight:700;white-space:nowrap;}
+.info-main-desc{opacity:0.85;font-size:0.9rem;line-height:1.35;}
+.info-main-inner{padding:10px 12px 14px 12px;display:flex;flex-direction:column;gap:10px;}
+
+/* Sub category */
+details.info-sub{position:relative;border:1px solid #2f2f2f;border-radius:14px;background:#1b1b1b;overflow:hidden;}
+details.info-sub::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent, #777);opacity:0.65;}
+details.info-sub[open]{border-color:rgba(255,255,255,0.18);}
+details.info-sub > summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 12px 10px 16px;background:linear-gradient(90deg, rgba(255,255,255,0.05), rgba(0,0,0,0));}
+details.info-sub > summary::-webkit-details-marker{display:none;}
+.info-sub-head{display:flex;flex-direction:column;gap:3px;min-width:0;}
+.info-sub-title{font-weight:850;}
+.info-sub-desc{opacity:0.82;font-size:0.88rem;line-height:1.35;}
+.info-sub-inner{padding:10px 12px 12px 12px;display:flex;flex-direction:column;gap:10px;}
+
+/* Entry card */
+details.info-card{position:relative;border:1px solid #2d2d2d;border-radius:14px;background:#171717;overflow:hidden;}
+details.info-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent, #777);opacity:0.45;}
+details.info-card[open]{border-color:rgba(255,255,255,0.22);box-shadow:0 0 0 3px rgba(255,255,255,0.04);}
+details.info-card summary{list-style:none;cursor:pointer;display:flex;gap:10px;align-items:flex-start;padding:12px 14px 12px 16px;min-width:0;}
+details.info-card summary::-webkit-details-marker{display:none;}
+.info-term{font-weight:900;font-size:1.03rem;letter-spacing:.01em;min-width:220px;max-width:360px;}
+.info-preview{
+  opacity:0.82;
+  line-height:1.35;
+  flex:1;
+  min-width:0;              /* allow flex child to shrink */
+  overflow:hidden;
+  white-space:nowrap;       /* single-line preview */
+  text-overflow:ellipsis;   /* … at the actual right edge */
+}
+details.info-card[open] .info-preview{display:none;}
+.info-body{border-top:1px solid #242424;padding:12px 14px 14px 14px;white-space:pre-wrap;line-height:1.45;}
+
+
+/* Resonance: element selector + grouped cards */
+.resonance-wrap{margin: 6px 0 18px;}
+.resonance-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.resonance-title{font-size:0.85rem;opacity:0.8;letter-spacing:.08em;text-transform:uppercase;}
+.resonance-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.resonance-chip{
+  appearance:none;
+  background:rgba(255,255,255,0.06);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:0.9rem;
+  cursor:pointer;
+  line-height:1;
+}
+.resonance-chip:hover{ background:rgba(255,255,255,0.09); }
+.resonance-chip::before{
+  content:'';
+  display:inline-block;
+  width:10px;height:10px;
+  border-radius:3px;
+  margin-right:8px;
+  background:var(--chip, #777);
+  border:1px solid rgba(255,255,255,0.35);
+  vertical-align:middle;
+}
+.resonance-chip.active{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.35);
+}
+
+.resonance-panel{display:flex;flex-direction:column;gap:16px;}
+.resonance-section{
+  position:relative;
+  border:1px solid #333;
+  border-radius:14px;
+  background:#1f1f1f;
+  overflow:hidden;
+}
+.resonance-section::before{
+  content:'';
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width:5px;
+  background:var(--accent, #777);
+}
+.resonance-section-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px 12px 18px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(0,0,0,0));
+  border-bottom:1px solid #2a2a2a;
+}
+.resonance-section-name{
+  font-size:1.25rem;
+  font-weight:800;
+  letter-spacing:.01em;
+}
+.resonance-tier{
+  padding:12px 14px 14px 18px;
+  border-top:1px solid #2a2a2a;
+}
+.resonance-tier-title{
+  font-size:0.78rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  margin-bottom:10px;
+  color:var(--accent, #bbb);
+  opacity:0.9;
+}
+.resonance-cards{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.resonance-card{
+  background:#161616;
+  border:1px solid #2e2e2e;
+  border-radius:12px;
+  padding:10px 12px;
+}
+.resonance-ability-name{
+  font-weight:800;
+  margin-bottom:6px;
+}
+.resonance-ability-desc{
+  opacity:0.95;
+  line-height:1.35;
+  white-space:pre-wrap;
+}
+
+
+/* Mastery: selector + level cards */
+.mastery-wrap{margin: 6px 0 18px;}
+.mastery-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.mastery-title{font-size:0.85rem;opacity:0.8;letter-spacing:.08em;text-transform:uppercase;}
+.mastery-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.mastery-chip{
+  appearance:none;
+  background:rgba(255,255,255,0.06);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:0.9rem;
+  cursor:pointer;
+  line-height:1;
+}
+.mastery-chip:hover{ background:rgba(255,255,255,0.09); }
+.mastery-chip::before{
+  content:'';
+  display:inline-block;
+  width:10px;height:10px;
+  border-radius:3px;
+  margin-right:8px;
+  background:var(--chip, #777);
+  border:1px solid rgba(255,255,255,0.35);
+  vertical-align:middle;
+}
+.mastery-chip.active{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.35);
+}
+.mastery-search{margin-bottom:12px;}
+.mastery-search input{
+  padding:.55rem .7rem;
+  width:min(520px,100%);
+  background:#333;
+  color:#fff;
+  border:1px solid #555;
+  border-radius:10px;
+  outline:none;
+}
+.mastery-search input:focus{
+  border-color:rgba(255,255,255,0.35);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.07);
+}
+.mastery-panel{display:flex;flex-direction:column;gap:16px;}
+.mastery-section{
+  position:relative;
+  border:1px solid #333;
+  border-radius:14px;
+  background:#1f1f1f;
+  overflow:hidden;
+}
+.mastery-section::before{
+  content:'';
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width:5px;
+  background:var(--accent, #777);
+}
+.mastery-section-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px 12px 18px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(0,0,0,0));
+  border-bottom:1px solid #2a2a2a;
+}
+.mastery-section-name{
+  font-size:1.25rem;
+  font-weight:800;
+  letter-spacing:.01em;
+}
+.mastery-levels{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:12px 14px 14px 18px;
+}
+.mastery-card{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  background:#161616;
+  border:1px solid #2e2e2e;
+  border-radius:12px;
+  padding:10px 12px;
+}
+.mastery-level-badge{
+  flex:0 0 auto;
+  min-width:32px;
+  height:32px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.14);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
+.mastery-card-main{min-width:0;flex:1;}
+.mastery-ability-name{
+  font-weight:800;
+  margin-bottom:6px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.mastery-tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.06);
+  font-size:0.78rem;
+  opacity:0.95;
+}
+.mastery-ability-desc{
+  opacity:0.95;
+  line-height:1.35;
+  white-space:pre-wrap;
+}
+
 
   </style>
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
@@ -79,6 +464,135 @@
     .st-close{position:absolute; top:.5rem; right:.5rem; font-size:28px; line-height:1;
       background:#111; border:1px solid #444; color:#fff; border-radius:8px;
       padding:.2rem .6rem; cursor:pointer;}
+
+
+/* Mastery: selector + level cards */
+.mastery-wrap{margin: 6px 0 18px;}
+.mastery-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px;}
+.mastery-title{font-size:0.85rem;opacity:0.8;letter-spacing:.08em;text-transform:uppercase;}
+.mastery-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.mastery-chip{
+  appearance:none;
+  background:rgba(255,255,255,0.06);
+  color:#fff;
+  border:1px solid rgba(255,255,255,0.18);
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:0.9rem;
+  cursor:pointer;
+  line-height:1;
+}
+.mastery-chip:hover{ background:rgba(255,255,255,0.09); }
+.mastery-chip::before{
+  content:'';
+  display:inline-block;
+  width:10px;height:10px;
+  border-radius:3px;
+  margin-right:8px;
+  background:var(--chip, #777);
+  border:1px solid rgba(255,255,255,0.35);
+  vertical-align:middle;
+}
+.mastery-chip.active{
+  background:rgba(255,255,255,0.12);
+  border-color:rgba(255,255,255,0.35);
+}
+.mastery-search{margin-bottom:12px;}
+.mastery-search input{
+  padding:.55rem .7rem;
+  width:min(520px,100%);
+  background:#333;
+  color:#fff;
+  border:1px solid #555;
+  border-radius:10px;
+  outline:none;
+}
+.mastery-search input:focus{
+  border-color:rgba(255,255,255,0.35);
+  box-shadow:0 0 0 3px rgba(255,255,255,0.07);
+}
+.mastery-panel{display:flex;flex-direction:column;gap:16px;}
+.mastery-section{
+  position:relative;
+  border:1px solid #333;
+  border-radius:14px;
+  background:#1f1f1f;
+  overflow:hidden;
+}
+.mastery-section::before{
+  content:'';
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width:5px;
+  background:var(--accent, #777);
+}
+.mastery-section-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px 12px 18px;
+  background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(0,0,0,0));
+  border-bottom:1px solid #2a2a2a;
+}
+.mastery-section-name{
+  font-size:1.25rem;
+  font-weight:800;
+  letter-spacing:.01em;
+}
+.mastery-levels{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:12px 14px 14px 18px;
+}
+.mastery-card{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  background:#161616;
+  border:1px solid #2e2e2e;
+  border-radius:12px;
+  padding:10px 12px;
+}
+.mastery-level-badge{
+  flex:0 0 auto;
+  min-width:32px;
+  height:32px;
+  border-radius:10px;
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.14);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:900;
+}
+.mastery-card-main{min-width:0;flex:1;}
+.mastery-ability-name{
+  font-weight:800;
+  margin-bottom:6px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.mastery-tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.16);
+  background:rgba(255,255,255,0.06);
+  font-size:0.78rem;
+  opacity:0.95;
+}
+.mastery-ability-desc{
+  opacity:0.95;
+  line-height:1.35;
+  white-space:pre-wrap;
+}
+
+
   </style>
 
 <script>
@@ -103,7 +617,7 @@
 {% endif %}
 
 
-  {% if sheet in ["The Informatorium", "Items", "Gear", "Quests"] %}
+  {% if sheet in ["Items", "Gear", "Quests"] %}
   <div class="search-bar">
     <input type="text" id="search" placeholder="Search {{ sheet }}...">
   </div>
@@ -131,10 +645,77 @@
   </div>
   {% endif %}
 
+
+
+
+{% if sheet.strip().upper() == 'RESONANCE' %}
+  <div id="resonanceUI" class="resonance-wrap">
+    <div class="resonance-toolbar">
+      <div class="resonance-title">Select element</div>
+      <div id="resonanceChips" class="resonance-chips"></div>
+    </div>
+    <div id="resonancePanel" class="resonance-panel"></div>
+  </div>
+{% endif %}
+{% if sheet.strip().upper() == 'MASTERY' %}
+  <div id="masteryUI" class="mastery-wrap">
+    <div class="mastery-toolbar">
+      <div class="mastery-title">Select mastery</div>
+      <div id="masteryChips" class="mastery-chips"></div>
+    </div>
+    <div class="mastery-search">
+      <input type="text" id="masterySearch" placeholder="Search Mastery...">
+    </div>
+    <div id="masteryPanel" class="mastery-panel"></div>
+  </div>
+{% endif %}
+
+
+
+
+
+{% if sheet.strip().lower() == 'clarifications & mechanics' %}
+  <div id="clarUI" class="clar-wrap">
+    <div class="clar-toolbar">
+      <div>
+        <div class="clar-title">Clarifications</div>
+        <div id="clarMeta" class="clar-meta"></div>
+      </div>
+      <div class="clar-search">
+        <input type="text" id="clarSearch" placeholder="Search clarifications...">
+      </div>
+      <div id="clarChips" class="clar-chips"></div>
+    </div>
+  </div>
+{% endif %}
+
+
+{% if sheet.strip().lower() in ('the informatorium','informatorium') %}
+  <div id="infoUI" class="info-wrap">
+    <div class="info-toolbar">
+      <div class="info-left">
+        <div class="info-title">Informatorium</div>
+        <div class="info-search">
+          <input type="text" id="infoSearch" placeholder="Search terms or meanings...">
+        </div>
+        <div id="infoMeta" class="info-meta"></div>
+      </div>
+      <div class="info-actions">
+        <button type="button" class="info-btn" id="infoExpand">Expand all</button>
+        <button type="button" class="info-btn" id="infoCollapse">Collapse all</button>
+      </div>
+    </div>
+    <div id="infoList" class="info-list"></div>
+  </div>
+{% endif %}
+
+
 <table class="
   {% if sheet.strip().upper() == 'LEGACY' %}legacy-table{% endif %}
   {% if sheet.strip().upper() == 'RESONANCE' %} resonance-table{% endif %}
   {% if sheet.strip().upper() == 'MASTERY' %} mastery-table{% endif %}
+  {% if sheet.strip().lower() == 'the informatorium' %} informatorium-table{% endif %}
+  {% if sheet.strip().lower() == 'clarifications & mechanics' %} clarifications-table{% endif %}
 ">
 
 
@@ -172,7 +753,1137 @@
     </tbody>
   </table>
 
+
+
+
+{% if sheet.strip().upper() == 'LEGACY' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.querySelector('table.legacy-table');
+  if (!table || !table.tBodies.length) return;
+
+  const tbody = table.tBodies[0];
+  const rows = Array.from(tbody.rows);
+
+  const chooseRowIdx = rows.findIndex(r =>
+    Array.from(r.cells).some((c, idx) => idx > 0 && /choose\s*path\s*:/i.test(c.innerText || ''))
+  );
+  if (chooseRowIdx === -1) return;
+
+  const chooseRow = rows[chooseRowIdx];
+  const colCount = chooseRow.cells.length;
+
+  // Parse option labels from the "CHOOSE PATH:" row
+  const optionLabelsByCol = Array.from({ length: colCount }, () => []);
+  let maxOptions = 0;
+
+  for (let col = 1; col < colCount; col++) {
+    const raw = (chooseRow.cells[col].innerText || '').trim();
+    const m = raw.match(/choose\s*path\s*:\s*(.*)$/i);
+    const opts = m ? m[1].split('/').map(s => s.trim()).filter(Boolean) : [];
+    optionLabelsByCol[col] = opts;
+    maxOptions = Math.max(maxOptions, opts.length);
+  }
+
+  if (maxOptions < 2) return; // nothing to toggle
+
+  // Find the stacked "path blocks" starting rows (LEVEL == 6) after the chooser
+  const level6Indices = [];
+  for (let i = chooseRowIdx + 1; i < rows.length; i++) {
+    const lvl = (rows[i].cells[0]?.innerText || '').trim();
+    if (lvl === '6') level6Indices.push(i);
+  }
+  if (level6Indices.length === 0) return;
+
+  const LEVELS = ['6', '7', '8', '9', '10', '11', '12'];
+
+  // Cache original HTML by option -> column -> levelRow
+  const blocks = Array.from({ length: maxOptions }, () =>
+    Array.from({ length: colCount }, () => Array(LEVELS.length).fill(''))
+  );
+
+  for (let opt = 0; opt < maxOptions; opt++) {
+    const start = level6Indices[opt];
+    if (start == null) continue;
+
+    for (let rOff = 0; rOff < LEVELS.length; rOff++) {
+      const row = rows[start + rOff];
+      if (!row) continue;
+
+      for (let col = 0; col < colCount; col++) {
+        blocks[opt][col][rOff] = row.cells[col]?.innerHTML ?? '';
+      }
+    }
+  }
+
+  // Build condensed rows using the first option block as the base (keeps colors/styles)
+  const condensedRows = [];
+  const fragment = document.createDocumentFragment();
+
+  for (let rOff = 0; rOff < LEVELS.length; rOff++) {
+    const srcRow = rows[level6Indices[0] + rOff];
+    if (!srcRow) continue;
+    const clone = srcRow.cloneNode(true);
+    clone.dataset.legacyCondensed = '1';
+    fragment.appendChild(clone);
+    condensedRows.push(clone);
+  }
+
+  // Remove everything after the chooser (blank line + stacked blocks)
+  rows.slice(chooseRowIdx + 1).forEach(r => r.remove());
+
+  // Insert condensed rows after chooser
+  chooseRow.after(fragment);
+
+  function setSelected(col, optIndex) {
+    const cell = chooseRow.cells[col];
+    const btns = cell.querySelectorAll('button.legacy-path-btn');
+    btns.forEach((b, i) => b.classList.toggle('active', i === optIndex));
+
+    for (let rOff = 0; rOff < condensedRows.length; rOff++) {
+      const td = condensedRows[rOff].cells[col];
+      if (!td) continue;
+      td.innerHTML = blocks[optIndex]?.[col]?.[rOff] ?? '';
+    }
+  }
+
+  // Replace "CHOOSE PATH:" text with buttons per column
+  for (let col = 1; col < colCount; col++) {
+    const labels = optionLabelsByCol[col];
+    const wrap = document.createElement('div');
+
+    const title = document.createElement('div');
+    title.className = 'legacy-path-title';
+    title.textContent = 'Choose Path';
+    wrap.appendChild(title);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'legacy-path-buttons';
+
+    const count = labels.length || maxOptions;
+    for (let i = 0; i < count; i++) {
+      const label = labels[i] || `Option ${i + 1}`;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'legacy-path-btn';
+      btn.textContent = label;
+      btn.addEventListener('click', () => setSelected(col, i));
+      btnRow.appendChild(btn);
+    }
+
+    wrap.appendChild(btnRow);
+
+    // Clear and mount
+    chooseRow.cells[col].innerHTML = '';
+    chooseRow.cells[col].appendChild(wrap);
+
+    // Default: first option
+    setSelected(col, 0);
+  }
+});
+</script>
+{% endif %}
+
+
+{% if sheet.strip().upper() == 'RESONANCE' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.querySelector('table.resonance-table');
+  const ui = document.getElementById('resonanceUI');
+  if (!table || !ui || !table.tBodies.length) return;
+
+  const chipsEl = document.getElementById('resonanceChips');
+  const panelEl = document.getElementById('resonancePanel');
+
+  const COLOR = {
+    'Light': '#f5e68b',
+    'Darkness': '#8a5cff',
+    'Fire': '#ff6a3d',
+    'Frost': '#7fd7ff',
+    'Wind': '#8dffb3',
+    'Earth': '#c9a36a',
+    'Lightning': '#ffe26a',
+    'Bleed': '#ff4d6d',
+    'Poison': '#7dff4f'
+  };
+
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+
+  const tbody = table.tBodies[0];
+  const rows = Array.from(tbody.rows);
+
+
+  // If the first element name was consumed as a column header by Excel->pandas,
+  // pull it from the <thead> (e.g. "Light") so it doesn't get lost.
+  const head0 = (table.tHead?.rows?.[0]?.cells?.[0]?.innerText ?? '').replace(/\u00a0/g,' ').trim();
+
+  const sections = [];
+  let current = null;
+
+  const looksLikeElement = (s) => {
+    const t = String(s ?? '').replace(/\u00a0/g,' ').trim();
+    if (!t) return false;
+    return Object.prototype.hasOwnProperty.call(COLOR, t)
+      || ['Light','Darkness','Fire','Frost','Wind','Earth','Lightning','Bleed','Poison']
+        .some(x => x.toLowerCase() === t.toLowerCase());
+  };
+
+  if (looksLikeElement(head0)) {
+    current = { element: head0.replace(/\u00a0/g,' ').trim(), items: [] };
+    sections.push(current);
+  }
+
+  for (const tr of rows) {
+    const a = (tr.cells[0]?.innerText ?? '').replace(/\u00a0/g,' ').trim();
+    const b = (tr.cells[1]?.innerText ?? '').replace(/\u00a0/g,' ').trim();
+    const c = (tr.cells[2]?.innerText ?? '').replace(/\u00a0/g,' ').trim();
+
+    const isHeader = a && !b && !c; // element header row
+    if (isHeader) {
+      current = { element: a, items: [] };
+      sections.push(current);
+      continue;
+    }
+    if (!current) continue;
+    if (!a && !b && !c) continue;
+
+    current.items.push({
+      tier: a || 'Other',
+      text: b || '',
+      extra: c || ''
+    });
+  }
+
+  if (!sections.length) return;
+
+  const tiersOrder = ['Innate', 'Tier I', 'Tier II', 'Tier III', 'Ultimate', 'Other'];
+  const tierRank = (t) => {
+    const idx = tiersOrder.findIndex(x => x.toLowerCase() === String(t).toLowerCase());
+    return idx === -1 ? 999 : idx;
+  };
+
+  // Split "Title: Description" while avoiding icon-prefix separators like "(♦: )>"
+  function splitNameDesc(raw) {
+    const s = String(raw ?? '').trim();
+
+    // Prefer the first ':' that is preceded by an alphanumeric character.
+    // This skips "icon colons" that are usually preceded by symbols.
+    let idx = -1;
+    const limit = Math.min(s.length, 140);
+    for (let i = 1; i < limit; i++) {
+      if (s[i] === ':' && /[A-Za-z0-9]/.test(s[i - 1])) { idx = i; break; }
+    }
+
+    // Fallback to previous heuristic if no good ':' found
+    if (idx === -1) {
+      const colon = s.indexOf(':');
+      if (colon > 0 && colon < 70) idx = colon;
+    }
+
+    if (idx > 0) {
+      const title = s.slice(0, idx)
+        .replace(/:/g, ' ')          // turn icon separators into spaces
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      const desc = s.slice(idx + 1).trim();
+      return [title, desc];
+    }
+
+    return ['', s];
+  }
+
+  function renderSection(section) {
+    const wrap = document.createElement('div');
+    wrap.className = 'resonance-section';
+    wrap.style.setProperty('--accent', COLOR[section.element] || '#777');
+
+    const header = document.createElement('div');
+    header.className = 'resonance-section-header';
+
+    const name = document.createElement('div');
+    name.className = 'resonance-section-name';
+    name.textContent = section.element;
+
+    header.appendChild(name);
+    wrap.appendChild(header);
+
+    const groups = new Map();
+    for (const it of section.items) {
+      const key = (it.tier || 'Other').trim() || 'Other';
+      if (!groups.has(key)) groups.set(key, []);
+      const combined = [it.text, it.extra].filter(Boolean).join(' ').trim();
+      groups.get(key).push(combined);
+    }
+
+    const tiers = Array.from(groups.keys()).sort((a, b) => tierRank(a) - tierRank(b));
+
+    for (const tier of tiers) {
+      const tierWrap = document.createElement('div');
+      tierWrap.className = 'resonance-tier';
+
+      const tTitle = document.createElement('div');
+      tTitle.className = 'resonance-tier-title';
+      tTitle.textContent = tier;
+
+      const cards = document.createElement('div');
+      cards.className = 'resonance-cards';
+
+      for (const raw of groups.get(tier)) {
+        const [nm, desc] = splitNameDesc(raw);
+        const card = document.createElement('div');
+        card.className = 'resonance-card';
+
+        if (nm) {
+          const n = document.createElement('div');
+          n.className = 'resonance-ability-name';
+          n.innerHTML = escapeHtml(nm);
+          card.appendChild(n);
+        }
+
+        const d = document.createElement('div');
+        d.className = 'resonance-ability-desc';
+        d.innerHTML = escapeHtml(desc);
+        card.appendChild(d);
+
+        cards.appendChild(card);
+      }
+
+      tierWrap.appendChild(tTitle);
+      tierWrap.appendChild(cards);
+      wrap.appendChild(tierWrap);
+    }
+
+    return wrap;
+  }
+
+  function setActive(label) {
+    const btns = chipsEl.querySelectorAll('button.resonance-chip');
+    btns.forEach(b => b.classList.toggle('active', b.dataset.element === label));
+  }
+
+  function render(label) {
+    panelEl.innerHTML = '';
+    const list = (label === 'All')
+      ? sections
+      : sections.filter(s => s.element.toLowerCase() === String(label).toLowerCase());
+    for (const section of list) panelEl.appendChild(renderSection(section));
+  }
+
+  chipsEl.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = 'resonance-chip';
+  allBtn.dataset.element = 'All';
+  allBtn.style.setProperty('--chip', '#bbb');
+  allBtn.textContent = 'All';
+  allBtn.addEventListener('click', () => { setActive('All'); render('All'); });
+  chipsEl.appendChild(allBtn);
+
+  for (const s of sections) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'resonance-chip';
+    btn.dataset.element = s.element;
+    btn.style.setProperty('--chip', COLOR[s.element] || '#777');
+    btn.textContent = s.element;
+    btn.addEventListener('click', () => { setActive(s.element); render(s.element); });
+    chipsEl.appendChild(btn);
+  }
+
+  table.style.display = 'none';
+  setActive(sections[0].element);
+  render(sections[0].element);
+});
+</script>
+{% endif %}
+
+
+{% if sheet.strip().upper() == 'MASTERY' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const table = document.querySelector('table.mastery-table');
+  const ui = document.getElementById('masteryUI');
+  if (!table || !ui || !table.tBodies.length) return;
+
+  const chipsEl = document.getElementById('masteryChips');
+  const panelEl = document.getElementById('masteryPanel');
+  const searchEl = document.getElementById('masterySearch');
+
+  const COLOR = {
+    'Offense':   '#fb923c',
+    'Defense':   '#93c5fd',
+    'Stealth':   '#d8b4fe',
+    'Arcane':    '#c7d2fe',
+    'Intellect': '#99f6e4',
+    'Agility':   '#86efac'
+  };
+
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (m) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+
+  const norm = (s) => String(s ?? '').replace(/\u00a0/g,' ').trim();
+
+  // Split "Title: Description" while skipping icon-prefix colons like "(❖:≈)"
+  function splitNameDesc(raw) {
+    const s = String(raw ?? '').trim();
+    let idx = -1;
+    const limit = Math.min(s.length, 140);
+    for (let i = 1; i < limit; i++) {
+      if (s[i] === ':' && /[A-Za-z0-9]/.test(s[i - 1])) { idx = i; break; }
+    }
+    if (idx === -1) {
+      const colon = s.indexOf(':');
+      if (colon > 0 && colon < 70) idx = colon;
+    }
+    if (idx > 0) {
+      const title = s.slice(0, idx)
+        .replace(/:/g, ' ')
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      const desc = s.slice(idx + 1).trim();
+      return [title, desc];
+    }
+    return ['', s];
+  }
+
+  const tbody = table.tBodies[0];
+  const rows = Array.from(tbody.rows);
+
+  // First column header (2nd col) is the first category (e.g. Offense)
+  const headCat = norm(table.tHead?.rows?.[0]?.cells?.[1]?.innerText) || 'Mastery';
+  let current = headCat;
+
+  const byCat = new Map();
+  const ensure = (k) => { if (!byCat.has(k)) byCat.set(k, []); };
+  ensure(current);
+
+  for (const tr of rows) {
+    const a = norm(tr.cells[0]?.innerText);
+    const b = norm(tr.cells[1]?.innerText);
+
+    // Section marker rows are usually "- | Defense"
+    if (a === '-' && b) {
+      current = b;
+      ensure(current);
+      continue;
+    }
+
+    const level = parseInt(a, 10);
+    if (!Number.isFinite(level) || !b) continue;
+
+    byCat.get(current).push({ level, raw: b });
+  }
+
+  const categories = Array.from(byCat.keys())
+    .filter(k => byCat.get(k).length)
+    .map(k => ({
+      name: k,
+      color: COLOR[k] || '#bbb',
+      items: byCat.get(k).slice().sort((x, y) => x.level - y.level)
+    }));
+
+  if (!categories.length) return;
+
+  function setActive(label) {
+    chipsEl.querySelectorAll('button.mastery-chip')
+      .forEach(b => b.classList.toggle('active', b.dataset.mastery === label));
+  }
+
+  function renderSections(label, term) {
+    const q = String(term || '').toLowerCase().trim();
+    panelEl.innerHTML = '';
+
+    const list = (label === 'All')
+      ? categories
+      : categories.filter(s => s.name.toLowerCase() === String(label).toLowerCase());
+
+    for (const sec of list) {
+      const section = document.createElement('div');
+      section.className = 'mastery-section';
+      section.style.setProperty('--accent', sec.color);
+
+      const header = document.createElement('div');
+      header.className = 'mastery-section-header';
+
+      const name = document.createElement('div');
+      name.className = 'mastery-section-name';
+      name.textContent = sec.name;
+
+      header.appendChild(name);
+      section.appendChild(header);
+
+      const levels = document.createElement('div');
+      levels.className = 'mastery-levels';
+
+      for (const it of sec.items) {
+        const raw0 = String(it.raw ?? '').trim();
+        const low = raw0.toLowerCase();
+        if (q && !low.includes(q)) continue;
+
+        // Pull leading "(...)" tokens into tags
+        let rest = raw0;
+        const tags = [];
+        for (let t = 0; t < 3; t++) {
+          const m = rest.match(/^\(([^)]+)\)\s*/);
+          if (!m) break;
+          tags.push(m[1]);
+          rest = rest.slice(m[0].length).trim();
+        }
+
+        const [nm, desc] = splitNameDesc(rest);
+
+        const card = document.createElement('div');
+        card.className = 'mastery-card';
+
+        const badge = document.createElement('div');
+        badge.className = 'mastery-level-badge';
+        badge.textContent = it.level;
+        badge.style.borderColor = sec.color;
+        badge.style.color = sec.color;
+
+        const main = document.createElement('div');
+        main.className = 'mastery-card-main';
+
+        const title = document.createElement('div');
+        title.className = 'mastery-ability-name';
+
+        for (const tg of tags) {
+          const span = document.createElement('span');
+          span.className = 'mastery-tag';
+          span.textContent = `(${tg})`;
+          title.appendChild(span);
+        }
+
+        if (nm) {
+          const strong = document.createElement('span');
+          strong.textContent = nm;
+          title.appendChild(strong);
+        }
+
+        const body = document.createElement('div');
+        body.className = 'mastery-ability-desc';
+        body.innerHTML = escapeHtml(nm ? desc : rest);
+
+        card.appendChild(badge);
+        main.appendChild(title);
+        main.appendChild(body);
+        card.appendChild(main);
+        levels.appendChild(card);
+      }
+
+      if (!levels.children.length) continue;
+
+      section.appendChild(levels);
+      panelEl.appendChild(section);
+    }
+  }
+
+  chipsEl.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = 'mastery-chip';
+  allBtn.dataset.mastery = 'All';
+  allBtn.style.setProperty('--chip', '#bbb');
+  allBtn.textContent = 'All';
+  allBtn.addEventListener('click', () => { setActive('All'); renderSections('All', searchEl?.value); });
+  chipsEl.appendChild(allBtn);
+
+  for (const s of categories) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mastery-chip';
+    btn.dataset.mastery = s.name;
+    btn.style.setProperty('--chip', s.color);
+    btn.textContent = s.name;
+    btn.addEventListener('click', () => { setActive(s.name); renderSections(s.name, searchEl?.value); });
+    chipsEl.appendChild(btn);
+  }
+
+  if (searchEl) {
+    searchEl.addEventListener('input', () => {
+      const active = chipsEl.querySelector('button.mastery-chip.active')?.dataset?.mastery || categories[0].name;
+      renderSections(active, searchEl.value);
+    });
+  }
+
+  table.style.display = 'none';
+  setActive(categories[0].name);
+  renderSections(categories[0].name, '');
+});
+</script>
+{% endif %}
+
+
+{% if sheet.strip().lower() == 'clarifications & mechanics' %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const ui = document.getElementById('clarUI');
+  if (!ui) return;
+
+  const table = document.querySelector('table');
+  if (!table || !table.tHead || !table.tBodies.length) return;
+
+  const headerCells = Array.from(table.tHead.rows[0].cells);
+  const bodyRows = Array.from(table.tBodies[0].rows);
+
+  const COLORS = {
+    "Clarifications": "#f59e0b",
+    "Mechanics": "#06b6d4",
+    "Tips & Tricks": "#22c55e",
+    "Concepts and Laws of the Planes": "#a78bfa",
+  };
+
+  const norm = (s) => String(s ?? "").replace(/\\u00A0/g, " ").replace(/\\s+/g, " ").trim();
+  const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (m) => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+
+  // Map columns
+  const cols = headerCells.map((th, i) => {
+    const name = norm(th.innerText);
+    const color = COLORS[name] || "#9ca3af";
+    return { name, i, color };
+  });
+
+  // Colorize headers + subtle column accents
+  cols.forEach(({i, color}) => {
+    const th = headerCells[i];
+    th.style.background = `linear-gradient(90deg, ${color}33, rgba(58,58,58,1))`;
+    th.style.borderBottom = `2px solid ${color}`;
+  });
+
+  bodyRows.forEach((tr) => {
+    cols.forEach(({i, color}) => {
+      const td = tr.cells[i];
+      if (!td) return;
+      td.style.borderLeft = `3px solid ${color}`;
+      td.style.backgroundImage = `linear-gradient(90deg, ${color}12, rgba(0,0,0,0))`;
+    });
+  });
+
+  const chipsEl = document.getElementById('clarChips');
+  const searchEl = document.getElementById('clarSearch');
+  const metaEl = document.getElementById('clarMeta');
+
+  let active = 'All';
+
+  function setActive(name){
+    active = name;
+    Array.from(chipsEl.querySelectorAll('button.clar-chip')).forEach(b => {
+      b.classList.toggle('active', b.dataset.col === name);
+    });
+    applyFilters();
+  }
+
+  function applyFilters(){
+    const q = norm(searchEl?.value).toLowerCase();
+
+    // Show/hide columns
+    cols.forEach(({i, name}) => {
+      const show = (active === 'All') || (name === active);
+      headerCells[i].style.display = show ? '' : 'none';
+      bodyRows.forEach(tr => {
+        const td = tr.cells[i];
+        if (td) td.style.display = show ? '' : 'none';
+      });
+    });
+
+    // Filter rows by query across visible columns
+    let shown = 0;
+    bodyRows.forEach(tr => {
+      const texts = [];
+      cols.forEach(({i, name}) => {
+        const visible = (active === 'All') || (name === active);
+        if (!visible) return;
+        const td = tr.cells[i];
+        if (td) texts.push(td.innerText || '');
+      });
+      const hay = texts.join(' ').toLowerCase();
+      const match = !q || hay.includes(q);
+      tr.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+
+    if (metaEl) {
+      metaEl.textContent = `${shown} shown`;
+    }
+  }
+
+  // Build chips
+  chipsEl.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = 'clar-chip';
+  allBtn.dataset.col = 'All';
+  allBtn.style.setProperty('--chip', '#bbb');
+  allBtn.textContent = 'All';
+  allBtn.addEventListener('click', () => setActive('All'));
+  chipsEl.appendChild(allBtn);
+
+  cols.forEach(({name, color}) => {
+    if (!name) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'clar-chip';
+    btn.dataset.col = name;
+    btn.style.setProperty('--chip', color);
+    btn.textContent = name;
+    btn.addEventListener('click', () => setActive(name));
+    chipsEl.appendChild(btn);
+  });
+
+  if (searchEl) searchEl.addEventListener('input', applyFilters);
+
+  // Slightly improve readability: bold the prefix before ":" if it looks like a short "title"
+  const maybeTitleify = (td) => {
+    const raw = norm(td.innerText);
+    const idx = raw.indexOf(':');
+    if (idx > 0 && idx < 48) {
+      const left = raw.slice(0, idx).trim();
+      const right = raw.slice(idx + 1).trim();
+      if (left && right) {
+        td.innerHTML = `<strong>${escapeHtml(left)}:</strong> ${escapeHtml(right)}`;
+      }
+    }
+  };
+  bodyRows.forEach(tr => Array.from(tr.cells).forEach(maybeTitleify));
+
+  table.classList.add('clarifications-table');
+  setActive('All');
+});
+</script>
+{% endif %}
+
+
+{% if sheet.strip().lower() in ('the informatorium','informatorium') %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const ui = document.getElementById('infoUI');
+  if (!ui) return;
+
+  const table = document.querySelector('table');
+  if (!table || !table.tHead || !table.tBodies.length) return;
+
+  const bodyRows = Array.from(table.tBodies[0].rows);
+  if (!bodyRows.length) return;
+
+  const norm = (s) => String(s ?? "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
+  const cleanKey = (s) => norm(s).replace(/:+$/g, "").trim();
+  const key = (s) => cleanKey(s).toLowerCase();
+  const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+
+  // Main + sub category vocabulary (case-insensitive, ":" optional)
+  const MAIN_LIST = [
+    'Actions',
+    'Skills',
+    'Terminology',
+    'Commands',
+    'Keywords',
+    'Ability Types',
+    'Damage Types',
+    'Statuses',
+    'Stats',
+    'Conditions'
+  ];
+
+  const MAIN_COLORS = {
+    'Actions': '#f59e0b',
+    'Skills': '#22c55e',
+    'Terminology': '#38bdf8',
+    'Commands': '#a78bfa',
+    'Keywords': '#fb7185',
+    'Ability Types': '#f472b6',
+    'Damage Types': '#ef4444',
+    'Statuses': '#10b981',
+    'Stats': '#60a5fa',
+    'Conditions': '#f97316',
+    'Unsorted': '#8b8b8b'
+  };
+
+  const SUB_BY_MAIN = {
+    'Actions': ['Free Actions', 'Faith Actions', 'Skill Required Actions', 'Skill Required Mechanics'],
+    'Skills': ['Skill Required Actions', 'Skill Required Mechanics'],
+    'Keywords': ['Ability Keywords', 'Gear/Item Keyword', 'General Keywords'],
+    'Damage Types': ['Elemental Combinations'],
+    'Statuses': ['Positive Statuses', 'Negative Statuses']
+  };
+
+  // Add a few safe aliases (singular/plural)
+  const SUB_ALIASES = {
+    'Ability Keyword': 'Ability Keywords',
+    'Gear/Item Keywords': 'Gear/Item Keyword',
+    'General Keyword': 'General Keywords',
+    'Elemental Combination': 'Elemental Combinations',
+    'Positive Status': 'Positive Statuses',
+    'Negative Status': 'Negative Statuses'
+  };
+
+  const mainKeyMap = new Map(MAIN_LIST.map(n => [key(n), n]));
+  const subKeyMapByMain = new Map();
+  for (const mName of Object.keys(SUB_BY_MAIN)) {
+    const mp = new Map();
+    for (const sName of SUB_BY_MAIN[mName]) mp.set(key(sName), sName);
+    // aliases
+    for (const [alias, canon] of Object.entries(SUB_ALIASES)) {
+      if (SUB_BY_MAIN[mName].includes(canon)) mp.set(key(alias), canon);
+    }
+    subKeyMapByMain.set(mName, mp);
+  }
+
+  // Parse the sheet rows into a nested structure: main -> sub -> entries[]
+  const grouped = new Map();
+  function ensureMain(mainName) {
+    if (!grouped.has(mainName)) grouped.set(mainName, { desc: '', subs: new Map() });
+    return grouped.get(mainName);
+  }
+  function ensureSub(mainObj, subName) {
+    if (!mainObj.subs.has(subName)) mainObj.subs.set(subName, { desc: '', entries: [] });
+    return mainObj.subs.get(subName);
+  }
+
+  let currentMain = 'Unsorted';
+  let currentSub = 'General';
+
+  const uns = ensureMain('Unsorted');
+  ensureSub(uns, 'General');
+
+  let totalEntries = 0;
+
+  for (const tr of bodyRows) {
+    const t = cleanKey(tr.cells[0]?.innerText);
+    const m = norm(tr.cells[1]?.innerText);
+    if (!t && !m) continue;
+    if (!t) continue;
+
+    // Main header?
+    const maybeMain = mainKeyMap.get(key(t));
+    if (maybeMain) {
+      currentMain = maybeMain;
+      currentSub = 'General';
+      const mainObj = ensureMain(currentMain);
+      ensureSub(mainObj, currentSub);
+      if (m && !mainObj.desc) mainObj.desc = m;
+      continue;
+    }
+
+    // Sub header (only if we are inside a main that defines subs)
+    const mainObj = ensureMain(currentMain);
+    const subMap = subKeyMapByMain.get(currentMain);
+    if (subMap) {
+      const maybeSub = subMap.get(key(t));
+      if (maybeSub) {
+        currentSub = maybeSub;
+        const subObj = ensureSub(mainObj, currentSub);
+        if (m && !subObj.desc) subObj.desc = m;
+        continue;
+      }
+    }
+
+    // Regular entry
+    const subObj = ensureSub(mainObj, currentSub);
+    subObj.entries.push({ term: t, meaning: m });
+    totalEntries++;
+  }
+
+  if (!totalEntries) return; // keep table visible as fallback
+
+  const searchEl = document.getElementById('infoSearch');
+  const listEl = document.getElementById('infoList');
+  const metaEl = document.getElementById('infoMeta');
+  const btnExpand = document.getElementById('infoExpand');
+  const btnCollapse = document.getElementById('infoCollapse');
+
+  // Preview text should truncate visually (CSS ellipsis), not by character count.
+  function makePreview(s){
+    return norm(s);
+  }
+
+  function sortMainNames(names) {
+    const idx = (n) => MAIN_LIST.indexOf(n);
+    return names.sort((a,b) => {
+      if (a === 'Unsorted' && b !== 'Unsorted') return 1;
+      if (b === 'Unsorted' && a !== 'Unsorted') return -1;
+      const ia = idx(a), ib = idx(b);
+      if (ia === -1 && ib === -1) return a.localeCompare(b);
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
+  }
+
+  function render(){
+    const q = norm(searchEl?.value).toLowerCase();
+    listEl.innerHTML = '';
+
+    let shown = 0;
+
+    const mainNames = sortMainNames(Array.from(grouped.keys()));
+
+    const frag = document.createDocumentFragment();
+    let firstMainRendered = null;
+
+    for (const mainName of mainNames) {
+      const mainObj = grouped.get(mainName);
+      if (!mainObj) continue;
+
+      // build matching subs
+      const subNames = Array.from(mainObj.subs.keys());
+      const matchedSubs = [];
+
+      for (const subName of subNames) {
+        const subObj = mainObj.subs.get(subName);
+        if (!subObj || !subObj.entries.length) continue;
+
+        const matchedEntries = [];
+        for (const e of subObj.entries) {
+          const hay = (e.term + ' ' + e.meaning).toLowerCase();
+          if (q && !hay.includes(q)) continue;
+          matchedEntries.push(e);
+        }
+        if (matchedEntries.length) matchedSubs.push({ subName, subObj, entries: matchedEntries });
+      }
+
+      const mainCount = matchedSubs.reduce((acc, s) => acc + s.entries.length, 0);
+      if (!mainCount) continue;
+
+      if (!firstMainRendered) firstMainRendered = mainName;
+
+      const detMain = document.createElement('details');
+      detMain.className = 'info-main';
+      detMain.style.setProperty('--accent', MAIN_COLORS[mainName] || '#777');
+      detMain.open = !!q || mainName === firstMainRendered;
+
+      const sumMain = document.createElement('summary');
+      const head = document.createElement('div');
+      head.className = 'info-main-head';
+
+      const title = document.createElement('div');
+      title.className = 'info-main-title';
+      const tSpan = document.createElement('span');
+      tSpan.textContent = mainName;
+      const cSpan = document.createElement('span');
+      cSpan.className = 'info-count';
+      cSpan.textContent = `${mainCount}`;
+      title.appendChild(tSpan);
+      title.appendChild(cSpan);
+      head.appendChild(title);
+
+      if (mainObj.desc) {
+        const desc = document.createElement('div');
+        desc.className = 'info-main-desc';
+        desc.textContent = mainObj.desc;
+        head.appendChild(desc);
+      }
+
+      sumMain.appendChild(head);
+      detMain.appendChild(sumMain);
+
+      const innerMain = document.createElement('div');
+      innerMain.className = 'info-main-inner';
+
+      // render subs (or show entries directly when only "General")
+const directGeneral = (mainName === 'Terminology' || mainName === 'Stats' || mainName === 'Conditions' || mainName === 'Commands' || mainName === 'Ability Types') &&
+                      matchedSubs.length === 1 && matchedSubs[0].subName === 'General';
+
+if (directGeneral) {
+  const s = matchedSubs[0];
+
+  if (s.subObj.desc) {
+    const subDesc = document.createElement('div');
+    subDesc.className = 'info-sub-desc';
+    subDesc.style.margin = '10px 0 0 10px';
+    subDesc.textContent = s.subObj.desc;
+    innerMain.appendChild(subDesc);
+  }
+
+  const innerSub = document.createElement('div');
+  innerSub.className = 'info-sub-inner';
+
+  for (const e of s.entries) {
+    const det = document.createElement('details');
+    det.className = 'info-card';
+    det.style.setProperty('--accent', MAIN_COLORS[mainName] || '#777');
+
+    const sum = document.createElement('summary');
+
+    const term = document.createElement('div');
+    term.className = 'info-term';
+    term.textContent = e.term;
+
+    const prev = document.createElement('div');
+    prev.className = 'info-preview';
+    prev.textContent = makePreview(e.meaning);
+
+    sum.appendChild(term);
+    sum.appendChild(prev);
+    det.appendChild(sum);
+
+    const body = document.createElement('div');
+    body.className = 'info-body';
+    body.innerHTML = escapeHtml(e.meaning || '');
+    det.appendChild(body);
+
+    innerSub.appendChild(det);
+    shown++;
+  }
+
+  innerMain.appendChild(innerSub);
+} else {
+  for (const s of matchedSubs) {
+    const detSub = document.createElement('details');
+    detSub.className = 'info-sub';
+    detSub.style.setProperty('--accent', MAIN_COLORS[mainName] || '#777');
+    detSub.open = !!q; // auto-open while searching
+
+    const sumSub = document.createElement('summary');
+    const subHead = document.createElement('div');
+    subHead.className = 'info-sub-head';
+
+    const subTitle = document.createElement('div');
+    subTitle.className = 'info-sub-title';
+    const subNameSpan = document.createElement('span');
+    subNameSpan.textContent = s.subName;
+    const subCountSpan = document.createElement('span');
+    subCountSpan.className = 'info-count';
+    subCountSpan.style.marginLeft = '10px';
+    subCountSpan.textContent = `${s.entries.length}`;
+    subTitle.appendChild(subNameSpan);
+    subTitle.appendChild(subCountSpan);
+    subHead.appendChild(subTitle);
+
+    if (s.subObj.desc) {
+      const subDesc = document.createElement('div');
+      subDesc.className = 'info-sub-desc';
+      subDesc.textContent = s.subObj.desc;
+      subHead.appendChild(subDesc);
+    }
+
+    sumSub.appendChild(subHead);
+    detSub.appendChild(sumSub);
+
+    const innerSub = document.createElement('div');
+    innerSub.className = 'info-sub-inner';
+
+    for (const e of s.entries) {
+      const det = document.createElement('details');
+      det.className = 'info-card';
+      det.style.setProperty('--accent', MAIN_COLORS[mainName] || '#777');
+
+      const sum = document.createElement('summary');
+
+      const term = document.createElement('div');
+      term.className = 'info-term';
+      term.textContent = e.term;
+
+      const prev = document.createElement('div');
+      prev.className = 'info-preview';
+      prev.textContent = makePreview(e.meaning);
+
+      sum.appendChild(term);
+      sum.appendChild(prev);
+      det.appendChild(sum);
+
+      const body = document.createElement('div');
+      body.className = 'info-body';
+      body.innerHTML = escapeHtml(e.meaning || '');
+      det.appendChild(body);
+
+      innerSub.appendChild(det);
+      shown++;
+    }
+
+    detSub.appendChild(innerSub);
+    innerMain.appendChild(detSub);
+  }
+}
+
+detMain.appendChild(innerMain);
+      frag.appendChild(detMain);
+    }
+
+    listEl.appendChild(frag);
+
+    if (metaEl) metaEl.textContent = `${shown} shown / ${totalEntries} total`;
+  }
+
+  if (searchEl) searchEl.addEventListener('input', render);
+
+  if (btnExpand) btnExpand.addEventListener('click', () => {
+    ui.querySelectorAll('details').forEach(d => d.open = true);
+  });
+  if (btnCollapse) btnCollapse.addEventListener('click', () => {
+    ui.querySelectorAll('details').forEach(d => d.open = false);
+  });
+
+  // Hide the raw table only after we successfully built the UI
+  table.style.display = 'none';
+  render();
+});
+</script>
+{% endif %}
+
+
+
+
+
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
   <script src="{{ url_for('static', filename='chat.js') }}?v=1755213831"></script>
+
+  <!-- Quests tab: Difficulty color coding (Easy/Medium/Hard) -->
+  <script>
+  (function(){
+    function normalizeDiff(s){
+      s = (s || '').toString().trim().toLowerCase();
+      if(!s) return '';
+      if(['easy','e','ez','beginner','low'].includes(s)) return 'easy';
+      if(['medium','normal','mid','moderate','m','avg'].includes(s)) return 'medium';
+      if(['hard','difficult','h','high'].includes(s)) return 'hard';
+      return '';
+    }
+
+    function applyQuestDifficultyColors(){
+      var sheetName = "{{ sheet|e }}";
+      if(!sheetName || sheetName.toLowerCase() !== 'quests') return;
+
+      var table = document.querySelector('table');
+      if(!table) return;
+
+      var headers = Array.from(table.querySelectorAll('thead th'));
+      if(!headers.length) headers = Array.from(table.querySelectorAll('tr:first-child th'));
+
+      var diffIdx = -1;
+      headers.forEach(function(th, i){
+        var t = (th.textContent || '').trim().toLowerCase();
+        if(t === 'difficulty') diffIdx = i;
+      });
+      if(diffIdx === -1) return;
+
+      var bodyRows = table.tBodies && table.tBodies.length ? Array.from(table.tBodies[0].rows) : Array.from(table.querySelectorAll('tbody tr'));
+      bodyRows.forEach(function(tr){
+        var tds = Array.from(tr.cells);
+        if(!tds[diffIdx]) return;
+        var raw = (tds[diffIdx].textContent || '').trim();
+        var norm = normalizeDiff(raw);
+        if(!norm) return;
+
+        tr.classList.add('diff-' + norm);
+        var td = tds[diffIdx];
+        td.innerHTML = '<span class="diff-pill">' + raw.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</span>';
+      });
+    }
+
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', applyQuestDifficultyColors);
+    } else {
+      applyQuestDifficultyColors();
+    }
+  })();
+  </script>
 </body>

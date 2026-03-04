@@ -1,9 +1,63 @@
-/* Wider, no-wrap grid for Classes page only */
-body.classes_view table { table-layout: auto; min-width: 1700px; border-collapse: separate; }
-body.classes_view th, body.classes_view td { white-space: nowrap; }
-body.classes_view table tbody tr { height: 36px; }
-body.classes_view table tr > *:nth-child(1) { width: 110px; }
-body.classes_view table tr > *:nth-child(2) { width: 110px; }
-body.classes_view table tr > *:nth-child(3) { width: 190px; }
-body.classes_view table tr > *:nth-child(n+4) { width: 190px; }
-body.classes_view .table-scroll, body.classes_view .classes-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* Applied only on the Classes page (body gets .classes_view in layout.html)
+   - keep table responsive
+   - tighten the right-side detail panel spacing (title -> Starting Bonus)
+*/
+
+body.classes_view table{
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+body.classes_view th,
+body.classes_view td{
+  white-space: normal !important;
+}
+
+body.classes_view .table-wrap{
+  overflow: auto;
+}
+
+/* ---- RIGHT PANEL: remove the "big empty gap" ---- */
+
+/* Ensure the details panel content is top-aligned (in case any flex centering exists) */
+body.classes_view .abilities-section{
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+}
+
+/* Reduce any default heading margins that can create big vertical gaps */
+body.classes_view #affinity-name,
+body.classes_view .detail-header h2,
+body.classes_view .detail-header h1{
+  margin: 0 !important;
+  line-height: 1.05 !important;
+}
+
+/* If the template uses a "detail-header" wrapper, keep it tight */
+body.classes_view .detail-header{
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  margin-bottom: 0.35rem !important;
+  padding-bottom: 0 !important;
+}
+
+/* Class detail card: remove any accidental huge padding/min-height */
+body.classes_view #class-details,
+body.classes_view .class-details{
+  margin-top: 0.55rem !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+  min-height: 0 !important;
+}
+
+/* If sections were given extra top padding, neutralize it */
+body.classes_view .class-details .class-section{
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* Keep divider spacing reasonable */
+body.classes_view .class-details .class-section + .class-section{
+  margin-top: 0.85rem !important;
+  padding-top: 0.85rem !important;
+}

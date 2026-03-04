@@ -30,10 +30,60 @@
   <section class="mb-12">
     <h2 class="text-xl font-semibold text-white/90 mb-3">Data</h2>
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+      {#
+        Custom ordering + color groups (as per requested dashboard layout)
+        Order (rows of 6 on large screens):
+          1) The Informatorium, Game Guide, Clarifications, Roll Info, Scaling, Damage Calculation
+          2) Hexes, Entities, Landmarks, Zones, Crafting, Quests
+          3) Bestiary, Skills, Xp-Chart, Items, Gear, Gear Set
+          4) Resonance, Mastery, Legacy
+      #}
+      {% set order = [
+        'The Informatorium','Game Guide','Clarifications','Roll Info','Scaling','Damage Calculation',
+        'Hexes','Entities','Landmarks','Zones','Crafting','Quests',
+        'Bestiary','Skills','Xp-Chart','Items','Gear','Gear Set',
+        'Resonance','Mastery','Legacy'
+      ] %}
+
+      {# Color grouping for tile badges #}
+      {% set badge_map = {
+        'resonance': 'from-violet-400 to-indigo-500',
+        'mastery': 'from-violet-400 to-indigo-500',
+        'legacy': 'from-violet-400 to-indigo-500',
+
+        'items': 'from-emerald-400 to-teal-500',
+        'gear': 'from-emerald-400 to-teal-500',
+        'gear set': 'from-emerald-400 to-teal-500',
+
+        'hexes': 'from-sky-400 to-blue-500',
+        'entities': 'from-sky-400 to-blue-500',
+        'landmarks': 'from-sky-400 to-blue-500',
+        'zones': 'from-sky-400 to-blue-500',
+        'crafting': 'from-sky-400 to-blue-500',
+        'quests': 'from-sky-400 to-blue-500',
+
+        'bestiary': 'from-rose-400 to-pink-500',
+        'skills': 'from-rose-400 to-pink-500',
+        'xp-chart': 'from-rose-400 to-pink-500'
+      } %}
+
+      {# Render ordered tiles first #}
+      {% for lbl in order %}
+        {% set found = (data_buttons | selectattr('label','equalto', lbl) | list) %}
+        {% if found|length > 0 %}
+          {% set btn = found[0] %}
+          {% set name = (btn.label or '')|lower %}
+          {% if name not in ['races', 'classes', 'factions'] %}
+            {{ tile(btn, badge_map.get(name, 'from-amber-400 to-orange-500')) }}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {# Render any remaining tiles (not in the custom order) at the end #}
       {% for btn in data_buttons %}
         {% set name = (btn.label or '')|lower %}
-        {% if name not in ['races', 'classes', 'factions'] %}
-          {{ tile(btn) }}
+        {% if name not in ['races', 'classes', 'factions'] and (btn.label not in order) %}
+          {{ tile(btn, badge_map.get(name, 'from-amber-400 to-orange-500')) }}
         {% endif %}
       {% endfor %}
     </div>
