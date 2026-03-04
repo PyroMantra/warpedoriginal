@@ -30,9 +30,6 @@ except Exception:
 # ------------------------------------------------------------------------------
 app = Flask(__name__)
 
-# Absolute data directory (works on Railway/Gunicorn regardless of cwd)
-DATA_DIR = Path(app.root_path) / "data"
-
 # Trust Railway proxy and keep https scheme/host (MUST be after app is created)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
@@ -202,10 +199,6 @@ def _find_layer_list_xlsx() -> str:
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
     candidates = [
-        # Prefer absolute paths under app root
-        str(DATA_DIR / "Layer List (7).xlsx"),
-        str(DATA_DIR / "Layer List.xlsx"),
-        # Fallbacks
         os.path.join(base_dir, "data", "Layer List (7).xlsx"),
         os.path.join(base_dir, "data", "Layer List.xlsx"),
         os.path.join(base_dir, "Layer List (7).xlsx"),
@@ -249,16 +242,10 @@ except Exception as e:
     RACES_SHEET_DF = None
 CONDITIONS_MAP = None
 
-EXCEL_SENTIENT_PATH = str(DATA_DIR / "New Microsoft Excel Worksheet (2).xlsx")
+EXCEL_SENTIENT_PATH = os.path.join("data", "New Microsoft Excel Worksheet (2).xlsx")
 
-# Sentient generator data is optional; don't crash the whole app if missing in production.
-try:
-    RACES = load_races(EXCEL_SENTIENT_PATH)
-    GEAR  = load_gear(EXCEL_SENTIENT_PATH)
-except Exception as e:
-    print(f"[WARN] Sentient Excel not loaded '{EXCEL_SENTIENT_PATH}': {e}")
-    RACES = {}
-    GEAR = []
+RACES = load_races(EXCEL_SENTIENT_PATH)
+GEAR  = load_gear(EXCEL_SENTIENT_PATH)
 
 
 import merchant_ext
@@ -400,7 +387,7 @@ BIOMES = [
 ]
 
 # Exact path to your Excel (relative to the app folder)
-EVENTS_XLSX = str(DATA_DIR / "Layer List (7).xlsx")
+EVENTS_XLSX = os.path.join(app.root_path, "data", "Layer List (7).xlsx")
 EVENTS_SHEET = "events"  # tab name
 
 def read_events_df() -> pd.DataFrame:
@@ -815,9 +802,10 @@ def bestiary():
                 return str(int(x))
             return str(x)
         return str(x)
-
-    df = df.applymap(fmt_cell)
-
+    try:
+        df = df.map(fmt_cell)  # pandas >= 3
+    except AttributeError:
+        df = df.applymap(fmt_cell)  # pandas < 3
     raw_creatures = df.to_dict(orient="records")
 
     # Excel headers for resistances
@@ -900,9 +888,10 @@ def view_sheet(sheet):
         return str(x)
 
     df = sheets[sheet].copy()
-    df = df.applymap(fmt_cell)
-
-
+    try:
+        df = df.map(fmt_cell)  # pandas >= 3
+    except AttributeError:
+        df = df.applymap(fmt_cell)  # pandas < 3
     # Special-case: Roll Information uses a dedicated UI (d20 selector + all outcomes)
     if sheet.strip().lower() == "roll information":
         # The sheet is arranged in blocks that start with a row where column A == "Roll".
@@ -1721,4 +1710,3 @@ if __name__ == "__main__":
         print(f"{r.endpoint}: {r}")
     print("--------------")
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)
-
