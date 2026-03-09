@@ -413,7 +413,31 @@ details.info-card[open] .info-preview{display:none;}
 }
 
 
-  </style>
+  
+/* Zones: card/accordion layout */
+.zones-wrap{margin:10px 0 18px;}
+.zones-note{opacity:0.82;margin:4px 0 12px;font-size:0.92rem;line-height:1.35;}
+.zones-list{display:flex;flex-direction:column;gap:12px;}
+details.zone-card{position:relative;border:1px solid #2d2d2d;border-radius:16px;background:#171717;overflow:hidden;}
+details.zone-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent,#777);opacity:0.9;}
+details.zone-card[open]{border-color:rgba(255,255,255,0.22);box-shadow:0 0 0 3px rgba(255,255,255,0.04);}
+details.zone-card > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px 12px 18px;background:linear-gradient(90deg, rgba(255,255,255,0.08), rgba(0,0,0,0));}
+details.zone-card > summary::-webkit-details-marker{display:none;}
+.zone-title{font-weight:900;font-size:1.05rem;letter-spacing:.01em;}
+.zone-body{border-top:1px solid #242424;padding:12px 16px 14px 16px;}
+.zone-body ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;}
+.zone-body li{line-height:1.35;opacity:0.95;}
+
+/* Crafting: compact cards */
+.crafting-wrap{margin:10px 0 18px;}
+.crafting-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;}
+.craft-card{position:relative;border:1px solid #2d2d2d;border-radius:16px;background:#171717;overflow:hidden;padding:12px 14px 14px 16px;}
+.craft-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--accent,#777);opacity:0.9;}
+.craft-title{font-weight:900;font-size:1.02rem;margin-bottom:8px;}
+.craft-row{display:flex;flex-direction:column;gap:4px;margin-top:8px;}
+.craft-label{font-size:0.78rem;opacity:0.75;letter-spacing:.08em;text-transform:uppercase;}
+.craft-val{opacity:0.95;line-height:1.35;white-space:pre-wrap;}
+</style>
   <link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
 </head>
 <body>
@@ -696,6 +720,19 @@ details.info-card[open] .info-preview{display:none;}
   </div>
 {% endif %}
 
+{% if sheet.strip().lower() == 'zones' %}
+  <div id="zonesUI" class="zones-wrap">
+    <div id="zonesNote" class="zones-note"></div>
+    <div id="zonesList" class="zones-list"></div>
+  </div>
+{% endif %}
+
+{% if sheet.strip().lower() == 'crafting' %}
+  <div id="craftingUI" class="crafting-wrap">
+    <div id="craftingGrid" class="crafting-grid"></div>
+  </div>
+{% endif %}
+
 
 <table class="
   {% if sheet.strip().upper() == 'LEGACY' %}legacy-table{% endif %}
@@ -739,6 +776,159 @@ details.info-card[open] .info-preview{display:none;}
       {% endif %}
     </tbody>
   </table>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const sheetName = "{{ sheet }}".trim().toLowerCase();
+  const table = document.querySelector('table');
+  if (!table) return;
+
+  const norm = (v) => (v ?? '').toString().replace(/\u00a0/g,' ').trim();
+  const clamp0 = (n) => (Number.isFinite(n) ? Math.max(0, n) : 0);
+
+  // ---------- Zones ----------
+  if (sheetName === 'zones') {
+    try {
+      const th = table.querySelector('thead th');
+      const note = th ? norm(th.innerText) : '';
+      const noteEl = document.getElementById('zonesNote');
+      if (noteEl) noteEl.textContent = note;
+
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      const values = rows.map(r => norm(r.cells[0]?.innerText));
+      const zones = [];
+      let i = 0;
+
+      // Color accents per zone name (safe defaults)
+      const ACCENT = {
+        'market': '#3aa4ff',
+        'foundry': '#ff9f1a',
+        'port': '#4cd964',
+        'tavern': '#d66efd',
+        'blacksmith': '#ff5d5d',
+        'apothecary': '#20c997',
+        'library': '#8b5cf6',
+        'temple': '#f59e0b',
+        'arena': '#ef4444',
+        'stables': '#22c55e'
+      };
+
+      while (i < values.length) {
+        // skip blanks
+        while (i < values.length && !values[i]) i++;
+        if (i >= values.length) break;
+
+        const title = values[i];
+        i++;
+
+        const lines = [];
+        while (i < values.length && values[i]) {
+          lines.push(values[i]);
+          i++;
+        }
+
+        zones.push({ title, lines });
+      }
+
+      const list = document.getElementById('zonesList');
+      if (list) {
+        list.innerHTML = '';
+        zones.forEach(z => {
+          const d = document.createElement('details');
+          d.className = 'zone-card';
+          const key = norm(z.title).toLowerCase();
+          d.style.setProperty('--accent', ACCENT[key] || '#777');
+
+          const s = document.createElement('summary');
+          const t = document.createElement('div');
+          t.className = 'zone-title';
+          t.textContent = z.title;
+          s.appendChild(t);
+          d.appendChild(s);
+
+          const body = document.createElement('div');
+          body.className = 'zone-body';
+          const ul = document.createElement('ul');
+          z.lines.forEach(line => {
+            const li = document.createElement('li');
+            li.textContent = line;
+            ul.appendChild(li);
+          });
+          body.appendChild(ul);
+          d.appendChild(body);
+
+          list.appendChild(d);
+        });
+
+        // Hide the raw table only if we successfully built the UI
+        if (zones.length) table.style.display = 'none';
+      }
+    } catch (e) {
+      // If anything goes wrong, leave the table as-is.
+      console.warn('Zones UI build failed:', e);
+    }
+    return; // zones page done
+  }
+
+  // ---------- Crafting ----------
+  if (sheetName === 'crafting') {
+    try {
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      const cards = rows.map(r => {
+        const c0 = norm(r.cells[0]?.innerText);
+        const c1 = norm(r.cells[1]?.innerText);
+        const c2 = norm(r.cells[2]?.innerText);
+        return { type: c0, recipe: c1, mats: c2 };
+      }).filter(x => x.type);
+
+      const ACCENT = (type) => {
+        const t = type.toLowerCase();
+        if (t.includes('drug')) return '#20c997';
+        if (t.includes('throw')) return '#ff9f1a';
+        if (t.includes('rune')) return '#8b5cf6';
+        if (t.includes('scroll')) return '#3aa4ff';
+        if (t.includes('gear')) return '#ef4444';
+        return '#777';
+      };
+
+      const grid = document.getElementById('craftingGrid');
+      if (grid) {
+        grid.innerHTML = '';
+        cards.forEach(c => {
+          const card = document.createElement('div');
+          card.className = 'craft-card';
+          card.style.setProperty('--accent', ACCENT(c.type));
+
+          const title = document.createElement('div');
+          title.className = 'craft-title';
+          title.textContent = c.type;
+          card.appendChild(title);
+
+          const r1 = document.createElement('div');
+          r1.className = 'craft-row';
+          r1.innerHTML = `<div class="craft-label">Requirement / Recipe</div><div class="craft-val"></div>`;
+          r1.querySelector('.craft-val').textContent = c.recipe || '—';
+          card.appendChild(r1);
+
+          const r2 = document.createElement('div');
+          r2.className = 'craft-row';
+          r2.innerHTML = `<div class="craft-label">Material / Amount</div><div class="craft-val"></div>`;
+          r2.querySelector('.craft-val').textContent = c.mats || '—';
+          card.appendChild(r2);
+
+          grid.appendChild(card);
+        });
+
+        if (cards.length) table.style.display = 'none';
+      }
+    } catch (e) {
+      console.warn('Crafting UI build failed:', e);
+    }
+  }
+});
+</script>
+
 
 
 
@@ -1644,8 +1834,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const detMain = document.createElement('details');
       detMain.className = 'info-main';
       detMain.style.setProperty('--accent', MAIN_COLORS[mainName] || '#777');
-      // Open nothing by default; only auto-open while searching.
-      detMain.open = !!q;
+      detMain.open = !!q;// do not auto-open first section
+
 
       const sumMain = document.createElement('summary');
       const head = document.createElement('div');
@@ -1819,6 +2009,8 @@ detMain.appendChild(innerMain);
 
 
 
+
+  <script src="{{ url_for('static', filename='difficulty_colors.js') }}"></script>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>window.CURRENT_USER_NAME = "{{ current_user_name }}";</script>
