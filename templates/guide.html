@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% block title %}Game Guide{% endblock %}
+{% block content %}
+<style>
+  .guide-wrap { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; }
+  @media (max-width: 1000px) { .guide-wrap { grid-template-columns: 1fr; } .toc { position: static; } }
+  .toc a.level-2 { padding-left:.5rem; }
+  .toc a.level-3 { padding-left:1.25rem; font-size:.295em; opacity:.9; }
+  .toc a.active { background:#2a2a2a; }
+  .guide { line-height:1.65; }
+  .guide h1, .guide h2, .guide h3 { scroll-margin-top: 80px; }
+  .guide img { max-width:100%; height:auto; border-radius:8px; }
+/* Bigger body text for the guide page */
+.guide { 
+  font-size: 1.35rem;   /* ≈22px; change to 1.25rem (20px) or 1.5rem (24px) if you prefer */
+  line-height: 1.9;
+}
+
+</style>
+
+<a class="button top-right" href="/">← Back to Home</a>
+<h1 class="text-3xl font-bold mb-2">Game Guide</h1>
+
+<div class="guide-wrap">
+  <nav class="toc">
+    <h3>Contents</h3>
+    <div id="toc-list"></div>
+  </nav>
+
+  <article id="guide" class="guide">
+    <p>Loading guide…</p>
+  </article>
+</div>
+
+<!-- Client-side Markdown only (no search/expand/print) -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+(async function(){
+  const mdUrl = "{{ url_for('static', filename=guide_file) }}";
+  const res = await fetch(mdUrl);
+  const md  = await res.text();
+
+  // Render Markdown
+  marked.setOptions({ breaks: true });
+  const guideEl = document.getElementById('guide');
+  guideEl.innerHTML = marked.parse(md);
+
+  // Build TOC from h2/h3
+  const tocEl = document.getElementById('toc-list');
+  const headings = guideEl.querySelectorAll('h2, h3');
+  headings.forEach(h => {
+    if(!h.id){
+      h.id = h.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    }
+    const a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.textContent = h.textContent;
+    a.className = h.tagName.toLowerCase()==='h2' ? 'level-2' : 'level-3';
+    tocEl.appendChild(a);
+  });
+
+  // Simple scroll spy to highlight current section
+  const tocLinks = [...tocEl.querySelectorAll('a')];
+  const io = new IntersectionObserver((entries) => {
+    const visible = entries.filter(e => e.isIntersecting).sort((a,b)=> b.intersectionRatio - a.intersectionRatio)[0];
+    if (visible) {
+      const id = '#' + visible.target.id;
+      tocLinks.forEach(l => l.classList.toggle('active', l.getAttribute('href')===id));
+    }
+  }, { rootMargin: '0px 0px -70% 0px', threshold:[0,1] });
+  headings.forEach(h => io.observe(h));
+})();
+</script>
+{% endblock %}

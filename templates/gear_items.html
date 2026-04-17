@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+{% block title %}Gear + Items{% endblock %}
+
+{% block content %}
+{% set rarity_styles = {
+  'Common':    'border-white/15 bg-white/5 text-white/80',
+  'Uncommon':  'border-emerald-400/25 bg-emerald-400/10 text-emerald-200',
+  'Rare':      'border-sky-400/25 bg-sky-400/10 text-sky-200',
+  'Epic':      'border-violet-400/25 bg-violet-400/10 text-violet-200',
+  'Legendary': 'border-amber-400/25 bg-amber-400/10 text-amber-200',
+  'Mythic':    'border-rose-400/25 bg-rose-400/10 text-rose-200',
+  'Astral':    'border-cyan-400/25 bg-cyan-400/10 text-cyan-200',
+  'Ultimate':  'border-pink-400/25 bg-pink-400/10 text-pink-200'
+} %}
+
+<div class="max-w-7xl mx-auto">
+  <div class="flex items-center justify-between gap-3 mb-6">
+    <div>
+      <h1 class="text-3xl md:text-4xl font-extrabold tracking-wide">Gear + Items</h1>
+      <div class="text-sm text-white/60 mt-1">One unified catalog (replaces separate Gear and Items tabs).</div>
+    </div>
+    <a href="{{ url_for('home') }}"
+       class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-white/15 text-white/90 text-sm">
+      ← Back to Home
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 md:p-5 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+      <div class="md:col-span-5">
+        <label class="block text-xs uppercase tracking-wider text-white/60 mb-1">Search</label>
+        <input name="q" value="{{ q }}" placeholder="Search by name..."
+               class="w-full rounded-lg px-3 py-2 bg-black/30 border border-white/10 focus:border-orange-400/60" />
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs uppercase tracking-wider text-white/60 mb-1">Kind</label>
+        <select name="kind" class="w-full rounded-lg px-3 py-2 bg-black/30 border border-white/10 focus:border-orange-400/60">
+          <option value="" {% if not kind %}selected{% endif %}>All</option>
+          <option value="Gear" {% if kind == 'Gear' %}selected{% endif %}>Gear</option>
+          <option value="Item" {% if kind == 'Item' %}selected{% endif %}>Item</option>
+        </select>
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs uppercase tracking-wider text-white/60 mb-1">Rarity</label>
+        <select name="rarity" class="w-full rounded-lg px-3 py-2 bg-black/30 border border-white/10 focus:border-orange-400/60">
+          <option value="" {% if not rarity %}selected{% endif %}>All</option>
+          {% for r in ['Common','Uncommon','Rare','Epic','Legendary','Mythic','Astral','Ultimate'] %}
+            <option value="{{ r }}" {% if rarity == r %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="md:col-span-2">
+        <label class="block text-xs uppercase tracking-wider text-white/60 mb-1">Artifact</label>
+        <select name="artifact" class="w-full rounded-lg px-3 py-2 bg-black/30 border border-white/10 focus:border-orange-400/60">
+          <option value="" {% if not artifact %}selected{% endif %}>Any</option>
+          <option value="yes" {% if artifact in ['yes','true','1'] %}selected{% endif %}>Only artifacts</option>
+          <option value="no" {% if artifact in ['no','false','0'] %}selected{% endif %}>Exclude artifacts</option>
+        </select>
+      </div>
+
+      <div class="md:col-span-1">
+        <label class="block text-xs uppercase tracking-wider text-white/60 mb-1">Sort</label>
+        <select name="sort" class="w-full rounded-lg px-3 py-2 bg-black/30 border border-white/10 focus:border-orange-400/60">
+          <option value="rarity" {% if sort == 'rarity' %}selected{% endif %}>Rarity</option>
+          <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+          <option value="gold" {% if sort == 'gold' %}selected{% endif %}>Gold</option>
+        </select>
+      </div>
+
+      <div class="md:col-span-12 flex flex-wrap gap-2 pt-2">
+        <button type="submit"
+                class="px-3 py-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/30 ring-1 ring-orange-400/30 text-orange-100 text-sm font-semibold">
+          Apply
+        </button>
+        <a href="{{ url_for('view_sheet', sheet='Gear+Items') }}"
+           class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 ring-1 ring-white/15 text-white/85 text-sm">
+          Reset
+        </a>
+        <div class="ml-auto text-sm text-white/60 flex items-center gap-2">
+          <span class="inline-flex items-center px-2 py-1 rounded-full bg-white/5 ring-1 ring-white/10">
+            {{ items|length }} shown
+          </span>
+        </div>
+      </div>
+    </div>
+  </form>
+
+  <!-- Results -->
+  {% if items|length == 0 %}
+    <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-6 text-white/70">
+      No results. Try clearing filters.
+    </div>
+  {% else %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {% for it in items %}
+        {% set rar = it.rarity %}
+        {% set rar_css = rarity_styles.get(rar, 'border-white/15 bg-white/5 text-white/80') %}
+        {% set kind_css = 'border-sky-400/25 bg-sky-400/10 text-sky-200' if it.kind == 'Gear' else 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200' %}
+
+        <div class="group relative rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/7 transition overflow-hidden">
+  <div class="absolute left-0 top-0 bottom-0 w-1.5 {% if it.rarity == 'Ultimate' %}bg-pink-400/70{% elif it.rarity == 'Astral' %}bg-cyan-400/70{% elif it.rarity == 'Mythic' %}bg-rose-500/70{% elif it.rarity == 'Legendary' %}bg-amber-400/70{% elif it.rarity == 'Epic' %}bg-violet-400/70{% elif it.rarity == 'Rare' %}bg-sky-400/70{% elif it.rarity == 'Uncommon' %}bg-emerald-400/70{% else %}bg-white/20{% endif %}"></div>
+          <div class="p-4 pl-5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="text-lg font-extrabold text-white/90 leading-tight truncate" title="{{ it.name }}">{{ it.name }}</div>
+                {% if it.detail %}
+                  <div class="text-sm text-white/60 mt-1">{{ it.detail }}</div>
+                {% endif %}
+              </div>
+              {% if it.artifact %}
+                <div class="shrink-0" title="Artifact">
+                  <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-amber-400/10 ring-1 ring-amber-400/25 text-amber-200">
+                    ✦
+                  </span>
+                </div>
+              {% endif %}
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <span class="inline-flex items-center px-2 py-1 rounded-full border {{ kind_css }} text-xs font-semibold">
+                {{ it.kind }}
+              </span>
+              <span class="inline-flex items-center px-2 py-1 rounded-full border {{ rar_css }} text-xs font-semibold">
+                {{ it.rarity }}
+              </span>
+              <span class="ml-auto inline-flex items-center px-2 py-1 rounded-full border border-white/15 bg-black/20 text-white/80 text-xs">
+                {{ it.gold }} Gold
+              </span>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

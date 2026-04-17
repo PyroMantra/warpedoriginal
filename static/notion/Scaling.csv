@@ -1,0 +1,28 @@
+﻿Name,Type,Critical Multiplier,Scaling,Miss,Throwing Penalty,If in Off-Hand,Strike Penalty
+Unarmed,Blunt,1.5,Highest Attribute,1-3,N/A,N/A,N/A
+Sword,Sharp,2,1 Dexterity [+1 Strength If Two-Handed],1-5,30%,0.5 Dexterity Scaling,N/A
+Spear,Sharp,2,1 Strength [+1 Dexterity If Two-Handed],1-5,0%,N/A,N/A
+Axe,Sharp,2.5,1 Strength,1-5,0%,0.5 Strength Scaling,N/A
+Scythe,Sharp,1,2 Dexterity,1,70%,Forces Basic Miss Range to 1.,N/A
+Glaive,Sharp,2,1.5 Strength,1-5,60%,N/A,N/A
+Halberd,Sharp,2.5,1 Strength,1-7,90%,N/A,N/A
+Knife,Sharp,1.5,1.5 Dexterity,1-3,0%,Forces Basic Miss Range to 1-3; Scales when Thrown,N/A
+Warhammer,Blunt,3,1 Strength,1-7,40%,N/A,N/A
+Mace,Blunt,2.5,1.5 Strength,1-7,40%,N/A,N/A
+Flail,Blunt,2.5,1 Strength,1-5,70%,N/A,N/A
+Club,Blunt,2,1.5 Strength,1-5,40%,N/A,N/A
+Staff,Blunt/Impact,2,1 Strength/Power,1-5,70%,N/A,N/A
+Bow,Impact,2,1 Dexterity,1-5,80%,N/A,50% Damage Penalty
+Crossbow,Impact,2,1 Dexterity,1-5,80%,Shoot on Basic Attack / Seperate Reload,75% Damage Penalty
+Pistol,Impact,2,1.5 Dexterity,1-5,70%,Shoot on Basic Attack / Seperate Reload,75% Damage Penalty
+Rifle,Impact,2.5,1 Dexterity,1-5,80%,Shoot on Basic Attack / Seperate Reload,50% Damage Penalty
+Wand,Impact,1.5,1 Power,1-5,80%,Shoot on Basic Attack,75% Damage Penalty
+Scepter,Impact,2,1 Power,1-7,70%,N/A,50% Damage Penalty
+Whip,Blunt/Impact,1,1 Dexterity,1-5,90%,N/A,N/A
+Orb,Impact,1,1.5 Power,1-3,20%,Empower Main Hand with 50% of its Base Damage,75% Damage Penalty
+Throwables,,,,,,,
+Dagger,Sharp,1.5,1.5 Dexterity,1-3,0%,N/A,N/A
+Hatchet,Sharp,2,1 Strength,1-5,0%,N/A,N/A
+Javelin,Sharp,2,1 Strength/Dexterity,1-5,0%,N/A,N/A
+Explosive,Impact,1,N/A,1-2,0%,N/A,N/A
+Potion,Impact,1,N/A,1-5,0%,N/A,N/A

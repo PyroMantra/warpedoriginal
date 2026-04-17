@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+{% block title %}Sentient Generator{% endblock %}
+
+{% block content %}
+<style>
+  /* Subtle rarity palette */
+  .rar-common{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
+  .rar-uncommon{border-color:rgba(45,212,111,.45);background:rgba(16,59,30,.35)}
+  .rar-rare{border-color:rgba(77,163,255,.45);background:rgba(11,43,74,.35)}
+  .rar-epic{border-color:rgba(179,123,255,.45);background:rgba(42,19,69,.35)}
+  .rar-legendary{border-color:rgba(255,200,77,.45);background:rgba(63,42,0,.35)}
+  .rar-mythic{border-color:rgba(255,92,92,.45);background:rgba(59,15,15,.35)}
+  .rar-astral{border-color:rgba(124,92,255,.45);background:rgba(26,16,59,.35)}
+
+  .chip{display:inline-flex;align-items:center;gap:.35rem;padding:.22rem .6rem;border:1px solid;border-radius:999px;font-size:.74rem;line-height:1.1}
+  .chip-pos{border-color:rgba(45,212,111,.35);background:rgba(45,212,111,.10)}
+  .chip-neg{border-color:rgba(255,92,92,.35);background:rgba(255,92,92,.10)}
+  .chip-zero{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.04)}
+
+  .card{border:1px solid rgba(255,255,255,.10);background:rgba(0,0,0,.50);border-radius:1rem}
+  .card-h{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.60);font-weight:700}
+</style>
+
+<div class="max-w-6xl mx-auto p-4 md:p-6 space-y-5">
+
+  <header class="flex items-center justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-bold tracking-wide">Sentient Generator</h1>
+      <p class="text-sm text-white/70">Generate a ranked Sentient with race, faction, full stats, gear, damage and abilities.</p>
+    </div>
+  </header>
+
+  <section class="rounded-2xl border border-white/10 bg-black/40 p-4">
+    <form method="post" class="flex flex-col md:flex-row gap-3 md:items-end">
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-white/60 mb-1">Rank</label>
+        <select name="rank"
+                class="px-3 py-2 rounded-lg bg-black/60 border border-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400">
+          {% for r in ranks %}
+          <option value="{{ r }}" {% if r == selected_rank %}selected{% endif %}>{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit"
+              class="px-5 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 text-sm font-semibold">
+        🎲 Generate
+      </button>
+    </form>
+  </section>
+
+  {% if error %}
+  <div class="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  {% if result %}
+
+  {# rank accent #}
+  {% set rank_tone = {
+    'Weakling':'rar-common',
+    'Prime Weakling':'rar-uncommon',
+    'Elite':'rar-rare',
+    'Prime Elite':'rar-epic',
+    'Boss':'rar-legendary',
+    'Prime Boss':'rar-legendary',
+    'Guardian':'rar-mythic'
+  }.get(result.rank, 'rar-common') %}
+
+  <section class="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-4 {{ rank_tone }}">
+
+    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+      <div>
+        <h2 class="text-2xl font-bold">{{ result.rank }} Sentient</h2>
+        <p class="text-sm text-white/70">
+          {{ result.faction }} • {{ result.race or '-' }}
+          {% if result.conditions and result.conditions != 'None' %}
+            • <span class="text-white/60">Conditions:</span> {{ result.conditions }}
+          {% endif %}
+        </p>
+        <p class="text-xs text-white/50 mt-1">Rounding: standard (0.5+ rounds up)</p>
+      </div>
+      <div class="text-right text-sm text-white/60">
+        <div>Intelligence: <span class="font-semibold text-white/90">{{ result.intelligence_label }}</span></div>
+        <div class="text-xs">d20 = {{ result.intelligence_roll }}</div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-4">
+
+      <!-- Left: vitals/attributes/aux -->
+      <div class="space-y-3">
+        <div class="card p-3">
+          <div class="card-h mb-2">Vitals</div>
+          <dl class="text-sm space-y-1">
+            {% for key in ['Health','Mana','Defense','Dispersion'] %}
+            <div class="flex justify-between">
+              <dt class="text-white/60">{{ key }}</dt>
+              <dd class="font-semibold">{{ "%.0f"|format(result.stats.get(key, 0)) }}</dd>
+            </div>
+            {% endfor %}
+          </dl>
+        </div>
+
+        <div class="card p-3">
+          <div class="card-h mb-2">Attributes</div>
+          <dl class="text-sm space-y-1">
+            {% for key in ['Strength','Dexterity','Power'] %}
+            <div class="flex justify-between">
+              <dt class="text-white/60">{{ key }}</dt>
+              <dd class="font-semibold">{{ "%.0f"|format(result.stats.get(key, 0)) }}</dd>
+            </div>
+            {% endfor %}
+          </dl>
+        </div>
+
+        <div class="card p-3">
+          <div class="card-h mb-2">Aux</div>
+          <dl class="text-sm space-y-1">
+            {% for key in ['Mobility','Might','Wisdom'] %}
+            <div class="flex justify-between">
+              <dt class="text-white/60">{{ key }}</dt>
+              <dd class="font-semibold">{{ "%.0f"|format(result.stats.get(key, 0)) }}</dd>
+            </div>
+            {% endfor %}
+          </dl>
+        </div>
+      </div>
+
+      <!-- Middle: damage/resists -->
+      <div class="space-y-3">
+        <div class="card p-3">
+          <div class="card-h mb-2">Damage</div>
+          <div class="text-sm leading-snug">
+            <div class="text-white/60">Main Hand</div>
+            <div class="font-semibold text-white/90 break-words">{{ result.main_hand_damage }}</div>
+            <div class="mt-2 text-white/60">Off Hand</div>
+            {% if result.off_hand_damage %}
+              <div class="font-semibold text-white/90 break-words">{{ result.off_hand_damage }}</div>
+            {% else %}
+              <div class="text-white/50">(none)</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card p-3">
+          <div class="card-h mb-2">Resistances</div>
+          <div class="flex flex-wrap gap-1">
+            {% for k in ['Light','Dark','Fire','Frost','Wind','Earth','Lightning','Bleed','Poison'] %}
+              {% set raw = (result.resists.get(k, 0) if result.resists is defined else 0) %}
+              {% set v = raw|float %}
+              {# Heuristic safety: if Excel percent is entered as 50 instead of 0.5, values explode (5000%). Fix display only. #}
+              {% if v|abs > 200 %}{% set v = v / 100 %}{% endif %}
+              {% set cls = 'chip-zero' %}
+              {% if v > 0 %}{% set cls = 'chip-pos' %}{% elif v < 0 %}{% set cls = 'chip-neg' %}{% endif %}
+              <span class="chip {{ cls }}">
+                {{ k }}: {{ v|round(0,'common')|int }}%
+              </span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: gear -->
+      <div class="space-y-3">
+        <div class="card p-3">
+          <div class="card-h mb-2">Gear</div>
+          <dl class="text-sm space-y-1">
+            {% for slot, item in result.gear.items() %}
+            <div class="flex justify-between gap-3">
+              <dt class="text-white/60">{{ slot }}</dt>
+              <dd class="font-semibold text-white/90 text-right break-words">{{ item or 'Empty' }}</dd>
+            </div>
+            {% endfor %}
+          </dl>
+        </div>
+      </div>
+
+      <!-- Abilities (full width) -->
+      <div class="lg:col-span-3">
+        <div class="card p-3">
+          <div class="card-h mb-2">Abilities</div>
+          {% if result.abilities %}
+            <div class="grid md:grid-cols-2 gap-2 text-sm">
+              {% for tier, name in result.abilities.items() %}
+                {% if name and name|string|lower not in ['nan','none','', 'unknown ability'] %}
+                <div class="rounded-lg border border-white/10 bg-black/40 p-2">
+                  <div class="text-xs text-white/60 font-semibold mb-1">{{ tier }}</div>
+                  <div class="font-semibold text-white/90 break-words">{{ name }}</div>
+                </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-sm text-white/50">(none)</div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

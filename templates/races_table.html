@@ -1,0 +1,696 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/races_excel.css') }}">
+
+<style>
+  .cond-pill{
+    display:inline-block;
+    padding:2px 10px;
+    margin:2px 6px 2px 0;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.22);
+    background:rgba(255,255,255,0.06);
+    font-size:0.92rem;
+    line-height:1.35;
+    white-space:nowrap;
+  }
+  .cond-pill.hoverable{ cursor: help; }
+
+  /* Controls layout (so we don't have to edit CSS file) */
+  .races-controls{
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  /* Dropdown filters */
+  .races-filters{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:flex-end;
+    justify-content:flex-end;
+  }
+  .races-filter{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    font-size:12px;
+    color: rgba(255,255,255,.75);
+  }
+  .races-filter label{ white-space:nowrap; }
+  .races-filter select{
+    min-width: 160px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.25);
+    color: #ddd;
+    outline: none;
+  }
+  .races-filter select:focus{ border-color: rgba(255,255,255,0.22); }
+  .filter-count{
+    font-size: 12px;
+    opacity: 0.75;
+    padding: 0 4px 2px;
+    white-space: nowrap;
+  }
+
+  /* Click-to-sort chips above header text */
+  th.sortable{ cursor:pointer; user-select:none; }
+  th.sortable .th-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+  }
+  th.sortable .sort-chip{
+    font-size:11px;
+    line-height:1;
+    padding:3px 10px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.18);
+    background:rgba(0,0,0,0.20);
+    color:rgba(255,255,255,0.80);
+  }
+  th.sortable.sorted-desc .sort-chip{
+    border-color:rgba(255,255,255,0.30);
+    color:rgba(255,255,255,0.95);
+  }
+
+  /* Flat mode (sorting) - make KIN normal horizontal */
+  .races-page.flat-mode .kin-cell{
+    writing-mode: horizontal-tb;
+    transform: none;
+    text-align: left;
+    letter-spacing: 0.02em;
+    padding: 10px 10px;
+    font-weight: 800;
+  }
+  .races-page.flat-mode .races-table th.col-kin{ width: 120px; }
+  .races-page.flat-mode .races-table th.col-race{ width: 180px; }
+/* Elemental resistance column colors (matches your reference palette) */
+.races-table th.res-light,     .races-table td.res-light     { background:#f0f0f0 !important; color:#111 !important; }
+.races-table th.res-dark,      .races-table td.res-dark      { background:#808080 !important; color:#111 !important; }
+.races-table th.res-fire,      .races-table td.res-fire      { background:#e87830 !important; color:#111 !important; }
+.races-table th.res-frost,     .races-table td.res-frost     { background:#98c0e0 !important; color:#111 !important; }
+.races-table th.res-wind,      .races-table td.res-wind      { background:#c0e0b0 !important; color:#111 !important; }
+.races-table th.res-earth,     .races-table td.res-earth     { background:#d8b868 !important; color:#111 !important; }
+.races-table th.res-lightning, .races-table td.res-lightning { background:#f8c000 !important; color:#111 !important; }
+.races-table th.res-bleed,     .races-table td.res-bleed     { background:#f04848 !important; color:#111 !important; }
+.races-table th.res-poison,    .races-table td.res-poison    { background:#a8d088 !important; color:#111 !important; }
+
+/* Make gridlines readable on bright columns + keep numbers punchy */
+.races-table td.res-light, .races-table td.res-dark, .races-table td.res-fire, .races-table td.res-frost,
+.races-table td.res-wind, .races-table td.res-earth, .races-table td.res-lightning, .races-table td.res-bleed, .races-table td.res-poison,
+.races-table th.res-light, .races-table th.res-dark, .races-table th.res-fire, .races-table th.res-frost,
+.races-table th.res-wind, .races-table th.res-earth, .races-table th.res-lightning, .races-table th.res-bleed, .races-table th.res-poison{
+  border-right: 1px solid rgba(0,0,0,0.25) !important;
+  border-bottom: 1px solid rgba(0,0,0,0.18) !important;
+}
+
+.races-table td.res-light, .races-table td.res-dark, .races-table td.res-fire, .races-table td.res-frost,
+.races-table td.res-wind, .races-table td.res-earth, .races-table td.res-lightning, .races-table td.res-bleed, .races-table td.res-poison{
+  font-weight: 900;
+}
+
+</style>
+
+<div class="races-page">
+  <div class="races-header">
+    <div>
+      <h1 class="races-title">Races</h1>
+      <div style="opacity:0.8; margin-top:6px;">Hover over Races, Subtypes and Conditions for extra info!</div>
+    </div>
+
+    <div class="races-controls">
+      <form method="get" action="{{ url_for('races_table') }}" style="display:flex; gap:10px; align-items:center;">
+        <input
+          class="races-search"
+          id="racesSearch"
+          type="text"
+          name="q"
+          value="{{ q }}"
+          placeholder="Search kin/race/subtype/conditions..."
+          autocomplete="off"
+        />
+        <button class="btn" type="submit">Search</button>
+        {% if q %}
+          <a class="btn" href="{{ url_for('races_table') }}">Clear</a>
+        {% endif %}
+      </form>
+
+      <div class="races-filters" aria-label="Table Filters">
+        <div class="races-filter">
+          <label for="fKin">Kin</label>
+          <select id="fKin"><option value="">All</option></select>
+        </div>
+        <div class="races-filter">
+          <label for="fRace">Race</label>
+          <select id="fRace"><option value="">All</option></select>
+        </div>
+        <div class="races-filter">
+          <label for="fSubtype">Subtype</label>
+          <select id="fSubtype"><option value="">All</option></select>
+        </div>
+        <div class="races-filter">
+          <label for="fCondition">Condition</label>
+          <select id="fCondition"><option value="">All</option></select>
+        </div>
+
+        <button class="btn" type="button" id="filterReset">Reset</button>
+        <div class="filter-count" id="filterCount"></div>
+        <a class="btn" href="{{ url_for('home') }}">← Back to Home</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="races-table-card">
+    <div class="races-table-wrap">
+      <table class="races-table" id="racesTable">
+        <thead>
+          <tr>
+            <th class="col-kin" rowspan="2">KIN</th>
+            <th class="col-race" rowspan="2">RACES</th>
+            <th class="col-subtype" rowspan="2">SUBTYPES</th>
+
+            <th class="col-health th-health sortable" data-sort-key="HEALTH" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>HEALTH</span></div>
+            </th>
+            <th class="col-mana th-mana sortable" data-sort-key="MANA" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>MANA</span></div>
+            </th>
+
+            <th class="col-conditions th-conditions" rowspan="2">CONDITIONS</th>
+
+            <th class="col-stat th-defense sortable" data-sort-key="DEFENSE" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>DEFENSE</span></div>
+            </th>
+            <th class="col-stat th-dispersion sortable" data-sort-key="DISPERSION" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>DISPERSION</span></div>
+            </th>
+            <th class="col-stat th-strength sortable" data-sort-key="STRENGTH" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>STRENGTH</span></div>
+            </th>
+            <th class="col-stat th-dexterity sortable" data-sort-key="DEXTERITY" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>DEXTERITY</span></div>
+            </th>
+            <th class="col-stat th-power sortable" data-sort-key="POWER" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>POWER</span></div>
+            </th>
+            <th class="col-stat th-stamina sortable" data-sort-key="STAMINA" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>STAMINA</span></div>
+            </th>
+            <th class="col-stat th-fortitude sortable" data-sort-key="FORTITUDE" rowspan="2">
+              <div class="th-wrap"><span class="sort-chip">Filter</span><span>FORTITUDE</span></div>
+            </th>
+
+            <th class="group" colspan="{{ res_cols|length }}">ELEMENTAL RESISTANCES</th>
+          </tr>
+          <tr>
+{% for c in res_cols %}
+  {% set rname = c.replace(' RESISTANCE','') %}
+  {% set rslug = rname|lower|replace(' ','-') %}
+  <th class="col-res th-res res-{{ rslug }}" title="{{ c }}">{{ rname|title }}</th>
+{% endfor %}
+
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr
+              data-kin="{{ row.KIN|e }}"
+              data-race="{{ row.RACES|e }}"
+              data-race-desc="{{ row.race_desc|default('', true)|e }}"
+              data-subtype="{{ row.SUBTYPES|e }}"
+              data-subtype-desc="{{ row.subtype_desc|default('', true)|e }}"
+              data-conditions="{% if row.conditions_list %}{% for c in row.conditions_list %}{{ c.name|e }}{% if not loop.last %}|{% endif %}{% endfor %}{% else %}{{ row.CONDITIONS|e }}{% endif %}"
+            >
+              {% if row.kin_rowspan %}
+                {% set kin_cls = 'kin-' + (row.KIN|string|lower|replace(' ', '-')|replace('/', '-')|replace('&','and')) %}
+                <td class="kin-cell {{ kin_cls }}" data-kin="{{ row.KIN|e }}" rowspan="{{ row.kin_rowspan }}">{{ row.KIN }}</td>
+              {% endif %}
+
+              {% if row.race_rowspan %}
+                <td class="race-cell" data-kin="{{ row.KIN|e }}" data-race="{{ row.RACES|e }}" rowspan="{{ row.race_rowspan }}">
+                  {% if row.race_desc %}
+                    <span class="hoverable" data-tooltip="{{ row.race_desc|e }}">{{ row.RACES }}</span>
+                  {% else %}
+                    {{ row.RACES }}
+                  {% endif %}
+                </td>
+              {% endif %}
+
+              <td class="subtype-cell">
+                {% if row.subtype_desc %}
+                  <span class="hoverable" data-tooltip="{{ row.subtype_desc|e }}">{{ row.SUBTYPES }}</span>
+                {% else %}
+                  {{ row.SUBTYPES }}
+                {% endif %}
+              </td>
+
+              <td class="num">{{ row.HEALTH }}</td>
+              <td class="num">{{ row.MANA }}</td>
+
+              <td class="conditions">
+                {% if row.conditions_list %}
+                  {% for c in row.conditions_list %}
+                    {% if c.effect %}
+                      <span class="cond-pill hoverable" data-tooltip="{{ c.effect|e }}">{{ c.name }}</span>
+                    {% else %}
+                      <span class="cond-pill">{{ c.name }}</span>
+                    {% endif %}
+                  {% endfor %}
+                {% else %}
+                  {{ row.CONDITIONS }}
+                {% endif %}
+              </td>
+
+              <td class="num">{{ row.DEFENSE }}</td>
+              <td class="num">{{ row.DISPERSION }}</td>
+              <td class="num">{{ row.STRENGTH }}</td>
+              <td class="num">{{ row.DEXTERITY }}</td>
+              <td class="num">{{ row.POWER }}</td>
+              <td class="num">{{ row.STAMINA }}</td>
+              <td class="num">{{ row.FORTITUDE }}</td>
+
+{% for r in row.res %}
+  {% set c = res_cols[loop.index0] %}
+  {% set rname = c.replace(' RESISTANCE','') %}
+  {% set rslug = rname|lower|replace(' ','-') %}
+  <td class="num res-{{ rslug }}">{{ r.text }}</td>
+{% endfor %}
+
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="racesTooltip" class="races-tooltip"></div>
+
+<script>
+(function(){
+  const table = document.getElementById('racesTable');
+  if(!table) return;
+
+  const root = document.querySelector('.races-page');
+  const tbody = table.querySelector('tbody');
+  const tooltip = document.getElementById('racesTooltip');
+
+  // ---------- Tooltip (delegated) ----------
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+  function showTooltip(text, x, y){
+    if(!tooltip) return;
+    if(!text){ tooltip.classList.remove('show'); return; }
+    tooltip.textContent = text;
+    tooltip.classList.add('show');
+    tooltip.style.left = (x + 14) + 'px';
+    tooltip.style.top  = (y + 14) + 'px';
+    const rect = tooltip.getBoundingClientRect();
+    const pad = 10;
+    const nx = clamp(x + 14, pad, window.innerWidth  - rect.width  - pad);
+    const ny = clamp(y + 14, pad, window.innerHeight - rect.height - pad);
+    tooltip.style.left = nx + 'px';
+    tooltip.style.top  = ny + 'px';
+  }
+  function hideTooltip(){ if(tooltip) tooltip.classList.remove('show'); }
+  function getElText(el){ return (el.getAttribute('data-tooltip') || el.getAttribute('title') || '').trim(); }
+  let activeEl = null;
+  function handleOver(e){
+    const el = e.target && e.target.closest ? e.target.closest('.hoverable') : null;
+    if(!el) return;
+    activeEl = el;
+    showTooltip(getElText(el), e.clientX, e.clientY);
+  }
+  function handleMove(e){
+    if(!activeEl) return;
+    showTooltip(getElText(activeEl), e.clientX, e.clientY);
+  }
+  function handleOut(e){
+    if(activeEl && e.relatedTarget && activeEl.contains(e.relatedTarget)) return;
+    activeEl = null;
+    hideTooltip();
+  }
+  document.addEventListener('pointerover', handleOver, true);
+  document.addEventListener('pointermove', handleMove, true);
+  document.addEventListener('pointerout', handleOut, true);
+  document.addEventListener('mouseover', handleOver, true);
+  document.addEventListener('mousemove', handleMove, true);
+  document.addEventListener('mouseout', handleOut, true);
+
+  // ---------- Filters ----------
+  const elSearch   = document.getElementById('racesSearch');
+  const elKin      = document.getElementById('fKin');
+  const elRace     = document.getElementById('fRace');
+  const elSubtype  = document.getElementById('fSubtype');
+  const elCond     = document.getElementById('fCondition');
+  const elReset    = document.getElementById('filterReset');
+  const elCount    = document.getElementById('filterCount');
+
+  const getRows = () => Array.from(tbody.querySelectorAll('tr'));
+
+  // Snapshot of original grouped tbody for restoring (keeps merged cells)
+  const groupedHTML = tbody.innerHTML;
+  let isFlat = false;
+  let currentSortKey = null;
+
+  function slugKin(kin){
+    return 'kin-' + String(kin||'').toLowerCase()
+      .replace(/\s+/g,'-')
+      .replace(/\//g,'-')
+      .replace(/&/g,'and');
+  }
+
+  function uniqSorted(arr){
+    const s = new Set();
+    arr.forEach(v => {
+      const t = String(v||'').trim();
+      if(t) s.add(t);
+    });
+    return Array.from(s).sort((a,b) => a.localeCompare(b));
+  }
+
+  function addOptions(select, values){
+    select.innerHTML = '';
+    const first = document.createElement('option');
+    first.value = '';
+    first.textContent = 'All';
+    select.appendChild(first);
+    values.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v;
+      o.textContent = v;
+      select.appendChild(o);
+    });
+  }
+
+  function initFilters(){
+    const rows = getRows();
+    const kins = uniqSorted(rows.map(r => r.dataset.kin));
+    const races = uniqSorted(rows.map(r => r.dataset.race));
+    const subtypes = uniqSorted(rows.map(r => r.dataset.subtype));
+
+    const conds = [];
+    rows.forEach(r => {
+      (r.dataset.conditions || '').split('|').map(x => x.trim()).filter(Boolean).forEach(c => conds.push(c));
+    });
+    const conditions = uniqSorted(conds);
+
+    addOptions(elKin, kins);
+    addOptions(elRace, races);
+    addOptions(elSubtype, subtypes);
+    addOptions(elCond, conditions);
+
+    // restore saved
+    try {
+      const sKin = localStorage.getItem('races_filter_kin') || '';
+      const sRace = localStorage.getItem('races_filter_race') || '';
+      const sSub = localStorage.getItem('races_filter_subtype') || '';
+      const sCon = localStorage.getItem('races_filter_condition') || '';
+      if(sKin) elKin.value = sKin;
+      if(sRace) elRace.value = sRace;
+      if(sSub) elSubtype.value = sSub;
+      if(sCon) elCond.value = sCon;
+    } catch(e) {}
+  }
+
+  function updateDependentRaceOptions(){
+    const rows = getRows();
+    const kin = elKin.value;
+    if(!kin){
+      const races = uniqSorted(rows.map(r => r.dataset.race));
+      const prev = elRace.value;
+      addOptions(elRace, races);
+      elRace.value = prev;
+      return;
+    }
+    const races = uniqSorted(rows.filter(r => r.dataset.kin === kin).map(r => r.dataset.race));
+    const prev = elRace.value;
+    addOptions(elRace, races);
+    if(prev && !races.includes(prev)) elRace.value = '';
+    else elRace.value = prev;
+  }
+
+  function initGroupedCellMaps(){
+    const kinCells = new Map();
+    const raceCells = new Map();
+
+    tbody.querySelectorAll('td.kin-cell[rowspan]').forEach(td => {
+      const k = (td.getAttribute('data-kin') || td.textContent || '').trim();
+      if(k && !kinCells.has(k)) kinCells.set(k, td);
+    });
+    tbody.querySelectorAll('td.race-cell[rowspan]').forEach(td => {
+      const k = (td.getAttribute('data-kin') || '').trim();
+      const r = (td.getAttribute('data-race') || td.textContent || '').trim();
+      const key = String(k) + '||' + String(r);
+      if((k || r) && !raceCells.has(key)) raceCells.set(key, td);
+    });
+    return { kinCells, raceCells };
+  }
+
+  function rebuildSpans(){
+    if(isFlat) return;
+
+    const rows = getRows();
+    const { kinCells, raceCells } = initGroupedCellMaps();
+
+    // KIN
+    for(const [kin, td] of kinCells.entries()){
+      const vis = rows.filter(r => r.style.display !== 'none' && (r.dataset.kin || '') === kin);
+      if(vis.length === 0){
+        td.style.display = 'none';
+        continue;
+      }
+      const firstRow = vis[0];
+      td.style.display = '';
+      td.rowSpan = vis.length;
+
+      if(td.parentElement !== firstRow){
+        firstRow.insertBefore(td, firstRow.firstElementChild);
+      } else if(firstRow.firstElementChild !== td){
+        firstRow.insertBefore(td, firstRow.firstElementChild);
+      }
+    }
+
+    // RACE per kin
+    for(const [key, td] of raceCells.entries()){
+      const parts = key.split('||');
+      const kin = parts[0];
+      const race = parts[1];
+      const vis = rows.filter(r => r.style.display !== 'none' && (r.dataset.kin || '') === kin && (r.dataset.race || '') === race);
+      if(vis.length === 0){
+        td.style.display = 'none';
+        continue;
+      }
+      const firstRow = vis[0];
+      td.style.display = '';
+      td.rowSpan = vis.length;
+
+      const kinCellInRow = firstRow.querySelector('td.kin-cell');
+      if(td.parentElement !== firstRow){
+        if(kinCellInRow) kinCellInRow.after(td);
+        else firstRow.insertBefore(td, firstRow.firstElementChild);
+      } else {
+        if(kinCellInRow && kinCellInRow.nextElementSibling !== td){
+          kinCellInRow.after(td);
+        }
+      }
+    }
+  }
+
+  function applyFilters(){
+    const q = (elSearch && elSearch.value ? elSearch.value.trim().toLowerCase() : '');
+    const fKin = elKin?.value || '';
+    const fRace = elRace?.value || '';
+    const fSubtype = elSubtype?.value || '';
+    const fCond = elCond?.value || '';
+
+    let visibleCount = 0;
+    const rows = getRows();
+
+    for(const tr of rows){
+      const kin = tr.dataset.kin || '';
+      const race = tr.dataset.race || '';
+      const subtype = tr.dataset.subtype || '';
+      const conds = tr.dataset.conditions || '';
+
+      let ok = true;
+      if(fKin && kin !== fKin) ok = false;
+      if(ok && fRace && race !== fRace) ok = false;
+      if(ok && fSubtype && subtype !== fSubtype) ok = false;
+      if(ok && fCond){
+        const list = conds.split('|').map(x => x.trim());
+        if(!list.includes(fCond)) ok = false;
+      }
+      if(ok && q){
+        const hay = (kin + ' ' + race + ' ' + subtype + ' ' + conds).toLowerCase();
+        if(!hay.includes(q)) ok = false;
+      }
+
+      tr.style.display = ok ? '' : 'none';
+      if(ok) visibleCount += 1;
+    }
+
+    if(!isFlat) rebuildSpans();
+
+    if(elCount){
+      elCount.textContent = visibleCount + ' row' + (visibleCount === 1 ? '' : 's');
+    }
+
+    // persist
+    try {
+      localStorage.setItem('races_filter_kin', fKin);
+      localStorage.setItem('races_filter_race', fRace);
+      localStorage.setItem('races_filter_subtype', fSubtype);
+      localStorage.setItem('races_filter_condition', fCond);
+    } catch(e) {}
+
+    // keep sorting if active
+    if(isFlat && currentSortKey) sortBy(currentSortKey);
+  }
+
+  // ---------- Sorting ("highest to lowest") ----------
+  function flattenIfNeeded(){
+    if(isFlat) return;
+
+    const rows = getRows();
+    const frag = document.createDocumentFragment();
+
+    rows.forEach(tr => {
+      const clone = tr.cloneNode(true);
+
+      // Remove any existing merged kin/race cells
+      clone.querySelectorAll('td.kin-cell, td.race-cell').forEach(td => td.remove());
+
+      const kin = (clone.dataset.kin || '').trim();
+      const race = (clone.dataset.race || '').trim();
+      const raceDesc = (clone.dataset.raceDesc || '').trim();
+
+      const tdKin = document.createElement('td');
+      tdKin.className = 'kin-cell ' + slugKin(kin);
+      tdKin.textContent = kin;
+
+      const tdRace = document.createElement('td');
+      tdRace.className = 'race-cell';
+      if(raceDesc){
+        const sp = document.createElement('span');
+        sp.className = 'hoverable';
+        sp.setAttribute('data-tooltip', raceDesc);
+        sp.textContent = race;
+        tdRace.appendChild(sp);
+      } else {
+        tdRace.textContent = race;
+      }
+
+      clone.insertBefore(tdRace, clone.firstElementChild);
+      clone.insertBefore(tdKin, clone.firstElementChild);
+
+      clone.querySelectorAll('[rowspan]').forEach(el => el.removeAttribute('rowspan'));
+
+      frag.appendChild(clone);
+    });
+
+    tbody.innerHTML = '';
+    tbody.appendChild(frag);
+    isFlat = true;
+    if(root) root.classList.add('flat-mode');
+  }
+
+  function restoreGrouped(){
+    tbody.innerHTML = groupedHTML;
+    isFlat = false;
+    currentSortKey = null;
+    if(root) root.classList.remove('flat-mode');
+
+    table.querySelectorAll('th.sortable').forEach(th => th.classList.remove('sorted-desc'));
+
+    // re-apply filters to restored DOM
+    updateDependentRaceOptions();
+    applyFilters();
+  }
+
+  function parseCellValue(text){
+    const t = String(text || '').trim();
+    if(!t) return -Infinity;
+    const cleaned = t.replace('%','').replace(/,/g,'');
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : -Infinity;
+  }
+
+  function sortBy(key){
+    flattenIfNeeded();
+    currentSortKey = key;
+
+    const th = table.querySelector(`th.sortable[data-sort-key="${CSS.escape(key)}"]`);
+    if(!th) return;
+
+    table.querySelectorAll('th.sortable').forEach(x => x.classList.remove('sorted-desc'));
+    th.classList.add('sorted-desc');
+
+    const colIndex = th.cellIndex;
+
+    const rows = getRows();
+    const visible = rows.filter(r => r.style.display !== 'none');
+    const hidden  = rows.filter(r => r.style.display === 'none');
+
+    visible.sort((a,b) => {
+      const av = parseCellValue(a.children[colIndex]?.textContent);
+      const bv = parseCellValue(b.children[colIndex]?.textContent);
+      return (bv - av); // highest -> lowest
+    });
+
+    const frag = document.createDocumentFragment();
+    visible.forEach(r => frag.appendChild(r));
+    hidden.forEach(r => frag.appendChild(r));
+
+    tbody.innerHTML = '';
+    tbody.appendChild(frag);
+  }
+
+  // ---------- Wire up events ----------
+  initFilters();
+  updateDependentRaceOptions();
+
+  if(elSearch) elSearch.addEventListener('input', applyFilters);
+  if(elKin) elKin.addEventListener('change', () => { updateDependentRaceOptions(); applyFilters(); });
+  if(elRace) elRace.addEventListener('change', applyFilters);
+  if(elSubtype) elSubtype.addEventListener('change', applyFilters);
+  if(elCond) elCond.addEventListener('change', applyFilters);
+
+  if(elReset){
+    elReset.addEventListener('click', () => {
+      if(elKin) elKin.value = '';
+      if(elRace) elRace.value = '';
+      if(elSubtype) elSubtype.value = '';
+      if(elCond) elCond.value = '';
+      if(elSearch) elSearch.value = '';
+
+      try {
+        localStorage.removeItem('races_filter_kin');
+        localStorage.removeItem('races_filter_race');
+        localStorage.removeItem('races_filter_subtype');
+        localStorage.removeItem('races_filter_condition');
+      } catch(e) {}
+
+      restoreGrouped();
+    });
+  }
+
+  table.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.getAttribute('data-sort-key');
+      if(!key) return;
+      sortBy(key);
+    });
+  });
+
+  // Initial filter pass
+  applyFilters();
+})();
+</script>
+
+{% endblock %}

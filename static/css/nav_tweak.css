@@ -1,0 +1,21 @@
+
+/* Force larger nav text in the header */
+header .topnav a,
+.topbar .topnav a,
+.topnav a {
+  font-size: 1.6rem !important;  /* ~25-26px depending on root size */
+  line-height: 1.35;
+}
+
+/* Add a touch more spacing between items */
+header .topnav,
+.topbar .topnav,
+.topnav {
+  gap: 1.5rem; /* if nav uses flex gap */
+}
+
+/* Give the bar a little more vertical breathing room so larger text isn't cramped */
+.topbar {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}

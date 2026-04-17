@@ -1,0 +1,264 @@
+{% extends "layout.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% macro tile(btn, badge_class='from-amber-400 to-orange-500') %}
+  {% set href = (
+    url_for('view_sheet', sheet=btn.arg) if btn.endpoint == 'view_sheet' and btn.get('arg') else
+    url_for('view_notion_db', db=btn.arg) if btn.endpoint == 'view_notion_db' and btn.get('arg') else
+    url_for(btn.endpoint)
+  ) %}
+  <a href="{{ href }}"
+     class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-orange-400/60 transition focus:outline-none focus:ring-2 focus:ring-orange-400/80">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br {{ badge_class }} text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+        {{ btn.label[0] }}
+      </div>
+      <div class="truncate">
+        <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+          {{ btn.label }}
+        </div>
+        <div class="text-xs text-white/50">Open</div>
+      </div>
+    </div>
+  </a>
+{% endmacro %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+
+  <!-- DATA -->
+  <section class="mb-12">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Data</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+      {#
+        Custom ordering + color groups (as per requested dashboard layout)
+        Order (rows of 6 on large screens):
+          1) The Informatorium, Game Guide, Clarifications, Roll Info, Scaling, Damage Calculation
+          2) Hexes, Entities, Landmarks, Zones, Crafting, Quests
+          3) Bestiary, Skills, Xp-Chart, Gear + Items, Gear Set
+          4) Resonance, Mastery, Legacy
+      #}
+      {% set order = [
+        'The Informatorium','Game Guide','Clarifications','Roll Info','Scaling','Damage Calculation',
+        'Hexes','Entities','Landmarks','Zones','Crafting','Quests',
+        'Bestiary','Skills','Xp-Chart','Gear + Items','Gear Set',
+        'Resonance','Mastery','Legacy'
+      ] %}
+
+      {# Color grouping for tile badges #}
+      {% set badge_map = {
+        'resonance': 'from-violet-400 to-indigo-500',
+        'mastery': 'from-violet-400 to-indigo-500',
+        'legacy': 'from-violet-400 to-indigo-500',
+
+        'gear + items': 'from-emerald-400 to-teal-500',
+        'gear set': 'from-emerald-400 to-teal-500',
+
+        'hexes': 'from-sky-400 to-blue-500',
+        'entities': 'from-sky-400 to-blue-500',
+        'landmarks': 'from-sky-400 to-blue-500',
+        'zones': 'from-sky-400 to-blue-500',
+        'crafting': 'from-sky-400 to-blue-500',
+        'quests': 'from-sky-400 to-blue-500',
+
+        'bestiary': 'from-rose-400 to-pink-500',
+        'skills': 'from-rose-400 to-pink-500',
+        'xp-chart': 'from-rose-400 to-pink-500'
+      } %}
+
+      {# Render ordered tiles first #}
+      {% for lbl in order %}
+        {% set found = (data_buttons | selectattr('label','equalto', lbl) | list) %}
+        {% if found|length > 0 %}
+          {% set btn = found[0] %}
+          {% set name = (btn.label or '')|lower %}
+          {% if name not in ['races', 'classes', 'factions'] %}
+            {{ tile(btn, badge_map.get(name, 'from-amber-400 to-orange-500')) }}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+
+      {# Render any remaining tiles (not in the custom order) at the end #}
+      {% for btn in data_buttons %}
+        {% set name = (btn.label or '')|lower %}
+        {% if name not in ['races', 'classes', 'factions'] and (btn.label not in order) %}
+          {{ tile(btn, badge_map.get(name, 'from-amber-400 to-orange-500')) }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- CHARACTER -->
+  <section class="mb-12">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Character</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+      {% for btn in data_buttons %}
+        {% set name = (btn.label or '')|lower %}
+        {% if name in ['races', 'classes', 'factions'] %}
+          {{ tile(btn, 'from-violet-400 to-fuchsia-500') }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+<script>
+  window.CURRENT_USER_NAME = "{{ current_user_name }}";
+  window.IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='admin_menu.js') }}?v=2"></script>
+
+
+  <!-- GENERATORS -->
+  <section class="mb-6">
+    <h2 class="text-xl font-semibold text-white/90 mb-3">Generators</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+
+
+      {# existing generator tiles from 'generators' #}
+{% for g in generators %}
+  <a href="{{ url_for('generate', sheet=g) }}"
+     class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+        {{ (g|string)[0] }}
+      </div>
+      <div class="truncate">
+        <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+          {{ g }}
+        </div>
+        <div class="text-xs text-white/50">Generate</div>
+      </div>
+    </div>
+  </a>
+{% endfor %}
+
+      {# Biome Event Generator #}
+      <a href="{{ url_for('event_generator') }}"
+         class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-emerald-400/30 hover:ring-emerald-400/70 hover:bg-emerald-500/10 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-gray-900 font-extrabold flex items-center justify-center shadow-md">
+            E
+          </div>
+          <div class="truncate">
+            <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+              Event Generator
+            </div>
+            <div class="text-xs text-white/50">
+              Biome events
+            </div>
+          </div>
+        </div>
+      </a>
+
+
+<a href="{{ url_for('merchant_generator') if false else '/merchant' }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-sky-400/60 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-sky-400 to-blue-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      M
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Merchant
+      </div>
+      <div class="text-xs text-white/50">Generate</div>
+    </div>
+  </div>
+</a>
+
+
+{# Potions visible to everyone #}
+<a href="{{ url_for('potion_generator') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-emerald-400/60 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      P
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Potions
+      </div>
+      <div class="text-xs text-white/50">Mix &amp; match</div>
+    </div>
+  </div>
+</a>
+
+<a href="{{ url_for('chest_page') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition focus:outline-none focus:ring-2 focus:ring-sky-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-blue-500/20 text-blue-300 font-extrabold flex items-center justify-center shadow-md">
+      C
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Chest
+      </div>
+      <div class="text-xs text-white/50">Gear + Item by roll</div>
+    </div>
+  </div>
+</a>
+
+    
+
+<a href="{{ url_for('forge_helper') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-orange-400/60 transition focus:outline-none focus:ring-2 focus:ring-orange-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      F
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Forge Helper
+      </div>
+      <div class="text-xs text-white/50">Crafting list</div>
+    </div>
+  </div>
+</a>
+
+{# Sentient Generator #}
+<a href="/sentient-generator"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-violet-400/60 transition focus:outline-none focus:ring-2 focus:ring-violet-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-violet-400 to-fuchsia-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      S
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Sentient Generator
+      </div>
+      <div class="text-xs text-white/50">Generate sentients</div>
+    </div>
+  </div>
+</a>
+
+</div>
+{% if is_admin %}
+  <!-- Administration -->
+  <h2 class="mt-8 mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">
+    Administration
+  </h2>
+
+  <!-- Match the same grid classes as Generators -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4">
+    <!-- Gear Presence tile (copy of your tiles' style) -->
+    <a href="{{ url_for('merchant_admin_page') }}"
+       class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:ring-white/20 transition focus:outline-none focus:ring-2 focus:ring-emerald-400/80">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-emerald-500/20 text-emerald-300 font-extrabold flex items-center justify-center shadow-md">
+          G
+        </div>
+        <div class="truncate">
+          <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+            Gear Presence
+          </div>
+          <div class="text-xs text-white/50">Toggle Legendary/Mythic availability</div>
+        </div>
+      </div>
+    </a>
+  </div>
+{% endif %}
+
+  </section>
+
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='chat.css') }}?v=1755213831">
+{% extends "layout.html" %}
+{% block title %}Login{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-[#2b2b2b] rounded-xl p-6 shadow">
+  <h1 class="text-2xl font-bold mb-4">Sign in</h1>
+  {% if error %}<div class="bg-red-900/40 border border-red-600 rounded p-2 mb-3">{{ error }}</div>{% endif %}
+  <form method="post" class="space-y-3">
+    <label class="block">
+      <span class="text-sm">Email</span>
+      <input name="email" type="email" required class="w-full p-2 rounded bg-[#1f1f1f] border border-gray-700" />
+    </label>
+    <label class="block">
+      <span class="text-sm">Password</span>
+      <input name="password" type="password" required class="w-full p-2 rounded bg-[#1f1f1f] border border-gray-700" />
+    </label>
+    <button type="submit" class="button">Sign in</button>
+  </form>
+  <div class="my-4 text-center text-sm text-gray-300">or</div>
+  <a class="button" href="{{ url_for('login_google') }}">Sign in with Google</a>
+  <p class="mt-4 text-sm">No account? <a class="text-orange-300" href="{{ url_for('register') }}">Register</a></p>
+</div>
+{% endblock %}
+<script data-brand-fallback="1">
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('a, .brand, .navbar-brand, header *, [data-brand]').forEach(function(el){
+    if (/Across\s*the\s*Planes/i.test((el.textContent||'').trim())) {
+      if (el.tagName && el.tagName.toLowerCase()==='a') { el.setAttribute('href', "{{ url_for('home') }}"); }
+      else { el.style.cursor='pointer'; el.addEventListener('click', function(){ window.location = "{{ url_for('home') }}"; }); }
+    }
+  });
+});
+</script>
+</div>
+</div>
+</div>
+</div>
+
+<div id="global-chat">
+  <div class="chat-header">
+    <div class="title">Global Chat</div>
+    <div class="controls">
+      <button id="chat-min" class="btn" type="button">–</button>
+    </div>
+  </div>
+  <div id="chat-messages"></div>
+  <form id="chat-form">
+    <textarea id="chat-input" placeholder="Type a message..." autocomplete="off"></textarea>
+    <button id="chat-send" type="submit">Send</button>
+  </form>
+</div>

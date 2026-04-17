@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+{% block title %}Bestiary{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto p-6 space-y-6">
+
+  <!-- Page header -->
+  <div class="flex items-baseline justify-between gap-4">
+    <h1 class="text-3xl font-bold tracking-wide">Bestiary</h1>
+  </div>
+
+
+  <!-- Search bar -->
+  <div class="mb-4">
+    <input
+      id="bestiary-search"
+      type="text"
+      placeholder="Search by name, location, kin, type…"
+      class="w-full md:w-1/2 px-3 py-2 rounded-lg bg-black/40 border border-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+    >
+  </div>
+
+  <!-- Grid of creature cards -->
+  <div id="bestiary-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    {% for c in creatures %}
+    {% set name = c["Character name"] %}
+    <article
+      class="card rounded-xl border border-white/10 shadow-md p-4 bg-black/30 creature-card"
+      data-search="{{ name }} {{ c.get('Location','') }} {{ c.get('Kin','') }} {{ c.get('Creature Type','') }} {{ c.get('Level','') }} {{ c.get('Guardians','') }}"
+    >
+      <!-- Header -->
+      <header class="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h2 class="text-xl font-bold leading-tight">{{ name }}</h2>
+          <p class="text-sm text-white/70">
+            {{ c.get("Location", "Unknown") }} • {{ c.get("Kin", "—") }}
+          </p>
+        </div>
+        <div class="flex flex-col items-end gap-1">
+          {% if c.get("Level") %}
+          <span class="text-xs px-2 py-1 rounded-full bg-orange-500/30 border border-orange-400/60">
+            Lv {{ c["Level"] }}
+          </span>
+          {% endif %}
+          {% if c.get("Creature Type") %}
+          <span class="text-[0.7rem] px-3 py-1 rounded-full bg-white/5 border border-white/20">
+            {{ c["Creature Type"] }}
+          </span>
+          {% endif %}
+        </div>
+      </header>
+
+      <!-- Main stats -->
+      <section class="grid grid-cols-4 gap-2 text-sm mb-3">
+        <!-- HP -->
+        <div class="bg-black/40 rounded-md px-3 py-2 border border-white/10">
+          <div class="text-[0.7rem] uppercase tracking-wide text-red-300">HP</div>
+          <div class="font-semibold text-red-400">
+            {{ c.get("Health","?") }}
+          </div>
+        </div>
+
+        <!-- Mana -->
+        <div class="bg-black/40 rounded-md px-3 py-2 border border-white/10">
+          <div class="text-[0.7rem] uppercase tracking-wide text-sky-300">Mana</div>
+          <div class="font-semibold text-sky-400">
+            {{ c.get("Mana","—") }}
+          </div>
+        </div>
+
+        <!-- Stamina -->
+        <div class="bg-black/40 rounded-md px-3 py-2 border border-white/10">
+          <div class="text-[0.7rem] uppercase tracking-wide text-emerald-300">Stamina</div>
+          <div class="font-semibold text-emerald-400">
+            {{ c.get("Stamina","—") }}
+          </div>
+        </div>
+
+        <!-- Mobility -->
+        <div class="bg-black/40 rounded-md px-3 py-2 border border-white/10">
+          <div class="text-[0.7rem] uppercase tracking-wide text-violet-300">Mobility</div>
+          <div class="font-semibold text-violet-400">
+            {{ c.get("Mobility","—") }}
+          </div>
+        </div>
+      </section>
+
+      <!-- Secondary stats -->
+      <section class="grid grid-cols-3 gap-2 text-xs mb-3">
+        <div>
+          <div class="text-white/60">Defense</div>
+          <div>{{ c.get("Defense","—") }}</div>
+        </div>
+        <div>
+          <div class="text-white/60">Dispersion</div>
+          <div>{{ c.get("Dispersion","—") }}</div>
+        </div>
+        <div>
+          <div class="text-white/60">Deflect</div>
+          <div>{{ c.get("Deflect","—") }}</div>
+        </div>
+        <div>
+          <div class="text-white/60">STR</div>
+          <div>{{ c.get("Strength","—") }}</div>
+        </div>
+        <div>
+          <div class="text-white/60">DEX</div>
+          <div>{{ c.get("Dexterity","—") }}</div>
+        </div>
+        <div>
+          <div class="text-white/60">PWR</div>
+          <div>{{ c.get("Power","—") }}</div>
+        </div>
+        <div class="col-span-3">
+          <div class="text-white/60">Basic Attack</div>
+          <div>{{ c.get("Basic Attack","—") }}</div>
+        </div>
+      </section>
+
+               <!-- Resistances -->
+      <section class="mb-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-white/70 mb-1">
+          Resistances
+        </h3>
+        <div class="flex flex-wrap gap-1 text-[0.75rem]">
+          {% for r in c.resistances %}
+          <span class="px-3 py-1 rounded-full border {{ r.css }}">
+            {{ r.label }}: {{ r.value }}
+          </span>
+          {% endfor %}
+        </div>
+      </section>
+
+
+      <!-- Abilities / guardians / loot / xp -->
+      <section class="border-t border-white/10 pt-3 mt-3 text-xs space-y-2">
+        {# support either new "Innate" or old "Passive" column name #}
+        {% set innate = c.get("Innate") or c.get("Passive") %}
+
+        {% if innate or c.get("Tier I") or c.get("Tier II") or c.get("Tier III") or c.get("Ultimate") %}
+        <div>
+          <div class="text-white/60 uppercase tracking-wide text-[0.7rem] mb-1">
+            Abilities
+          </div>
+          <ul class="space-y-1">
+            {% if innate %}
+            <li>
+              <span class="font-semibold text-amber-300">Innate:</span>
+              {{ innate }}
+            </li>
+            {% endif %}
+            {% if c.get("Tier I") %}
+            <li>
+              <span class="font-semibold text-emerald-300">Tier I:</span>
+              {{ c["Tier I"] }}
+            </li>
+            {% endif %}
+            {% if c.get("Tier II") %}
+            <li>
+              <span class="font-semibold text-sky-300">Tier II:</span>
+              {{ c["Tier II"] }}
+            </li>
+            {% endif %}
+            {% if c.get("Tier III") %}
+            <li>
+              <span class="font-semibold text-violet-300">Tier III:</span>
+              {{ c["Tier III"] }}
+            </li>
+            {% endif %}
+            {% if c.get("Ultimate") %}
+            <li>
+              <span class="font-semibold text-rose-300">Ultimate:</span>
+              {{ c["Ultimate"] }}
+            </li>
+            {% endif %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if c.get("Guardians") %}
+        <div>
+          <span class="text-white/60">Guardians:</span>
+          {{ c["Guardians"] }}
+        </div>
+        {% endif %}
+
+        {% if c.get("Loot") %}
+        <div>
+          <span class="text-white/60">Loot:</span>
+          {{ c["Loot"] }}
+        </div>
+        {% endif %}
+
+        {% if c.get("Experience Gained") %}
+        <div>
+          <span class="text-white/60">XP:</span>
+          {{ c["Experience Gained"] }}
+        </div>
+        {% endif %}
+      </section>
+    </article>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const input = document.getElementById('bestiary-search');
+  const cards = Array.from(document.querySelectorAll('.creature-card'));
+
+  if (!input || !cards.length) return;
+
+  input.addEventListener('input', function () {
+    const q = this.value.toLowerCase().trim();
+    cards.forEach(function (card) {
+      const text = (card.getAttribute('data-search') || '').toLowerCase();
+      card.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}
