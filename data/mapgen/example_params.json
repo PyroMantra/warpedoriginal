@@ -1,0 +1,47 @@
+{
+  "skeleton": "8p_cross_01",
+  "seed": 12345,
+  "biome_pool_outer": [
+    "desert",
+    "grass",
+    "forest",
+    "sundune"
+  ],
+  "biome_pool_core": [
+    "grass",
+    "corruption",
+    "frostreach"
+  ],
+  "zone_pool": [
+    "market",
+    "foundry",
+    "port",
+    "altar",
+    "divine",
+    "corruption"
+  ],
+  "landmark_counts": {
+    "minor_shrine": {
+      "min": 2,
+      "max": 4
+    },
+    "resource_node": {
+      "min": 2,
+      "max": 5
+    },
+    "gold_chest": {
+      "min": 1,
+      "max": 3
+    },
+    "legendary_chest": {
+      "min": 0,
+      "max": 1
+    }
+  },
+  "entity_density_outer": 0.12,
+  "entity_density_core": 0.18,
+  "loot_density_outer": 0.1,
+  "loot_density_core": 0.14,
+  "defended_chance_outer": 0.15,
+  "defended_chance_core": 0.4
+}

@@ -35,13 +35,13 @@
         Order (rows of 6 on large screens):
           1) The Informatorium, Game Guide, Clarifications, Roll Info, Scaling, Damage Calculation
           2) Hexes, Entities, Landmarks, Zones, Crafting, Quests
-          3) Bestiary, Skills, Xp-Chart, Gear + Items, Gear Set
+          3) Bestiary, Skills, Xp-Chart, Gear & Items, Gear Set
           4) Resonance, Mastery, Legacy
       #}
       {% set order = [
         'The Informatorium','Game Guide','Clarifications','Roll Info','Scaling','Damage Calculation',
         'Hexes','Entities','Landmarks','Zones','Crafting','Quests',
-        'Bestiary','Skills','Xp-Chart','Gear + Items','Gear Set',
+        'Bestiary','Skills','Xp-Chart','Gear & Items','Gear Set',
         'Resonance','Mastery','Legacy'
       ] %}
 
@@ -51,7 +51,7 @@
         'mastery': 'from-violet-400 to-indigo-500',
         'legacy': 'from-violet-400 to-indigo-500',
 
-        'gear + items': 'from-emerald-400 to-teal-500',
+        'gear & items': 'from-emerald-400 to-teal-500',
         'gear set': 'from-emerald-400 to-teal-500',
 
         'hexes': 'from-sky-400 to-blue-500',
@@ -214,6 +214,24 @@
     </div>
   </div>
 </a>
+
+
+{% if is_admin %}
+<a href="{{ url_for('map_skeletons_home') }}"
+   class="group relative rounded-xl p-3 md:p-4 bg-white/5 ring-1 ring-white/10 hover:bg-white/10 hover:ring-fuchsia-400/60 transition focus:outline-none focus:ring-2 focus:ring-fuchsia-400/80">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg bg-gradient-to-br from-fuchsia-400 to-pink-500 text-zinc-900 font-extrabold flex items-center justify-center shadow-md">
+      H
+    </div>
+    <div class="truncate">
+      <div class="text-sm md:text-base font-semibold text-white/90 group-hover:text-white">
+        Skeleton Maps
+      </div>
+      <div class="text-xs text-white/50">Create &amp; edit</div>
+    </div>
+  </div>
+</a>
+{% endif %}
 
 {# Sentient Generator #}
 <a href="/sentient-generator"

@@ -115,31 +115,38 @@ def _rarity_allowed(r: str) -> bool:
 
 
 def _load_forge_df(app_root: str) -> pd.DataFrame:
-    """Load the forge helper spreadsheet.
+    """Load the forge helper dataset.
 
-    Priority:
-      1) FORGE_HELPER_XLSX env var
-      2) data/forge_helper_gear.xlsx
-      3) data/naming_format_colA_numbers_labeled_no_gold.xlsx
+    New default source:
+      1) FORGE_HELPER_XLSX env var (explicit override)
+      2) data/Layer List (7).xlsx, sheet="Gear"
+      3) data/forge_helper_gear.xlsx
+      4) data/naming_format_colA_numbers_labeled_no_gold.xlsx
+
+    The current Layer List Gear tab now mirrors the old forge helper schema,
+    so we prefer it by default and only fall back when needed.
     """
     env_path = os.getenv("FORGE_HELPER_XLSX", "").strip()
 
-    candidates: List[str] = []
+    candidates: List[Tuple[str, Optional[str]]] = []
     if env_path:
-        candidates.append(env_path)
+        candidates.append((env_path, None))
 
     candidates.extend(
         [
-            os.path.join(app_root, "data", "forge_helper_gear.xlsx"),
-            os.path.join(app_root, "data", "naming_format_colA_numbers_labeled_no_gold.xlsx"),
+            (os.path.join(app_root, "data", "Layer List (7).xlsx"), "Gear"),
+            (os.path.join(app_root, "data", "forge_helper_gear.xlsx"), None),
+            (os.path.join(app_root, "data", "naming_format_colA_numbers_labeled_no_gold.xlsx"), None),
         ]
     )
 
     chosen: Optional[str] = None
-    for p in candidates:
+    chosen_sheet: Optional[str] = None
+    for p, sheet_name in candidates:
         try:
             if p and Path(p).exists():
                 chosen = p
+                chosen_sheet = sheet_name
                 break
         except Exception:
             continue
@@ -147,10 +154,17 @@ def _load_forge_df(app_root: str) -> pd.DataFrame:
     if not chosen:
         raise FileNotFoundError(
             "Forge Helper could not find an Excel file. "
-            "Put your sheet at data/forge_helper_gear.xlsx or set FORGE_HELPER_XLSX."
+            "Expected data/Layer List (7).xlsx (Gear tab), or set FORGE_HELPER_XLSX."
         )
 
-    df = pd.read_excel(chosen, sheet_name=0)
+    try:
+        if chosen_sheet:
+            df = pd.read_excel(chosen, sheet_name=chosen_sheet)
+        else:
+            df = pd.read_excel(chosen, sheet_name=0)
+    except ValueError:
+        # If the requested sheet name is missing, fall back to the first sheet.
+        df = pd.read_excel(chosen, sheet_name=0)
 
     if "Final Name" not in df.columns:
         raise KeyError("Forge Helper sheet must include a 'Final Name' column.")

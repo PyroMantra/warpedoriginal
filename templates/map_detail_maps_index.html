@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+{% block title %}Saved Detail Maps{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Saved Detail Maps</h1>
+      <p class="text-white/60 mt-1">
+        Skeleton: <span class="text-white/85">{{ map_name }}</span>
+        {% if map_description %}<span class="text-white/40">|</span> {{ map_description }}{% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <a href="{{ url_for('map_skeletons_editor', name=map_name) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Skeleton Editor</a>
+      <a href="{{ url_for('map_skeletons_preview', name=map_name) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Random Preview</a>
+      <a href="{{ url_for('map_skeletons_detail_editor', name=map_name) }}" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-300 to-orange-400 text-zinc-950 font-bold hover:opacity-90">New / Current Detail Edit</a>
+    </div>
+  </div>
+
+  <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5">
+    <div class="flex items-center justify-between gap-3 mb-4">
+      <h2 class="text-xl font-semibold text-white">Available Saves</h2>
+      <div class="text-sm text-white/55">{{ map_width }} × {{ map_height }}</div>
+    </div>
+
+    {% if saved_detail_maps %}
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {% for item in saved_detail_maps %}
+      <div class="rounded-xl bg-black/20 ring-1 ring-white/10 p-4 hover:bg-white/5 hover:ring-amber-300/50 transition">
+        <div class="flex items-center justify-between gap-3">
+          <div class="font-semibold text-white">{{ item.save_label or ('Seed ' ~ item.seed) }}</div>
+          <div class="text-xs text-white/45">{{ item.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+        </div>
+        <div class="mt-2 text-sm text-white/55 min-h-[2.5rem]">
+          {{ item.description or 'Saved detail edit.' }}
+        </div>
+        <div class="mt-3 flex items-center justify-between gap-3 text-xs text-white/50">
+          <span>{{ item.width }} × {{ item.height }}</span>
+          <span>{{ item.file_name }}</span>
+        </div>
+        <div class="mt-4 flex items-center gap-2">
+          <a href="{{ url_for('map_skeletons_detail_editor', name=map_name, seed=item.seed) }}"
+             class="px-3 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-sm text-white">Open</a>
+          <button type="button"
+                  class="detail-delete-btn px-3 py-2 rounded-lg bg-red-500/15 ring-1 ring-red-300/20 hover:bg-red-500/25 text-sm text-red-100"
+                  data-map-name="{{ map_name }}"
+                  data-seed="{{ item.seed }}"
+                  data-label="{{ item.save_label or ('Seed ' ~ item.seed) }}">
+            Remove
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-white/60">No saved detail maps yet for this skeleton.</div>
+    {% endif %}
+  </section>
+</div>
+<script>
+  (function () {
+    const buttons = document.querySelectorAll('.detail-delete-btn');
+    if (!buttons.length) return;
+
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const mapName = btn.dataset.mapName;
+        const seed = btn.dataset.seed;
+        const label = btn.dataset.label || `Seed ${seed}`;
+        if (!confirm(`Remove saved detail map "${label}"?`)) return;
+
+        btn.disabled = true;
+        try {
+          const res = await fetch(`/api/map-skeletons/${encodeURIComponent(mapName)}/detail-save/${encodeURIComponent(seed)}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || 'Delete failed');
+          window.location.reload();
+        } catch (err) {
+          console.error(err);
+          alert(err.message || 'Delete failed');
+          btn.disabled = false;
+        }
+      });
+    });
+  })();
+</script>
+{% endblock %}

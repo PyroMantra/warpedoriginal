@@ -1,0 +1,233 @@
+{% extends "layout.html" %}
+{% block title %}Map Preview{% endblock %}
+{% block content %}
+<style>
+  .map-preview-shell {
+    --hex-w: 58px;
+    --hex-h: 66px;
+    --hex-gap-x: 4px;
+    --hex-overlap: 12px;
+    --hex-row-offset: 31px;
+    --overlay-fit-scale: 145%;
+  }
+  .map-preview-grid { width: 100%; min-width: 0; }
+  .map-preview-row { display: flex; column-gap: var(--hex-gap-x); margin-bottom: calc(var(--hex-overlap) * -1); }
+  .map-preview-hex {
+    position: relative;
+    width: var(--hex-w);
+    min-width: var(--hex-w);
+    height: var(--hex-h);
+    clip-path: polygon(50% 1.5%, 95% 25%, 95% 75%, 50% 98.5%, 5% 75%, 5% 25%);
+    border: 1.5px solid rgba(22, 22, 26, 0.88);
+    box-sizing: border-box;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+  }
+  .map-preview-hex.inactive {
+    opacity: 0.22;
+    background-image: none !important;
+  }
+  .map-preview-hex::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,.10), rgba(0,0,0,.18));
+    pointer-events: none;
+  }
+  .map-preview-overlay {
+    position: absolute;
+    inset: -0.5%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .map-preview-overlay img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center center;
+    transform: scale(1) translateY(1%);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
+  }
+  .map-preview-addon {
+    position: absolute;
+    inset: 26%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .map-preview-addon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    object-position: center center;
+    transform: translateY(-24%);
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.35));
+  }
+  .map-preview-count-badge {
+    position: absolute;
+    left: 50%;
+    bottom: 3px;
+    transform: translateX(-50%);
+    z-index: 4;
+    min-width: 18px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: rgba(17, 24, 39, 0.92);
+    color: rgba(255,255,255,0.95);
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    pointer-events: none;
+  }
+</style>
+
+<div class="max-w-[1800px] mx-auto space-y-6">
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Random Map Preview</h1>
+      <p class="text-white/60 mt-1">
+        Skeleton: <span class="text-white/85">{{ map_name }}</span>
+        {% if map_description %}<span class="text-white/40">|</span> {{ map_description }}{% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-3 flex-wrap">
+      <a href="{{ url_for('map_skeletons_editor', name=map_name) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Back to editor</a>
+      <a href="{{ url_for('map_skeletons_preview', name=map_name) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Re-roll</a>
+      <a href="{{ url_for('map_skeletons_preview', name=map_name, seed=preview.seed) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Lock seed {{ preview.seed }}</a>
+      <a href="{{ url_for('map_skeletons_detail_editor', name=map_name, seed=preview.seed) }}" class="px-4 py-2 rounded-lg bg-gradient-to-r from-amber-300 to-orange-400 text-zinc-950 font-bold hover:opacity-90">Edit This Map</a>
+      <a href="{{ url_for('map_skeletons_detail_maps', name=map_name) }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Saved Detail Maps</a>
+    </div>
+  </div>
+
+  <div class="grid xl:grid-cols-[360px,1fr] gap-6 items-start">
+    <aside class="space-y-5 xl:sticky xl:top-4">
+      <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+        <h2 class="text-lg font-semibold text-white mb-3">Preview Info</h2>
+        <div class="text-sm text-white/60 space-y-2">
+          <div>Seed: <span class="text-white/85">{{ preview.seed }}</span></div>
+          <div>Size: <span class="text-white/85">{{ map_width }} × {{ map_height }}</span></div>
+          <div>Textures loaded: <span class="text-white/85">{{ preview.asset_counts.textures }}</span></div>
+          <div>Landmarks loaded: <span class="text-white/85">{{ preview.asset_counts.landmarks }}</span></div>
+          <div>Entities loaded: <span class="text-white/85">{{ preview.asset_counts.entities }}</span></div>
+        </div>
+      </section>
+
+      <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+        <h2 class="text-lg font-semibold text-white mb-3">How To Read It</h2>
+        <div class="text-sm text-white/60 space-y-2">
+          <div>Each active hex gets one texture.</div>
+          <div>Some hexes get one overlay on top: either an entity or a landmark.</div>
+          <div>Spawn hexes prefer hero-style entities.</div>
+          <div>Center/boss hexes prefer stronger boss-style entities.</div>
+        </div>
+      </section>
+
+      <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+        <h2 class="text-lg font-semibold text-white mb-3">Region Biomes</h2>
+        {% if preview.region_biomes %}
+        <div class="space-y-2 text-sm">
+          {% for region, biome in preview.region_biomes.items() %}
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-white/60 truncate">{{ region }}</span>
+            <span class="text-white/85 font-semibold">{{ biome }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-white/55">No biome-enabled regions were found in this skeleton.</div>
+        {% endif %}
+      </section>
+
+      <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4">
+        <h2 class="text-lg font-semibold text-white mb-3">Placed Summary</h2>
+        {% if preview.summary %}
+        <div class="space-y-2 text-sm max-h-[280px] overflow-auto pr-1">
+          {% for key, count in preview.summary.items() %}
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-white/60 break-all">{{ key }}</span>
+            <span class="text-white/85 font-semibold">{{ count }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-sm text-white/55">Nothing has been placed yet.</div>
+        {% endif %}
+      </section>
+    </aside>
+
+    <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-4 overflow-hidden">
+      <div class="map-preview-shell" id="map-preview-shell" data-map-width="{{ map_width }}">
+      <div class="map-preview-grid">
+        {% for row in preview.rows %}
+        <div class="map-preview-row" style="margin-left: {{ 'var(--hex-row-offset)' if loop.index0 % 2 else '0px' }};">
+          {% for cell in row %}
+          <div
+            class="map-preview-hex {{ 'inactive' if not cell.active else '' }}"
+            style="background-color: {{ cell.role_color }}; {% if cell.texture_url %}background-image: url('{{ cell.texture_url }}');{% endif %}"
+            title="Row {{ cell.row }}, Col {{ cell.col }} | Role: {{ cell.role }}{% if cell.region %} | Region: {{ cell.region }}{% endif %}{% if cell.biome %} | Biome: {{ cell.biome }}{% endif %}{% if cell.texture %} | Texture: {{ cell.texture.label }}{% endif %}{% if cell.overlay %} | {{ cell.overlay.kind|title }}: {{ cell.overlay.asset.label }}{% if cell.overlay_count > 1 %} x{{ cell.overlay_count }}{% endif %}{% endif %}"
+          >
+            {% if cell.overlay_url %}
+            <div class="map-preview-overlay">
+              <img src="{{ cell.overlay_url }}" alt="{{ cell.overlay.asset.label }}" />
+            </div>
+            {% endif %}
+            {% if cell.overlay_count > 1 %}
+            <div class="map-preview-count-badge">{{ cell.overlay_count }}</div>
+            {% endif %}
+            {% if cell.addon_url %}
+            <div class="map-preview-addon">
+              <img src="{{ cell.addon_url }}" alt="{{ cell.addon.label }}" />
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script>
+  (function () {
+    const shell = document.getElementById("map-preview-shell");
+    if (!shell) return;
+
+    function clamp(v, lo, hi) {
+      return Math.max(lo, Math.min(hi, v));
+    }
+
+    function fitPreviewGrid() {
+      const cols = Math.max(1, parseInt(shell.dataset.mapWidth || "1", 10));
+      const available = Math.max(420, shell.clientWidth || 1200);
+      const gapX = 4;
+      const usable = available - gapX * Math.max(0, cols - 1);
+      const hexW = clamp(Math.floor(usable / (cols + 0.52)), 34, 82);
+      const hexH = Math.round((hexW * 2 / Math.sqrt(3)) * 100) / 100;
+      const rowOffset = (hexW + gapX) / 2;
+      const rowStep = hexH * 0.75 + 4;
+      const overlap = Math.max(0, hexH - rowStep);
+
+      shell.style.setProperty("--hex-w", hexW + "px");
+      shell.style.setProperty("--hex-h", hexH + "px");
+      shell.style.setProperty("--hex-gap-x", gapX + "px");
+      shell.style.setProperty("--hex-row-offset", rowOffset + "px");
+      shell.style.setProperty("--hex-overlap", overlap + "px");
+    }
+
+    fitPreviewGrid();
+    window.addEventListener("resize", fitPreviewGrid);
+  })();
+</script>
+{% endblock %}

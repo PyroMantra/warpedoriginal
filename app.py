@@ -43,7 +43,8 @@ if not os.environ.get('GOOGLE_CLIENT_ID') or not os.environ.get('GOOGLE_CLIENT_S
     print('       $env:GOOGLE_CLIENT_ID="your_client_id"')
     print('       $env:GOOGLE_CLIENT_SECRET="your_client_secret"')
     print('       $env:OAUTHLIB_INSECURE_TRANSPORT="1"   # local only')
-app.secret_key = "supersecretkey"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or app.config.get("SECRET_KEY") or "supersecretkey"
+app.secret_key = app.config["SECRET_KEY"]
 
 # Google OAuth via env
 app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID", "")
@@ -202,6 +203,7 @@ forge_helper_ext.init_forge_helper(app)
 
 # Sentient Generator (Gear sheet-based) + respects gear presence toggles from Gear+Items
 import sentient_ext
+import map_skeleton_ext
 try:
     from flask_login import login_required as _login_required
 except Exception:
@@ -214,6 +216,7 @@ sentient_ext.init_sentient(
     EXCEL_PATH,
     _login_required
 )
+map_skeleton_ext.init_map_skeletons(app, socketio)
 SHEET_NAMES = list(sheets.keys())
 generator_sheets = [name for name in SHEET_NAMES if "Generator" in name]
 
@@ -538,7 +541,7 @@ def home():
         {"label": "Mastery", "endpoint": "view_sheet", "arg": "MASTERY"},
         {"label": "Legacy", "endpoint": "view_sheet", "arg": "LEGACY"},
         {"label": "Clarifications", "endpoint": "view_sheet", "arg": "Clarifications & Mechanics"},
-        {"label": "Gear + Items", "endpoint": "view_sheet", "arg": "Gear+Items"},
+        {"label": "Gear & Items", "endpoint": "view_sheet", "arg": "Gear+Items"},
         # Hexes (no new tab)
         {"label": "Hexes", "endpoint": "png_gallery"},
         # Factions
@@ -1232,80 +1235,18 @@ def factions_gallery():
     return render_template("factions_gallery.html", png_files=files)
 
 
-# =====================
-# ADMIN ROLES - app.py
-# =====================
-
-def _ensure_is_admin_column():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("PRAGMA table_info(users)")
-    cols = [r[1] for r in cur.fetchall()]
-    if "is_admin" not in cols:
-        cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
-        conn.commit()
-    conn.close()
-
-_ensure_is_admin_column()
-
 def _bootstrap_admins_from_env():
     emails = [e.strip().lower() for e in os.getenv("ADMIN_EMAILS","").split(",") if e.strip()]
-    if not emails: return
+    if not emails:
+        return
     conn = get_db()
     cur = conn.cursor()
     for e in emails:
         cur.execute("UPDATE users SET is_admin=1 WHERE lower(email)=?", (e,))
-    conn.commit(); conn.close()
+    conn.commit()
+    conn.close()
 
 _bootstrap_admins_from_env()
-
-@app.before_request
-def hydrate_username_in_session():
-    try:
-        if session.get("user_id") and (not session.get("username") or 'is_admin' not in session):
-            conn = get_db()
-            cur = conn.cursor()
-            cur.execute("SELECT username, email, is_admin FROM users WHERE id = ?", (session['user_id'],))
-            u = cur.fetchone(); conn.close()
-            if u:
-                if u["username"]:
-                    session["username"] = u["username"]
-                if u["email"] and not session.get("email"):
-                    session["email"] = u["email"]
-                session["is_admin"] = bool(u["is_admin"])
-    except Exception:
-        pass
-
-@app.context_processor
-def inject_current_user_display():
-    name = session.get("username") or (session.get("email").split("@")[0] if session.get("email") else "Adventurer")
-    return {"current_user_name": name, "username": name, "display_name": name, "is_admin": bool(session.get("is_admin"))}
-
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not session.get("user_id"):
-            return redirect(url_for("login"))
-        if not session.get("is_admin"):
-            return "Admins only.", 403
-        return f(*args, **kwargs)
-    return wrapper
-
-    conn = get_db(); cur = conn.cursor()
-    if make == 0:
-        cur.execute("SELECT COUNT(*) FROM users WHERE is_admin=1")
-        cnt = cur.fetchone()[0]
-        if cnt <= 1 and user_id == me:
-            conn.close()
-            return redirect(url_for('admin_panel', msg="Cannot remove the last remaining admin (yourself)."))
-
-    cur.execute("UPDATE users SET is_admin=? WHERE id=?", (make, user_id))
-    conn.commit(); conn.close()
-
-    if user_id == me:
-        session["is_admin"] = bool(make)
-
-    return redirect(url_for('admin_panel', msg="Updated."))
 
 
 
@@ -1804,6 +1745,10 @@ def on_connect():
 def on_disconnect():
     user = CONNECTED.pop(request.sid, None) or "Someone"
     emit("chat_message", {"user": "System", "text": f"{user} left the chat."}, to="global")
+
+@socketio.on("chat_history_request")
+def on_chat_history_request():
+    emit("chat_history", list(CHAT_HISTORY))
 
 @socketio.on("chat_message")
 def on_chat_message(data):

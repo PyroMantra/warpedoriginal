@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block title %}Map Skeletons{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+  <div class="flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold text-white">Map Skeletons</h1>
+      <p class="text-white/60 mt-1">Create and edit skeleton maps directly in the site.</p>
+    </div>
+    <a href="{{ url_for('home') }}" class="px-4 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10">Back to Dashboard</a>
+  </div>
+
+  <div class="grid lg:grid-cols-[420px,1fr] gap-6">
+    <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5">
+      <h2 class="text-xl font-semibold text-white mb-4">New skeleton</h2>
+      <form method="post" class="space-y-4">
+        <div>
+          <label class="block text-sm text-white/70 mb-1">Name</label>
+          <input name="name" type="text" placeholder="8p_cross_01" required class="w-full rounded-lg px-3 py-2 bg-zinc-900/80 border border-white/10" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm text-white/70 mb-1">Width</label>
+            <input name="width" type="number" min="3" max="80" value="25" class="w-full rounded-lg px-3 py-2 bg-zinc-900/80 border border-white/10" />
+          </div>
+          <div>
+            <label class="block text-sm text-white/70 mb-1">Height</label>
+            <input name="height" type="number" min="3" max="80" value="25" class="w-full rounded-lg px-3 py-2 bg-zinc-900/80 border border-white/10" />
+          </div>
+        </div>
+        <button type="submit" class="w-full rounded-xl px-4 py-3 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-zinc-950 font-bold hover:opacity-90 transition">Create skeleton</button>
+      </form>
+      <div class="mt-4 text-sm text-white/50">
+        Blank maps start as all <span class="text-white/80">void</span>. Pick a role in the editor and paint the hexes you want.
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5">
+      <h2 class="text-xl font-semibold text-white mb-4">Existing skeletons</h2>
+      {% if maps %}
+      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {% for m in maps %}
+        <div class="rounded-xl bg-black/20 ring-1 ring-white/10 p-4 hover:bg-white/5 hover:ring-violet-400/50 transition">
+          <div class="flex items-center justify-between gap-3">
+            <div class="font-semibold text-white truncate">{{ m.name }}</div>
+            <div class="text-xs text-white/50">{{ m.width }} × {{ m.height }}</div>
+          </div>
+          <div class="mt-2 text-sm text-white/55 min-h-[2.5rem]">{{ m.description or 'No description yet.' }}</div>
+          <div class="mt-4 flex items-center gap-2 flex-wrap">
+            <a href="{{ url_for('map_skeletons_editor', name=m.name) }}" class="px-3 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-sm">Open editor</a>
+            <a href="{{ url_for('map_skeletons_preview', name=m.name) }}" class="px-3 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-sm">Random preview</a>
+            <a href="{{ url_for('map_skeletons_detail_maps', name=m.name) }}" class="px-3 py-2 rounded-lg bg-white/5 ring-1 ring-white/10 hover:bg-white/10 text-sm">Saved detail maps</a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-white/60">No skeletons yet. Create your first one on the left.</div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

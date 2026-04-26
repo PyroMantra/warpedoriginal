@@ -1,0 +1,263 @@
+{
+  "version": 1,
+  "notes": {
+    "purpose": "Starter asset catalog for map generation. Fill this in with your exported Figma assets over time.",
+    "usage": "The skeleton JSON defines where content may go. This catalog defines what content exists and where it is allowed to appear."
+  },
+  "textures": [
+    {
+      "id": "grass_01",
+      "label": "Grass Texture 01",
+      "image": "static/mapgen/textures/grass_01.png",
+      "biomes": [
+        "grass"
+      ],
+      "roles": [
+        "outer_area",
+        "core_area"
+      ],
+      "regions": [],
+      "weight": 3,
+      "tags": [
+        "nature",
+        "starter"
+      ]
+    },
+    {
+      "id": "desert_01",
+      "label": "Desert Texture 01",
+      "image": "static/mapgen/textures/desert_01.png",
+      "biomes": [
+        "desert",
+        "sundune"
+      ],
+      "roles": [
+        "outer_area",
+        "connector"
+      ],
+      "regions": [],
+      "weight": 3,
+      "tags": [
+        "sand",
+        "starter"
+      ]
+    },
+    {
+      "id": "corruption_01",
+      "label": "Corruption Texture 01",
+      "image": "static/mapgen/textures/corruption_01.png",
+      "biomes": [
+        "corruption"
+      ],
+      "roles": [
+        "core_area",
+        "center_ring",
+        "center_core"
+      ],
+      "regions": [],
+      "weight": 2,
+      "tags": [
+        "dark",
+        "core"
+      ]
+    },
+    {
+      "id": "frostreach_01",
+      "label": "Frostreach Texture 01",
+      "image": "static/mapgen/textures/frostreach_01.png",
+      "biomes": [
+        "frostreach"
+      ],
+      "roles": [
+        "outer_area",
+        "core_area"
+      ],
+      "regions": [],
+      "weight": 2,
+      "tags": [
+        "ice",
+        "cold"
+      ]
+    }
+  ],
+  "landmarks": [
+    {
+      "id": "minor_shrine",
+      "label": "Minor Shrine",
+      "image": "static/mapgen/landmarks/minor_shrine.png",
+      "biomes": [
+        "grass",
+        "forest",
+        "desert",
+        "sundune"
+      ],
+      "roles": [
+        "outer_area",
+        "core_area"
+      ],
+      "regions": [],
+      "specials": [],
+      "weight": 3,
+      "min_distance_from_same": 3,
+      "min_distance_from_spawn": 2,
+      "unique": false,
+      "tags": [
+        "shrine",
+        "poi"
+      ]
+    },
+    {
+      "id": "resource_node",
+      "label": "Resource Node",
+      "image": "static/mapgen/landmarks/resource_node.png",
+      "biomes": [
+        "grass",
+        "forest",
+        "desert",
+        "sundune",
+        "frostreach"
+      ],
+      "roles": [
+        "outer_area",
+        "connector",
+        "core_area"
+      ],
+      "regions": [],
+      "specials": [],
+      "weight": 4,
+      "min_distance_from_same": 2,
+      "min_distance_from_spawn": 1,
+      "unique": false,
+      "tags": [
+        "resource",
+        "gathering"
+      ]
+    },
+    {
+      "id": "gold_chest",
+      "label": "Gold Chest",
+      "image": "static/mapgen/landmarks/gold_chest.png",
+      "biomes": [
+        "grass",
+        "forest",
+        "desert",
+        "sundune",
+        "corruption",
+        "frostreach"
+      ],
+      "roles": [
+        "outer_area",
+        "core_area",
+        "center_ring"
+      ],
+      "regions": [],
+      "specials": [],
+      "weight": 2,
+      "min_distance_from_same": 3,
+      "min_distance_from_spawn": 2,
+      "unique": false,
+      "tags": [
+        "loot",
+        "reward"
+      ]
+    },
+    {
+      "id": "boss_relic",
+      "label": "Boss Relic",
+      "image": "static/mapgen/landmarks/boss_relic.png",
+      "biomes": [
+        "corruption",
+        "frostreach"
+      ],
+      "roles": [
+        "center_core"
+      ],
+      "regions": [],
+      "specials": [
+        "boss",
+        "relic"
+      ],
+      "weight": 1,
+      "min_distance_from_same": 99,
+      "min_distance_from_spawn": 5,
+      "unique": true,
+      "tags": [
+        "boss",
+        "objective"
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "id": "bandit",
+      "label": "Bandit",
+      "image": "static/mapgen/entities/bandit.png",
+      "biomes": [
+        "grass",
+        "forest",
+        "desert",
+        "sundune"
+      ],
+      "roles": [
+        "outer_area",
+        "connector"
+      ],
+      "regions": [],
+      "specials": [],
+      "weight": 4,
+      "difficulty": "outer",
+      "min_distance_from_spawn": 2,
+      "unique": false,
+      "tags": [
+        "humanoid",
+        "starter"
+      ]
+    },
+    {
+      "id": "undead_elite",
+      "label": "Undead Elite",
+      "image": "static/mapgen/entities/undead_elite.png",
+      "biomes": [
+        "corruption",
+        "frostreach"
+      ],
+      "roles": [
+        "core_area",
+        "center_ring"
+      ],
+      "regions": [],
+      "specials": [],
+      "weight": 2,
+      "difficulty": "core",
+      "min_distance_from_spawn": 3,
+      "unique": false,
+      "tags": [
+        "undead",
+        "elite"
+      ]
+    },
+    {
+      "id": "boss_guardian",
+      "label": "Boss Guardian",
+      "image": "static/mapgen/entities/boss_guardian.png",
+      "biomes": [
+        "corruption"
+      ],
+      "roles": [
+        "center_core"
+      ],
+      "regions": [],
+      "specials": [
+        "boss"
+      ],
+      "weight": 1,
+      "difficulty": "boss",
+      "min_distance_from_spawn": 6,
+      "unique": true,
+      "tags": [
+        "boss",
+        "guardian"
+      ]
+    }
+  ]
+}
