@@ -1733,12 +1733,15 @@ def _build_detail_editor_payload(
                     "overlay_name_key": asset.get("name_key"),
                     "overlay_label": asset.get("label"),
                     "overlay_group": asset.get("group"),
+                    "overlay_owner_color": None,
+                    "overlay_pathfinder": False,
                     "overlay_count": int(cell.get("overlay_count") or 0),
                     "guarded": bool((overlay or {}).get("guarded")),
                     "hero_file_name": hero_file_name,
                     "hero_name_key": hero_name_key,
                     "hero_label": hero_label,
                     "hero_count": hero_count,
+                    "hero_owner_color": None,
                     "hero_pathfinder": hero_pathfinder,
                 }
             )
@@ -1794,12 +1797,15 @@ def _normalize_detail_map_payload(payload: Dict[str, Any], fallback_name: str, f
                         "overlay_name_key": None,
                         "overlay_label": None,
                         "overlay_group": None,
+                        "overlay_owner_color": None,
+                        "overlay_pathfinder": False,
                         "overlay_count": 0,
                         "guarded": False,
                         "hero_file_name": None,
                         "hero_name_key": None,
                         "hero_label": None,
                         "hero_count": 0,
+                        "hero_owner_color": None,
                         "hero_pathfinder": False,
                     }
                 )
@@ -1824,6 +1830,63 @@ def _is_hero_entity_asset_data(asset: Dict[str, Any] | None) -> bool:
     return npc == "hero" or file_name.startswith("npc=hero")
 
 
+def _is_boat_landmark_detail_data(
+    overlay_kind: str | None,
+    overlay_name_key: str | None,
+    overlay_label: str | None,
+    overlay_file_name: str | None,
+) -> bool:
+    if str(overlay_kind or "").strip().lower() != "landmark":
+        return False
+    name_key = str(overlay_name_key or "").strip().lower()
+    label = str(overlay_label or "").strip().lower()
+    file_name = str(overlay_file_name or "").strip().lower()
+    return name_key == "boat" or label == "boat" or file_name.startswith("landmark=boat")
+
+
+def _repair_detail_map_spawn_heroes(detail_payload: Dict[str, Any], entities: List[Dict[str, Any]]) -> Dict[str, Any]:
+    cells = detail_payload.get("cells") or []
+    hero_assets = [a for a in entities if _is_hero_entity_asset_data(a)]
+    if not cells or not hero_assets:
+        return detail_payload
+
+    by_file = {str(a.get("file_name") or ""): a for a in hero_assets}
+    available = _unique_spawn_hero_assets(hero_assets, random.Random(int(detail_payload.get("seed") or 0)))
+    used_files = {
+        str(cell.get("hero_file_name") or "")
+        for cell in cells
+        if str(cell.get("hero_file_name") or "") in by_file
+    }
+    available = [asset for asset in available if str(asset.get("file_name") or "") not in used_files]
+
+    for cell in cells:
+        if not cell.get("spawn"):
+            continue
+        hero_file_name = str(cell.get("hero_file_name") or "")
+        if hero_file_name and hero_file_name in by_file:
+            asset = by_file[hero_file_name]
+            cell["hero_name_key"] = asset.get("name_key")
+            cell["hero_label"] = asset.get("label")
+            continue
+        if not available:
+            cell["hero_file_name"] = None
+            cell["hero_name_key"] = None
+            cell["hero_label"] = None
+            cell["hero_count"] = 0
+            cell["hero_owner_color"] = None
+            cell["hero_pathfinder"] = False
+            continue
+        asset = available.pop(0)
+        cell["hero_file_name"] = asset.get("file_name")
+        cell["hero_name_key"] = asset.get("name_key")
+        cell["hero_label"] = asset.get("label")
+        cell["hero_count"] = max(1, int(cell.get("hero_count") or 1))
+        cell["hero_owner_color"] = cell.get("hero_owner_color") or None
+        cell["hero_pathfinder"] = bool(cell.get("hero_pathfinder", False))
+
+    return detail_payload
+
+
 def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> Dict[str, Any] | None:
     try:
         row = int(raw.get("row", 0))
@@ -1839,10 +1902,13 @@ def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> 
     overlay_name_key = str(raw.get("overlay_name_key") or "") or None
     overlay_label = str(raw.get("overlay_label") or "") or None
     overlay_group = str(raw.get("overlay_group") or "") or None
+    overlay_owner_color = str(raw.get("overlay_owner_color") or "") or None
+    overlay_pathfinder = bool(raw.get("overlay_pathfinder", False))
     hero_file_name = str(raw.get("hero_file_name") or "") or None
     hero_name_key = str(raw.get("hero_name_key") or "") or None
     hero_label = str(raw.get("hero_label") or "") or None
     hero_count = max(0, min(int(raw.get("hero_count", 0) or 0), 99))
+    hero_owner_color = str(raw.get("hero_owner_color") or "") or None
     hero_pathfinder = bool(raw.get("hero_pathfinder", False))
 
     if not hero_file_name and overlay_kind == "entity" and overlay_file_name and overlay_file_name.lower().startswith("npc=hero"):
@@ -1873,12 +1939,29 @@ def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> 
         "overlay_name_key": overlay_name_key,
         "overlay_label": overlay_label,
         "overlay_group": overlay_group,
+        "overlay_owner_color": (
+            overlay_owner_color
+            if (
+                overlay_kind == "entity"
+                or _is_boat_landmark_detail_data(overlay_kind, overlay_name_key, overlay_label, overlay_file_name)
+            )
+            else None
+        ),
+        "overlay_pathfinder": (
+            overlay_pathfinder
+            if (
+                overlay_kind == "entity"
+                or _is_boat_landmark_detail_data(overlay_kind, overlay_name_key, overlay_label, overlay_file_name)
+            )
+            else False
+        ),
         "overlay_count": max(0, min(int(raw.get("overlay_count", 0) or 0), 99)),
         "guarded": bool(raw.get("guarded", False)),
         "hero_file_name": hero_file_name,
         "hero_name_key": hero_name_key,
         "hero_label": hero_label,
         "hero_count": hero_count if hero_file_name else 0,
+        "hero_owner_color": hero_owner_color if hero_file_name else None,
         "hero_pathfinder": hero_pathfinder if hero_file_name else False,
     }
 
@@ -2097,6 +2180,7 @@ def init_map_skeletons(app, socketio=None):
     def _get_or_create_room_state(skeleton_name: str, seed: int, base_payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
         existing = _load_detail_state_from_store(skeleton_name, seed)
         if existing:
+            _repair_detail_map_spawn_heroes(existing, _load_entity_assets())
             return existing
         if base_payload is not None:
             normalized = _normalize_detail_map_payload(base_payload, skeleton_name, seed)
@@ -2115,6 +2199,7 @@ def init_map_skeletons(app, socketio=None):
                     skeleton_name,
                     seed,
                 )
+        _repair_detail_map_spawn_heroes(normalized, _load_entity_assets())
         _save_detail_state_to_store(normalized, skeleton_name, seed)
         return normalized
 
@@ -2227,6 +2312,7 @@ def init_map_skeletons(app, socketio=None):
         textures = _load_texture_assets()
         landmarks = _load_landmark_assets()
         entities = _load_entity_assets()
+        _repair_detail_map_spawn_heroes(detail_payload, entities)
         saved_detail_maps = _list_detail_maps(skeleton_payload["name"])
 
         return render_template(

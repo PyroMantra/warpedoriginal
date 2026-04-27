@@ -62,6 +62,25 @@
     transform: scale(1) translateY(1%);
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
   }
+  .detail-overlay.entity {
+    inset: 8.5%;
+  }
+  .detail-overlay.entity img {
+    object-fit: contain;
+    transform: scale(0.84) translateY(1%);
+  }
+  .detail-overlay.boat {
+    inset: 1%;
+  }
+  .detail-overlay.boat img {
+    object-fit: contain;
+    transform: scale(1.08) translateY(1%);
+  }
+  .detail-unit-overlay {
+    pointer-events: auto;
+    cursor: grab;
+    z-index: 5;
+  }
   .detail-addon {
     position: absolute;
     inset: 26%;
@@ -82,7 +101,7 @@
   }
   .detail-hero {
     position: absolute;
-    inset: -3%;
+    inset: 8.5%;
     z-index: 6;
     display: flex;
     align-items: center;
@@ -96,8 +115,57 @@
     display: block;
     object-fit: contain;
     object-position: center center;
-    filter: drop-shadow(0 8px 14px rgba(0,0,0,.48));
+    transform: scale(0.84) translateY(1%);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
     pointer-events: none;
+  }
+  .detail-owner-badge {
+    display: none;
+  }
+  .detail-owned-token {
+    position: absolute;
+    inset: 0;
+    z-index: 7;
+    pointer-events: none;
+  }
+  .detail-owned-token-fill,
+  .detail-owned-token-ink {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+  }
+  .detail-owned-token-fill {
+    background: var(--owner-color, transparent);
+    -webkit-mask-image: var(--owner-mask);
+    mask-image: var(--owner-mask);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.35));
+  }
+  .detail-owned-token-ink {
+    mix-blend-mode: multiply;
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
+  }
+  .detail-owned-token.entity {
+    inset: 7%;
+  }
+  .detail-owned-token.entity .detail-owned-token-ink,
+  .detail-owned-token.entity .detail-owned-token-fill {
+    transform: scale(0.88) translateY(1%);
+  }
+  .detail-owned-token.hero {
+    inset: -3%;
+  }
+  .detail-owned-token.hero .detail-owned-token-ink,
+  .detail-owned-token.hero .detail-owned-token-fill {
+    transform: scale(0.94) translateY(1%);
   }
   .detail-count-badge {
     position: absolute;
@@ -159,6 +227,20 @@
     display: block;
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
   }
+  .detail-preview-overlay.entity {
+    inset: 8.5%;
+  }
+  .detail-preview-overlay.entity img {
+    object-fit: contain;
+    transform: scale(0.84) translateY(1%);
+  }
+  .detail-preview-overlay.boat {
+    inset: 1%;
+  }
+  .detail-preview-overlay.boat img {
+    object-fit: contain;
+    transform: scale(1.08) translateY(1%);
+  }
   .detail-preview-addon {
     position: absolute;
     inset: 26%;
@@ -179,6 +261,45 @@
     font-size: 12px;
     color: rgba(255,255,255,0.72);
     min-height: 32px;
+  }
+  .detail-preview-owner {
+    display: none;
+  }
+  .detail-preview-owned-token {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: none;
+    pointer-events: none;
+  }
+  .detail-preview-owned-token.entity {
+    inset: 6%;
+  }
+  .detail-preview-owned-token.hero {
+    inset: -1%;
+  }
+  .detail-preview-owned-token-fill,
+  .detail-preview-owned-token-ink {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center center;
+  }
+  .detail-preview-owned-token-fill {
+    background: var(--owner-color, transparent);
+    -webkit-mask-image: var(--owner-mask);
+    mask-image: var(--owner-mask);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+  }
+  .detail-preview-owned-token-ink {
+    mix-blend-mode: multiply;
   }
   .detail-palette {
     border-radius: 18px;
@@ -378,6 +499,14 @@
           <div class="detail-preview-stage" id="detail-preview-stage">
             <div class="detail-preview-overlay hidden" id="detail-preview-overlay"><img id="detail-preview-overlay-img" alt="" /></div>
             <div class="detail-preview-addon hidden" id="detail-preview-addon"><img id="detail-preview-addon-img" alt="" /></div>
+            <div class="detail-preview-owned-token entity" id="detail-preview-owner">
+              <div class="detail-preview-owned-token-fill"></div>
+              <img class="detail-preview-owned-token-ink" alt="" />
+            </div>
+            <div class="detail-preview-owned-token hero" id="detail-preview-hero-owner">
+              <div class="detail-preview-owned-token-fill"></div>
+              <img class="detail-preview-owned-token-ink" alt="" />
+            </div>
             <div class="detail-count-badge hidden" id="detail-preview-count">2</div>
           </div>
           <div class="detail-preview-meta" id="detail-preview-meta">Select a hex to preview your changes.</div>
@@ -423,6 +552,13 @@
               <span>Guarded</span>
             </label>
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm text-white/70 mb-1">Owner</label>
+          <select id="detail-overlay-owner-color" class="w-full rounded-lg px-3 py-2 bg-zinc-900/80 border border-white/10 text-white">
+            <option value="">Unowned</option>
+          </select>
         </div>
 
         <div class="text-xs text-white/50">

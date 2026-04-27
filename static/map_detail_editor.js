@@ -18,6 +18,7 @@
   const textureSelect = document.getElementById('detail-texture-select');
   const overlayKindSelect = document.getElementById('detail-overlay-kind');
   const overlayAssetSelect = document.getElementById('detail-overlay-asset');
+  const overlayOwnerColorSelect = document.getElementById('detail-overlay-owner-color');
   const overlayCountInput = document.getElementById('detail-overlay-count');
   const guardedInput = document.getElementById('detail-guarded');
   const texturePaletteEl = document.getElementById('detail-texture-palette');
@@ -46,12 +47,27 @@
   const MAX_HEX_W = 82;
   const currentEditorName = (window.CURRENT_USER_NAME || 'Anonymous').trim() || 'Anonymous';
   const VISION_EXPORT_SCALE = 2.8;
+  const VISION_EXPORT_ASPECT_SQUASH = 0.94;
+  const OWNER_COLORS = [
+    { key: '', label: 'Unowned', color: '' },
+    { key: 'yellow', label: 'Yellow', color: '#facc15' },
+    { key: 'blue', label: 'Blue', color: '#60a5fa' },
+    { key: 'green', label: 'Green', color: '#4ade80' },
+    { key: 'orange', label: 'Orange', color: '#fb923c' },
+    { key: 'pink', label: 'Pink', color: '#f472b6' },
+    { key: 'purple', label: 'Purple', color: '#a78bfa' },
+    { key: 'black', label: 'Black', color: '#111111' },
+    { key: 'red', label: 'Red', color: '#f87171' },
+    { key: 'teal', label: 'Teal', color: '#2dd4bf' },
+    { key: 'white', label: 'White', color: '#f8fafc' },
+  ];
 
   let selectedKey = null;
   const selectedKeys = new Set();
   let overlayPaletteKind = 'landmark';
   let socket = null;
-  let activeHeroKey = null;
+  let activeUnitKey = null;
+  let activeUnitKind = null;
 
   function key(row, col) { return `${row}:${col}`; }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -139,6 +155,7 @@
         overlayKindSelect.value = cell.overlay_kind || '';
         renderOverlayAssetOptions(cell.overlay_kind || '');
         overlayAssetSelect.value = cell.overlay_file_name || '';
+        syncOwnerSelect(cell);
         overlayCountInput.value = cell.overlay_count || 0;
         guardedInput.checked = !!cell.guarded;
         const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
@@ -149,7 +166,7 @@
       }
       renderInspectorPreview();
       syncPaletteSelection();
-      if (activeHeroKey && state.cellsByKey[activeHeroKey]) syncHeroPanelForSelection(state.cellsByKey[activeHeroKey]);
+      if (activeUnitKey && state.cellsByKey[activeUnitKey]) syncHeroPanelForSelection(state.cellsByKey[activeUnitKey]);
       else closeHeroActions();
     });
   }
@@ -198,6 +215,16 @@
     return textures.find(x => x.file_name === fileName) || null;
   }
 
+  function ownerColorValue(keyName) {
+    const normalized = String(keyName || '').trim().toLowerCase();
+    return OWNER_COLORS.find((entry) => entry.key === normalized)?.color || '';
+  }
+
+  function populateOwnerSelect(selectEl) {
+    if (!selectEl) return;
+    selectEl.innerHTML = OWNER_COLORS.map((entry) => `<option value="${entry.key}">${entry.label}</option>`).join('');
+  }
+
   function overlayAssetsForKind(kind) {
     if (kind === 'landmark') return landmarks;
     if (kind === 'entity') return entities;
@@ -221,6 +248,14 @@
     if (kind === 'landmark') return guardedLandmarkKeys.has(keyName);
     if (kind === 'entity') return guardedEntityKeys.has(keyName);
     return false;
+  }
+
+  function isBoatOverlayCell(cell) {
+    if (!cell || cell.overlay_kind !== 'landmark') return false;
+    const nameKey = String(cell.overlay_name_key || '').trim().toLowerCase();
+    const label = String(cell.overlay_label || '').trim().toLowerCase();
+    const fileName = String(cell.overlay_file_name || '').trim().toLowerCase();
+    return nameKey === 'boat' || label === 'boat' || fileName.startsWith('landmark=boat');
   }
 
   function isProtectedHeroTraversalOverlay(cell) {
@@ -256,6 +291,10 @@
   function addonUrl(cell) {
     if (!cell.guarded) return '';
     return '/static/mapgen/addons/Guarded.png';
+  }
+
+  function isBoatAssetSrc(src) {
+    return /landmark=boat/i.test(String(src || ''));
   }
 
   function computeDims() {
@@ -331,6 +370,7 @@
             cell.hero_name_key = asset.name_key || null;
             cell.hero_label = asset.label || null;
             cell.hero_count = 1;
+            cell.hero_owner_color = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
             cell.hero_pathfinder = false;
           });
           emitCellPatch(cells);
@@ -349,6 +389,7 @@
         const selectedAsset = overlayAssetByFile(type, asset.file_name);
         guardedInput.disabled = !isGuardedEligible(type, selectedAsset);
         if (guardedInput.disabled) guardedInput.checked = false;
+        if (type !== 'entity' && overlayOwnerColorSelect) overlayOwnerColorSelect.value = '';
       }
       applySelectionSilent();
       syncPaletteSelection();
@@ -363,6 +404,8 @@
     cell.overlay_name_key = null;
     cell.overlay_label = null;
     cell.overlay_group = null;
+    cell.overlay_owner_color = null;
+    cell.overlay_pathfinder = false;
     cell.overlay_count = 0;
     cell.guarded = false;
   }
@@ -373,6 +416,7 @@
     cell.hero_name_key = null;
     cell.hero_label = null;
     cell.hero_count = 0;
+    cell.hero_owner_color = null;
     cell.hero_pathfinder = false;
   }
 
@@ -380,37 +424,134 @@
     return !!(cell && cell.hero_file_name);
   }
 
+  function hasOwnedEntity(cell) {
+    return !!(
+      cell &&
+      cell.overlay_kind === 'entity' &&
+      cell.overlay_file_name &&
+      !String(cell.overlay_file_name || '').trim().toLowerCase().startsWith('npc=hero') &&
+      cell.overlay_owner_color
+    );
+  }
+
+  function hasOwnedMovableOverlay(cell) {
+    return !!(
+      cell &&
+      cell.overlay_file_name &&
+      cell.overlay_owner_color &&
+      (cell.overlay_kind === 'entity' || isBoatOverlayCell(cell))
+    );
+  }
+
+  function hasMovableUnit(cell) {
+    return hasHero(cell) || hasOwnedMovableOverlay(cell);
+  }
+
+  function getUnitOwnerColorKey(cell, kind = null) {
+    const resolvedKind = kind || (hasHero(cell) ? 'hero' : (hasOwnedMovableOverlay(cell) ? 'overlay' : null));
+    if (resolvedKind === 'hero') return String(cell?.hero_owner_color || '').trim().toLowerCase() || null;
+    if (resolvedKind === 'entity' || resolvedKind === 'overlay') return String(cell?.overlay_owner_color || '').trim().toLowerCase() || null;
+    return null;
+  }
+
+  function getUnitPathfinder(cell, kind = null) {
+    const resolvedKind = kind || (hasHero(cell) ? 'hero' : (hasOwnedMovableOverlay(cell) ? 'overlay' : null));
+    if (resolvedKind === 'hero') return !!cell?.hero_pathfinder;
+    if (resolvedKind === 'entity' || resolvedKind === 'overlay') return !!cell?.overlay_pathfinder;
+    return false;
+  }
+
+  function getUnitCount(cell, kind = null) {
+    const resolvedKind = kind || (hasHero(cell) ? 'hero' : (hasOwnedMovableOverlay(cell) ? 'overlay' : null));
+    if (resolvedKind === 'hero') return Math.max(1, Number(cell?.hero_count || 1));
+    if (resolvedKind === 'entity' || resolvedKind === 'overlay') return Math.max(1, Number(cell?.overlay_count || 1));
+    return 1;
+  }
+
+  function getUnitLabel(cell, kind = null) {
+    const resolvedKind = kind || (hasHero(cell) ? 'hero' : (hasOwnedMovableOverlay(cell) ? 'overlay' : null));
+    if (resolvedKind === 'hero') return cell?.hero_label || 'Hero';
+    if (resolvedKind === 'entity' || resolvedKind === 'overlay') return cell?.overlay_label || 'Entity';
+    return 'Unit';
+  }
+
+  function getUnitImageUrl(cell, kind = null) {
+    const resolvedKind = kind || (hasHero(cell) ? 'hero' : (hasOwnedMovableOverlay(cell) ? 'overlay' : null));
+    if (resolvedKind === 'hero') return heroUrl(cell);
+    if (resolvedKind === 'entity' || resolvedKind === 'overlay') return overlayUrl(cell);
+    return '';
+  }
+
+  function getUnitKindForCell(cell) {
+    if (hasHero(cell)) return 'hero';
+    if (hasOwnedMovableOverlay(cell)) return 'overlay';
+    return null;
+  }
+
+  function setUnitPathfinder(cell, kind, enabled) {
+    if (!cell) return;
+    if (kind === 'hero') cell.hero_pathfinder = !!enabled;
+    if (kind === 'entity' || kind === 'overlay') cell.overlay_pathfinder = !!enabled;
+  }
+
+  function setUnitCount(cell, kind, value) {
+    if (!cell) return;
+    const normalized = Math.max(1, Math.min(99, parseInt(value || '1', 10) || 1));
+    if (kind === 'hero') cell.hero_count = normalized;
+    if (kind === 'entity' || kind === 'overlay') cell.overlay_count = normalized;
+  }
+
+  function setUnitOwnerColor(cell, kind, value) {
+    if (!cell) return;
+    const normalized = String(value || '').trim().toLowerCase() || null;
+    if (kind === 'hero') cell.hero_owner_color = normalized;
+    if (kind === 'entity' || kind === 'overlay') cell.overlay_owner_color = normalized;
+  }
+
+  function clearUnitFields(cell, kind) {
+    if (kind === 'hero') clearHeroFields(cell);
+    if (kind === 'entity' || kind === 'overlay') clearOverlayFields(cell);
+  }
+
   function closeHeroActions() {
-    activeHeroKey = null;
+    activeUnitKey = null;
+    activeUnitKind = null;
     if (heroActionsEl) heroActionsEl.classList.remove('visible');
   }
 
-  function openHeroActions(cell, targetEl) {
+  function openHeroActions(cell, targetEl, kind = null, anchorPoint = null) {
     if (!heroActionsEl || !cell || !targetEl) return;
-    activeHeroKey = key(cell.row, cell.col);
-    if (heroCountInput) heroCountInput.value = String(Math.max(1, Number(cell.hero_count || 1)));
-    if (heroPathfinderInput) heroPathfinderInput.checked = !!cell.hero_pathfinder;
-    const rect = targetEl.getBoundingClientRect();
+    const resolvedKind = kind || getUnitKindForCell(cell);
+    if (!resolvedKind) return;
+    activeUnitKey = key(cell.row, cell.col);
+    activeUnitKind = resolvedKind;
+    if (heroCountInput) heroCountInput.value = String(getUnitCount(cell, resolvedKind));
+    if (heroPathfinderInput) heroPathfinderInput.checked = getUnitPathfinder(cell, resolvedKind);
+    if (heroKillBtn) heroKillBtn.title = resolvedKind === 'hero' ? 'Remove hero' : 'Remove unit';
+    syncOwnerSelect(cell);
     const panelWidth = heroActionsEl.offsetWidth || 138;
-    const preferredLeft = rect.left + rect.width / 2;
+    const rect = targetEl.getBoundingClientRect();
+    const preferredLeft = anchorPoint?.x ?? (rect.left + rect.width / 2);
     const left = clamp(preferredLeft, panelWidth / 2 + 8, window.innerWidth - panelWidth / 2 - 8);
-    const top = Math.max(8, rect.top - 2);
+    const top = anchorPoint
+      ? clamp(anchorPoint.y - 10, 44, window.innerHeight - 52)
+      : Math.max(8, rect.top - 2);
     heroActionsEl.style.left = `${left}px`;
     heroActionsEl.style.top = `${top}px`;
     heroActionsEl.classList.add('visible');
   }
 
   function syncHeroPanelForSelection(cell) {
-    if (!cell || !hasHero(cell)) {
+    if (!cell || !activeUnitKey || !activeUnitKind) {
       closeHeroActions();
       return;
     }
-    const heroNode = document.querySelector(`.detail-hero[data-hero-key="${key(cell.row, cell.col)}"]`);
-    if (!heroNode) {
+    const node = document.querySelector(`[data-unit-kind="${activeUnitKind}"][data-unit-key="${key(cell.row, cell.col)}"]`);
+    if (!node) {
       closeHeroActions();
       return;
     }
-    openHeroActions(cell, heroNode);
+    openHeroActions(cell, node, activeUnitKind);
   }
 
   function serializeCell(cell) {
@@ -430,12 +571,15 @@
       overlay_name_key: cell.overlay_name_key,
       overlay_label: cell.overlay_label,
       overlay_group: cell.overlay_group,
+      overlay_owner_color: cell.overlay_owner_color,
+      overlay_pathfinder: !!cell.overlay_pathfinder,
       overlay_count: cell.overlay_count,
       guarded: !!cell.guarded,
       hero_file_name: cell.hero_file_name,
       hero_name_key: cell.hero_name_key,
       hero_label: cell.hero_label,
       hero_count: Math.max(0, Math.min(99, Number(cell.hero_count || 0))),
+      hero_owner_color: cell.hero_owner_color,
       hero_pathfinder: !!cell.hero_pathfinder,
     };
   }
@@ -474,6 +618,7 @@
         overlayKindSelect.value = cell.overlay_kind || '';
         renderOverlayAssetOptions(cell.overlay_kind || '');
         overlayAssetSelect.value = cell.overlay_file_name || '';
+        syncOwnerSelect(cell);
         overlayCountInput.value = cell.overlay_count || 0;
         guardedInput.checked = !!cell.guarded;
         const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
@@ -485,7 +630,7 @@
     }
     renderInspectorPreview();
     syncPaletteSelection();
-    if (activeHeroKey && state.cellsByKey[activeHeroKey]) syncHeroPanelForSelection(state.cellsByKey[activeHeroKey]);
+    if (activeUnitKey && state.cellsByKey[activeUnitKey]) syncHeroPanelForSelection(state.cellsByKey[activeUnitKey]);
     else closeHeroActions();
   }
 
@@ -525,21 +670,27 @@
 
   function currentDraft() {
     const selectedCell = selectedKey ? state.cellsByKey[selectedKey] : null;
+    const selectedUnitKind = selectedCell && activeUnitKey === selectedKey ? activeUnitKind : null;
     const kind = overlayKindSelect.value || null;
     const asset = overlayAssetByFile(kind, overlayAssetSelect.value);
     const count = kind ? Math.max(1, Math.min(99, parseInt(overlayCountInput.value || '1', 10) || 1)) : 0;
     const guarded = kind ? (guardedInput.checked && isGuardedEligible(kind, asset)) : false;
+    const ownerColor = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
+    const selectedIsBoat = isBoatOverlayCell(selectedCell);
+    const draftIsBoat = kind === 'landmark' && String(asset?.name_key || '').trim().toLowerCase() === 'boat';
     return {
       textureFileName: textureSelect.value || null,
       overlayKind: kind,
       overlayFileName: asset?.file_name || null,
       overlayLabel: asset?.label || null,
       overlayCount: count,
+      overlayOwnerColor: (kind === 'entity' || draftIsBoat || selectedIsBoat) ? ownerColor : null,
       guarded,
-      heroFileName: selectedCell?.hero_file_name || null,
-      heroLabel: selectedCell?.hero_label || null,
-      heroCount: Math.max(0, Number(selectedCell?.hero_count || 0)),
-      heroPathfinder: !!selectedCell?.hero_pathfinder,
+      heroFileName: selectedUnitKind === 'overlay' ? null : (selectedCell?.hero_file_name || null),
+      heroLabel: selectedUnitKind === 'overlay' ? null : (selectedCell?.hero_label || null),
+      heroCount: selectedUnitKind === 'overlay' ? 0 : Math.max(0, Number(selectedCell?.hero_count || 0)),
+      heroOwnerColor: selectedUnitKind === 'overlay' ? null : (hasHero(selectedCell) ? ownerColor : (selectedCell?.hero_owner_color || null)),
+      heroPathfinder: selectedUnitKind === 'overlay' ? false : !!selectedCell?.hero_pathfinder,
     };
   }
 
@@ -547,6 +698,28 @@
     return Array.from(selectedKeys)
       .map(k => state.cellsByKey[k])
       .filter(Boolean);
+  }
+
+  function syncOwnerSelect(cell) {
+    if (!overlayOwnerColorSelect) return;
+    const preferredKind = cell && activeUnitKey === key(cell.row, cell.col) ? activeUnitKind : null;
+    if (preferredKind === 'overlay' && cell?.overlay_file_name) {
+      overlayOwnerColorSelect.value = String(cell.overlay_owner_color || '').trim().toLowerCase();
+      return;
+    }
+    if (preferredKind === 'hero' && hasHero(cell)) {
+      overlayOwnerColorSelect.value = String(cell.hero_owner_color || '').trim().toLowerCase();
+      return;
+    }
+    if (hasHero(cell)) {
+      overlayOwnerColorSelect.value = String(cell.hero_owner_color || '').trim().toLowerCase();
+      return;
+    }
+    if (cell?.overlay_kind === 'entity' || isBoatOverlayCell(cell)) {
+      overlayOwnerColorSelect.value = String(cell.overlay_owner_color || '').trim().toLowerCase();
+      return;
+    }
+    overlayOwnerColorSelect.value = '';
   }
 
   function getVisionMetrics() {
@@ -559,10 +732,10 @@
     const scale = VISION_EXPORT_SCALE;
     return {
       hexW: baseW * scale,
-      hexH: baseH * scale,
+      hexH: baseH * scale * VISION_EXPORT_ASPECT_SQUASH,
       colStep: (baseW + baseGapX) * scale,
       rowOffset: baseOffset * scale,
-      rowStep: (baseH - baseOverlap) * scale,
+      rowStep: (baseH - baseOverlap) * scale * VISION_EXPORT_ASPECT_SQUASH,
     };
   }
 
@@ -639,9 +812,9 @@
     return tag.includes('type=forest') || tag.includes('mountain');
   }
 
-  function isVisibleToHero(originCell, targetCell, radius) {
+  function isVisibleToHero(originCell, targetCell, radius, unitKind = null) {
     if (!originCell || !targetCell) return false;
-    if (radius <= 1 || originCell.hero_pathfinder) return true;
+    if (radius <= 1 || getUnitPathfinder(originCell, unitKind)) return true;
     const distance = hexDistance(originCell.row, originCell.col, targetCell.row, targetCell.col);
     if (distance <= 1) return true;
     const seen = new Set();
@@ -705,8 +878,97 @@
     return promise;
   }
 
-  async function captureHeroVision(cell, range) {
+  async function loadOwnedTokenImage(src, ownerColor) {
+    if (!src || !ownerColor) return loadImage(src);
+    const cacheKey = `owned:${ownerColor}:${src}`;
+    if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
+    const promise = (async () => {
+      const base = await loadImage(src);
+      if (!base) return null;
+      const canvas = document.createElement('canvas');
+      canvas.width = base.naturalWidth || base.width;
+      canvas.height = base.naturalHeight || base.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return base;
+      ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const isBoat = isBoatAssetSrc(src);
+      const ownerHex = ownerColor.replace('#', '');
+      const ownerRgb = {
+        r: parseInt(ownerHex.slice(0, 2), 16),
+        g: parseInt(ownerHex.slice(2, 4), 16),
+        b: parseInt(ownerHex.slice(4, 6), 16),
+      };
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        if (!alpha) continue;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const spread = max - min;
+        const luminance = (r + g + b) / 3;
+        const isGrayBand = spread <= 36 && luminance >= 60;
+        const saturation = max === 0 ? 0 : spread / max;
+        const pixelIndex = i / 4;
+        const y = Math.floor(pixelIndex / canvas.width);
+        const x = pixelIndex % canvas.width;
+        const withinBoatSailColumn = x >= canvas.width * 0.16 && x <= canvas.width * 0.84;
+        const isBoatSailBand =
+          isBoat &&
+          y >= canvas.height * 0.04 &&
+          y <= canvas.height * 0.74 &&
+          withinBoatSailColumn &&
+          (
+            (luminance >= 148 && spread <= 118) ||
+            (r >= 145 && g >= 125 && b >= 80) ||
+            (luminance >= 112 && saturation <= 0.28) ||
+            (spread <= 56 && luminance >= 78)
+          );
+        if (!isGrayBand && !isBoatSailBand) continue;
+        const shade = Math.max(0.58, Math.min(1.06, luminance / 220));
+        data[i] = Math.round(ownerRgb.r * shade);
+        data[i + 1] = Math.round(ownerRgb.g * shade);
+        data[i + 2] = Math.round(ownerRgb.b * shade);
+      }
+      ctx.putImageData(imageData, 0, 0);
+      const img = new Image();
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        img.src = canvas.toDataURL('image/png');
+      });
+      return img;
+    })();
+    imageCache.set(cacheKey, promise);
+    return promise;
+  }
+
+  async function applyOwnedTokenTint(imgEl) {
+    if (!imgEl) return;
+    const baseSrc = imgEl.dataset.ownedSrc || imgEl.dataset.baseSrc || imgEl.getAttribute('src') || '';
+    const ownerColor = imgEl.dataset.ownerColor || '';
+    if (!baseSrc) return;
+    imgEl.dataset.baseSrc = baseSrc;
+    const tinted = await loadOwnedTokenImage(baseSrc, ownerColor);
+    if (!tinted) return;
+    const resolvedSrc = tinted.currentSrc || tinted.src || baseSrc;
+    if (imgEl.dataset.baseSrc === baseSrc && imgEl.dataset.ownerColor === ownerColor) {
+      imgEl.src = resolvedSrc;
+    }
+  }
+
+  function hydrateOwnedTokens(scope = document) {
+    scope.querySelectorAll('img[data-owned-src]').forEach((imgEl) => {
+      void applyOwnedTokenTint(imgEl);
+    });
+  }
+
+  async function captureHeroVision(cell, range, unitKind = null) {
     const radius = Math.max(1, Math.min(3, Number(range) || 1));
+    const originKind = unitKind || getUnitKindForCell(cell) || 'hero';
     const metrics = getVisionMetrics();
     const visibleCells = [];
     for (let row = 0; row < state.height; row++) {
@@ -749,10 +1011,13 @@
       const target = item.cell;
       const x = item.x - minX + padding;
       const y = item.y - minY + padding;
-      const visibleToHero = isVisibleToHero(cell, target, radius);
+      const visibleToHero = isVisibleToHero(cell, target, radius, originKind);
       const textureSrc = textureUrl(target);
       const overlaySrc = overlayUrl(target);
+      const overlayOwnedColor = ownerColorValue(target.overlay_owner_color);
+      const ownedBoat = isBoatOverlayCell(target) && overlayOwnedColor;
       const heroSrc = heroUrl(target);
+      const heroOwnedColor = ownerColorValue(target.hero_owner_color);
       const addonSrc = addonUrl(target);
 
       ctx.save();
@@ -773,15 +1038,21 @@
       ctx.restore();
 
       if (visibleToHero && overlaySrc) {
-        const overlayImg = await loadImage(overlaySrc);
+        const overlayImg = await loadOwnedTokenImage(overlaySrc, (target.overlay_kind === 'entity' || ownedBoat) ? overlayOwnedColor : '');
         if (overlayImg) {
-          ctx.drawImage(overlayImg, x - metrics.hexW * 0.01, y - metrics.hexH * 0.01, metrics.hexW * 1.02, metrics.hexH * 1.02);
+          if (ownedBoat) {
+            ctx.drawImage(overlayImg, x + metrics.hexW * 0.12, y + metrics.hexH * 0.12, metrics.hexW * 0.76, metrics.hexH * 0.76);
+          } else if (target.overlay_kind === 'entity') {
+            ctx.drawImage(overlayImg, x + metrics.hexW * 0.19, y + metrics.hexH * 0.19, metrics.hexW * 0.62, metrics.hexH * 0.62);
+          } else {
+            ctx.drawImage(overlayImg, x - metrics.hexW * 0.01, y - metrics.hexH * 0.01, metrics.hexW * 1.02, metrics.hexH * 1.02);
+          }
         }
       }
       if (visibleToHero && heroSrc) {
-        const heroImg = await loadImage(heroSrc);
+        const heroImg = await loadOwnedTokenImage(heroSrc, heroOwnedColor);
         if (heroImg) {
-          ctx.drawImage(heroImg, x - metrics.hexW * 0.03, y - metrics.hexH * 0.03, metrics.hexW * 1.06, metrics.hexH * 1.06);
+          ctx.drawImage(heroImg, x + metrics.hexW * 0.19, y + metrics.hexH * 0.19, metrics.hexW * 0.62, metrics.hexH * 0.62);
         }
       }
       if (visibleToHero && (target.hero_count || 0) > 1) {
@@ -868,9 +1139,24 @@
         : '');
     if (previewSrc) {
       previewOverlayImgEl.src = previewSrc;
+      previewOverlayImgEl.dataset.ownedSrc = previewSrc;
+      previewOverlayImgEl.dataset.ownerColor = ownerColorValue(
+        draft.heroFileName
+          ? draft.heroOwnerColor
+          : ((draft.overlayKind === 'entity' || (draft.overlayKind === 'landmark' && draft.overlayLabel && String(draft.overlayLabel).trim().toLowerCase() === 'boat'))
+            ? draft.overlayOwnerColor
+            : '')
+      );
+      previewOverlayEl.classList.toggle('entity', !!draft.heroFileName || draft.overlayKind === 'entity' || (draft.overlayKind === 'landmark' && draft.overlayLabel && String(draft.overlayLabel).trim().toLowerCase() === 'boat'));
+      previewOverlayEl.classList.toggle('boat', !draft.heroFileName && draft.overlayKind === 'landmark' && draft.overlayLabel && String(draft.overlayLabel).trim().toLowerCase() === 'boat');
       previewOverlayEl.classList.remove('hidden');
+      void applyOwnedTokenTint(previewOverlayImgEl);
     } else {
       previewOverlayImgEl.removeAttribute('src');
+      delete previewOverlayImgEl.dataset.ownedSrc;
+      delete previewOverlayImgEl.dataset.ownerColor;
+      previewOverlayEl.classList.remove('entity');
+      previewOverlayEl.classList.remove('boat');
       previewOverlayEl.classList.add('hidden');
     }
     if (draft.guarded) {
@@ -890,8 +1176,10 @@
     const parts = [];
     if (draft.textureFileName) parts.push(draft.textureFileName);
     if (draft.heroLabel) parts.push(draft.heroCount > 1 ? `Hero: ${draft.heroLabel} x${draft.heroCount}` : `Hero: ${draft.heroLabel}`);
+    if (draft.heroLabel && draft.heroOwnerColor) parts.push(`Owner: ${draft.heroOwnerColor}`);
     if (draft.heroLabel && draft.heroPathfinder) parts.push('Pathfinder');
     if (!draft.heroLabel && draft.overlayLabel) parts.push(draft.overlayCount > 1 ? `${draft.overlayLabel} x${draft.overlayCount}` : draft.overlayLabel);
+    if (!draft.heroLabel && draft.overlayLabel && draft.overlayOwnerColor) parts.push(`Owner: ${draft.overlayOwnerColor}`);
     if (draft.guarded) parts.push('Guarded');
     previewMetaEl.textContent = parts.length ? parts.join(' · ') : 'No texture or overlay selected.';
   }
@@ -916,32 +1204,66 @@
         const overlaySrc = overlayUrl(cell);
         const addonSrc = addonUrl(cell);
         const heroSrc = heroUrl(cell);
+        const overlayOwnerColor = ownerColorValue(cell?.overlay_owner_color);
+        const heroOwnerColor = ownerColorValue(cell?.hero_owner_color);
+        const ownedMovableOverlay = hasOwnedMovableOverlay(cell);
+        const movableOverlayIsEntity = cell?.overlay_kind === 'entity';
+        const movableOverlayIsBoat = isBoatOverlayCell(cell);
         el.innerHTML = `
-          ${overlaySrc ? `<div class="detail-overlay"><img src="${overlaySrc}" alt=""></div>` : ''}
+          ${overlaySrc ? `<div class="detail-overlay ${(movableOverlayIsEntity || movableOverlayIsBoat) ? 'entity' : ''} ${movableOverlayIsBoat ? 'boat' : ''} ${ownedMovableOverlay ? 'detail-unit-overlay' : ''}" ${ownedMovableOverlay ? `draggable="true" data-unit-kind="overlay" data-unit-key="${key(row, col)}"` : ''}><img src="${overlaySrc}" alt="" ${overlayOwnerColor ? `data-owned-src="${overlaySrc}" data-owner-color="${overlayOwnerColor}"` : ''}></div>` : ''}
           ${cell?.overlay_count > 1 ? `<div class="detail-count-badge">${cell.overlay_count}</div>` : ''}
           ${addonSrc ? `<div class="detail-addon"><img src="${addonSrc}" alt=""></div>` : ''}
-          ${heroSrc ? `<div class="detail-hero" draggable="true" data-hero-key="${key(row, col)}"><img src="${heroSrc}" alt="${cell.hero_label || 'Hero'}"></div>` : ''}
+          ${heroSrc ? `<div class="detail-hero" draggable="true" data-unit-kind="hero" data-unit-key="${key(row, col)}"><img src="${heroSrc}" alt="${cell.hero_label || 'Hero'}" ${heroOwnerColor ? `data-owned-src="${heroSrc}" data-owner-color="${heroOwnerColor}"` : ''}></div>` : ''}
           ${cell?.hero_count > 1 ? `<div class="detail-count-badge detail-hero-count-badge">${cell.hero_count}</div>` : ''}
         `;
-        el.title = `Row ${row}, Col ${col} | Role: ${cell?.role || 'empty'}${cell?.texture_file_name ? ` | Texture: ${cell.texture_file_name}` : ''}${cell?.overlay_label ? ` | Overlay: ${cell.overlay_label}${cell.overlay_count > 1 ? ` x${cell.overlay_count}` : ''}` : ''}${cell?.hero_label ? ` | Hero: ${cell.hero_label}${cell.hero_count > 1 ? ` x${cell.hero_count}` : ''}` : ''}`;
+        el.title = `Row ${row}, Col ${col} | Role: ${cell?.role || 'empty'}${cell?.texture_file_name ? ` | Texture: ${cell.texture_file_name}` : ''}${cell?.overlay_label ? ` | Overlay: ${cell.overlay_label}${cell.overlay_count > 1 ? ` x${cell.overlay_count}` : ''}${cell?.overlay_owner_color ? ` | Owner: ${cell.overlay_owner_color}` : ''}` : ''}${cell?.hero_label ? ` | Hero: ${cell.hero_label}${cell.hero_count > 1 ? ` x${cell.hero_count}` : ''}${cell?.hero_owner_color ? ` | Owner: ${cell.hero_owner_color}` : ''}` : ''}`;
         const heroEl = el.querySelector('.detail-hero');
         if (heroEl) {
           heroEl.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             selectCell(row, col);
-            openHeroActions(cell, heroEl);
+            openHeroActions(cell, heroEl, 'hero');
           });
           heroEl.addEventListener('dragstart', (e) => {
             e.stopPropagation();
             e.dataTransfer.setData('application/json', JSON.stringify({
-              type: 'hero',
+              type: 'unit',
+              unit_kind: 'hero',
               row,
               col,
               file_name: cell.hero_file_name,
               name_key: cell.hero_name_key,
               label: cell.hero_label,
               count: cell.hero_count,
+              owner_color: cell.hero_owner_color,
+              pathfinder: !!cell.hero_pathfinder,
+            }));
+            e.dataTransfer.effectAllowed = 'move';
+          });
+        }
+        const entityUnitEl = el.querySelector('.detail-unit-overlay');
+        if (entityUnitEl) {
+          entityUnitEl.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            selectCell(row, col);
+            openHeroActions(cell, entityUnitEl, 'entity');
+          });
+          entityUnitEl.addEventListener('dragstart', (e) => {
+            e.stopPropagation();
+            e.dataTransfer.setData('application/json', JSON.stringify({
+              type: 'unit',
+              unit_kind: 'overlay',
+              row,
+              col,
+              file_name: cell.overlay_file_name,
+              name_key: cell.overlay_name_key,
+              label: cell.overlay_label,
+              group: cell.overlay_group,
+              count: cell.overlay_count,
+              owner_color: cell.overlay_owner_color,
+              pathfinder: !!cell.overlay_pathfinder,
             }));
             e.dataTransfer.effectAllowed = 'move';
           });
@@ -949,6 +1271,16 @@
         el.addEventListener('click', (e) => selectCell(row, col, { multi: e.shiftKey }));
         el.addEventListener('contextmenu', (e) => {
           e.preventDefault();
+          selectCell(row, col);
+          const unitKind = getUnitKindForCell(cell);
+          if (unitKind) {
+            const refreshedHex = document.querySelector(`.detail-hex[data-k="${key(row, col)}"]`);
+            const unitNode = refreshedHex?.querySelector(`[data-unit-kind="${unitKind}"]`);
+            if (unitNode) {
+              openHeroActions(cell, unitNode, unitKind, { x: e.clientX, y: e.clientY });
+              return;
+            }
+          }
           clearOverlayAt(row, col, true);
         });
         el.addEventListener('dragover', (e) => {
@@ -972,25 +1304,43 @@
             selectCell(row, col);
           }
           let handledDirectly = false;
-          if (payload.type === 'hero') {
+          if (payload.type === 'unit') {
             const sourceKey = key(payload.row, payload.col);
             const sourceCell = state.cellsByKey[sourceKey];
             const targetCell = state.cellsByKey[key(row, col)];
-          if (!sourceCell || !targetCell) return;
-          if (sourceKey === key(row, col)) return;
-          if (hasHero(targetCell)) {
-            showToast('That hex already has a hero', false);
-            return;
-          }
-          if (!isProtectedHeroTraversalOverlay(targetCell)) {
-            clearOverlayFields(targetCell);
-          }
-          targetCell.hero_file_name = payload.file_name || sourceCell.hero_file_name;
-          targetCell.hero_name_key = payload.name_key || sourceCell.hero_name_key;
-          targetCell.hero_label = payload.label || sourceCell.hero_label;
-          targetCell.hero_count = Math.max(1, Number(payload.count || sourceCell.hero_count || 1));
-          targetCell.hero_pathfinder = !!sourceCell.hero_pathfinder;
-          clearHeroFields(sourceCell);
+            if (!sourceCell || !targetCell) return;
+            if (sourceKey === key(row, col)) return;
+            if (payload.unit_kind === 'hero' && hasHero(targetCell)) {
+              showToast('That hex already has a hero', false);
+              return;
+            }
+            if (payload.unit_kind === 'overlay' && hasOwnedMovableOverlay(targetCell)) {
+              showToast('That hex already has an owned unit', false);
+              return;
+            }
+            if (!isProtectedHeroTraversalOverlay(targetCell)) {
+              clearOverlayFields(targetCell);
+            }
+            if (payload.unit_kind === 'hero') {
+              targetCell.hero_file_name = payload.file_name || sourceCell.hero_file_name;
+              targetCell.hero_name_key = payload.name_key || sourceCell.hero_name_key;
+              targetCell.hero_label = payload.label || sourceCell.hero_label;
+              targetCell.hero_count = Math.max(1, Number(payload.count || sourceCell.hero_count || 1));
+              targetCell.hero_owner_color = payload.owner_color || sourceCell.hero_owner_color || null;
+              targetCell.hero_pathfinder = !!(payload.pathfinder ?? sourceCell.hero_pathfinder);
+              clearHeroFields(sourceCell);
+            } else {
+              targetCell.overlay_kind = sourceCell.overlay_kind || 'entity';
+              targetCell.overlay_file_name = payload.file_name || sourceCell.overlay_file_name;
+              targetCell.overlay_name_key = payload.name_key || sourceCell.overlay_name_key;
+              targetCell.overlay_label = payload.label || sourceCell.overlay_label;
+              targetCell.overlay_group = payload.group || sourceCell.overlay_group;
+              targetCell.overlay_owner_color = payload.owner_color || sourceCell.overlay_owner_color || null;
+              targetCell.overlay_pathfinder = !!(payload.pathfinder ?? sourceCell.overlay_pathfinder);
+              targetCell.overlay_count = Math.max(1, Number(payload.count || sourceCell.overlay_count || 1));
+              targetCell.guarded = false;
+              clearOverlayFields(sourceCell);
+            }
             closeHeroActions();
             emitCellPatch([sourceCell, targetCell]);
             handledDirectly = true;
@@ -1010,6 +1360,7 @@
               targetCell.hero_name_key = droppedAsset.name_key || null;
               targetCell.hero_label = droppedAsset.label || null;
               targetCell.hero_count = 1;
+              targetCell.hero_owner_color = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
               targetCell.hero_pathfinder = false;
               guardedInput.disabled = true;
               guardedInput.checked = false;
@@ -1021,7 +1372,10 @@
           }
           if (handledDirectly) {
             renderGrid();
+            renderInspectorPreview();
             syncPaletteSelection();
+            const selectedCell = state.cellsByKey[selectedKey];
+            if (selectedCell) syncHeroPanelForSelection(selectedCell);
             return;
           }
           applySelectionSilent();
@@ -1031,6 +1385,7 @@
       }
       gridEl.appendChild(rowEl);
     }
+    hydrateOwnedTokens(gridEl);
   }
 
   function selectCell(row, col, options = {}) {
@@ -1066,6 +1421,7 @@
     overlayKindSelect.value = cell.overlay_kind || '';
     renderOverlayAssetOptions(cell.overlay_kind || '');
     overlayAssetSelect.value = cell.overlay_file_name || '';
+    syncOwnerSelect(cell);
     overlayCountInput.value = cell.overlay_count || 0;
     guardedInput.checked = !!cell.guarded;
     const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
@@ -1082,15 +1438,30 @@
 
     const draft = currentDraft();
     const asset = overlayAssetByFile(draft.overlayKind, draft.overlayFileName);
+    const ownerValue = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
     cells.forEach(cell => {
+      const focusedKind = activeUnitKey === key(cell.row, cell.col) ? activeUnitKind : null;
       cell.texture_file_name = draft.textureFileName;
       cell.overlay_kind = draft.overlayKind;
       cell.overlay_file_name = draft.overlayFileName;
       cell.overlay_name_key = asset?.name_key || null;
       cell.overlay_label = asset?.label || null;
       cell.overlay_group = asset?.group || null;
+      cell.overlay_owner_color = (
+        draft.overlayKind === 'entity' ||
+        (draft.overlayKind === 'landmark' && asset && String(asset.name_key || '').trim().toLowerCase() === 'boat')
+      ) ? ownerValue : null;
       cell.overlay_count = draft.overlayCount;
+      cell.overlay_pathfinder = (
+        draft.overlayKind === 'entity' ||
+        (draft.overlayKind === 'landmark' && asset && String(asset.name_key || '').trim().toLowerCase() === 'boat')
+      ) ? !!cell.overlay_pathfinder : false;
       cell.guarded = draft.guarded;
+      if (focusedKind === 'hero') {
+        cell.hero_owner_color = ownerValue;
+      } else if (!focusedKind && hasHero(cell)) {
+        cell.hero_owner_color = ownerValue;
+      }
     });
 
     emitCellPatch(cells);
@@ -1110,6 +1481,10 @@
   function clearOverlayAt(row, col, toast) {
     const cell = state.cellsByKey[key(row, col)];
     if (!cell) return;
+    if (hasOwnedMovableOverlay(cell)) {
+      if (toast) showToast('Owned units must be removed from the unit controls', false);
+      return;
+    }
     clearOverlayFields(cell);
     emitCellPatch([cell]);
     renderGrid();
@@ -1122,8 +1497,13 @@
   function clearOverlayAtSelected(toast) {
     const cells = getSelectedCells();
     if (!cells.length) return;
-    cells.forEach(clearOverlayFields);
-    emitCellPatch(cells);
+    const clearable = cells.filter((cell) => !hasOwnedMovableOverlay(cell));
+    if (!clearable.length) {
+      if (toast) showToast('Owned units must be removed from the unit controls', false);
+      return;
+    }
+    clearable.forEach(clearOverlayFields);
+    emitCellPatch(clearable);
     renderGrid();
     if (selectedKey) {
       const cell = state.cellsByKey[selectedKey];
@@ -1143,14 +1523,14 @@
         syncPaletteSelection();
       }
     }
-    if (toast) showToast('Overlay cleared');
+    if (toast) showToast(clearable.length !== cells.length ? 'Cleared non-owned overlays' : 'Overlay cleared');
   }
 
   function updateActiveHeroPathfinder(enabled) {
-    if (!activeHeroKey || !state.cellsByKey[activeHeroKey]) return;
-    const cell = state.cellsByKey[activeHeroKey];
-    if (!hasHero(cell)) return;
-    cell.hero_pathfinder = !!enabled;
+    if (!activeUnitKey || !state.cellsByKey[activeUnitKey] || !activeUnitKind) return;
+    const cell = state.cellsByKey[activeUnitKey];
+    if (!hasMovableUnit(cell)) return;
+    setUnitPathfinder(cell, activeUnitKind, enabled);
     emitCellPatch([cell]);
     renderInspectorPreview();
     renderGrid();
@@ -1158,12 +1538,11 @@
   }
 
   function updateActiveHeroCount(value) {
-    if (!activeHeroKey || !state.cellsByKey[activeHeroKey]) return;
-    const cell = state.cellsByKey[activeHeroKey];
-    if (!hasHero(cell)) return;
-    const normalized = Math.max(1, Math.min(99, parseInt(value || '1', 10) || 1));
-    cell.hero_count = normalized;
-    if (heroCountInput) heroCountInput.value = String(normalized);
+    if (!activeUnitKey || !state.cellsByKey[activeUnitKey] || !activeUnitKind) return;
+    const cell = state.cellsByKey[activeUnitKey];
+    if (!hasMovableUnit(cell)) return;
+    setUnitCount(cell, activeUnitKind, value);
+    if (heroCountInput) heroCountInput.value = String(getUnitCount(cell, activeUnitKind));
     emitCellPatch([cell]);
     renderInspectorPreview();
     renderGrid();
@@ -1171,18 +1550,18 @@
   }
 
   function removeActiveHero() {
-    if (!activeHeroKey || !state.cellsByKey[activeHeroKey]) return;
-    const cell = state.cellsByKey[activeHeroKey];
-    if (!hasHero(cell)) {
+    if (!activeUnitKey || !state.cellsByKey[activeUnitKey] || !activeUnitKind) return;
+    const cell = state.cellsByKey[activeUnitKey];
+    if (!hasMovableUnit(cell)) {
       closeHeroActions();
       return;
     }
-    clearHeroFields(cell);
+    clearUnitFields(cell, activeUnitKind);
     emitCellPatch([cell]);
     closeHeroActions();
     renderGrid();
     renderInspectorPreview();
-    showToast('Hero removed');
+    showToast(activeUnitKind === 'hero' ? 'Hero removed' : 'Unit removed');
   }
 
   async function save() {
@@ -1214,6 +1593,7 @@
     renderOverlayAssetOptions(overlayKindSelect.value);
     guardedInput.checked = false;
     guardedInput.disabled = true;
+    if (overlayKindSelect.value !== 'entity' && overlayOwnerColorSelect) overlayOwnerColorSelect.value = '';
     applySelectionSilent();
   });
 
@@ -1236,7 +1616,7 @@
     }
   });
 
-  [textureSelect, overlayCountInput, guardedInput].forEach(el => {
+  [textureSelect, overlayCountInput, guardedInput, overlayOwnerColorSelect].forEach(el => {
     el?.addEventListener('input', applySelectionSilent);
     el?.addEventListener('change', applySelectionSilent);
   });
@@ -1252,12 +1632,13 @@
   });
   window.addEventListener('resize', renderGrid);
   window.addEventListener('resize', () => {
-    if (activeHeroKey && state.cellsByKey[activeHeroKey]) {
-      syncHeroPanelForSelection(state.cellsByKey[activeHeroKey]);
+    if (activeUnitKey && state.cellsByKey[activeUnitKey]) {
+      syncHeroPanelForSelection(state.cellsByKey[activeUnitKey]);
     }
   });
 
   buildIndex();
+  populateOwnerSelect(overlayOwnerColorSelect);
   renderTextureOptions();
   renderOverlayAssetOptions('');
   renderTexturePalette();
@@ -1295,14 +1676,15 @@
 
   heroVisionButtons.forEach((btn) => {
     btn.addEventListener('click', async () => {
-      if (!activeHeroKey || !state.cellsByKey[activeHeroKey]) {
+      if (!activeUnitKey || !state.cellsByKey[activeUnitKey]) {
         closeHeroActions();
         return;
       }
-      const cell = state.cellsByKey[activeHeroKey];
+      const cell = state.cellsByKey[activeUnitKey];
       const range = Number(btn.dataset.visionRange || 1);
+      const unitKind = activeUnitKind;
       closeHeroActions();
-      await captureHeroVision(cell, range);
+      await captureHeroVision(cell, range, unitKind);
     });
   });
 
@@ -1326,7 +1708,7 @@
   document.addEventListener('click', (e) => {
     if (!heroActionsEl || !heroActionsEl.classList.contains('visible')) return;
     if (heroActionsEl.contains(e.target)) return;
-    if (e.target && e.target.closest && e.target.closest('.detail-hero')) return;
+    if (e.target && e.target.closest && e.target.closest('[data-unit-kind]')) return;
     closeHeroActions();
   });
 })();

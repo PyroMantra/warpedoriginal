@@ -55,6 +55,13 @@
     transform: scale(1) translateY(1%);
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
   }
+  .map-preview-overlay.entity {
+    inset: 7%;
+  }
+  .map-preview-overlay.entity img {
+    object-fit: contain;
+    transform: scale(0.82) translateY(1%);
+  }
   .map-preview-addon {
     position: absolute;
     inset: 26%;
@@ -178,7 +185,7 @@
             title="Row {{ cell.row }}, Col {{ cell.col }} | Role: {{ cell.role }}{% if cell.region %} | Region: {{ cell.region }}{% endif %}{% if cell.biome %} | Biome: {{ cell.biome }}{% endif %}{% if cell.texture %} | Texture: {{ cell.texture.label }}{% endif %}{% if cell.overlay %} | {{ cell.overlay.kind|title }}: {{ cell.overlay.asset.label }}{% if cell.overlay_count > 1 %} x{{ cell.overlay_count }}{% endif %}{% endif %}"
           >
             {% if cell.overlay_url %}
-            <div class="map-preview-overlay">
+            <div class="map-preview-overlay {{ 'entity' if cell.overlay and cell.overlay.kind == 'entity' else '' }}">
               <img src="{{ cell.overlay_url }}" alt="{{ cell.overlay.asset.label }}" />
             </div>
             {% endif %}
