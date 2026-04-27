@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 import re
+import time
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -10,6 +12,11 @@ from typing import Any, Dict, List
 
 from flask import jsonify, redirect, render_template, request, session, url_for
 from flask_socketio import emit, join_room, leave_room
+
+try:
+    import redis as redis_lib
+except Exception:
+    redis_lib = None
 
 
 ROLE_DEFAULTS: Dict[str, Dict[str, Any]] = {
@@ -923,6 +930,23 @@ def _pick_entity_asset(cell: Dict[str, Any], entities: List[Dict[str, Any]], rng
     return rng.choice(pool or entities)
 
 
+def _unique_spawn_hero_assets(entities: List[Dict[str, Any]], rng: random.Random) -> List[Dict[str, Any]]:
+    hero_assets = [a for a in entities if a.get("npc", "").lower() == "hero" or a.get("hero")]
+    unique_by_color: Dict[str, Dict[str, Any]] = {}
+    for asset in hero_assets:
+        color_key = (
+            str(asset.get("hero") or "").strip().lower()
+            or str(asset.get("label") or "").strip().lower()
+            or str(asset.get("name_key") or "").strip().lower()
+        )
+        if not color_key or color_key in unique_by_color:
+            continue
+        unique_by_color[color_key] = asset
+    pool = list(unique_by_color.values())
+    rng.shuffle(pool)
+    return pool
+
+
 def _is_region_edge_cell(cell: Dict[str, Any], cell_lookup: Dict[tuple[int, int], Dict[str, Any]]) -> bool:
     region = str(cell.get("region") or "").strip().lower()
     if not region:
@@ -1296,8 +1320,11 @@ def _build_preview_map(payload: Dict[str, Any], seed: int) -> Dict[str, Any]:
     shipwreck_assets = [a for a in landmarks if a["name_key"] == "shipwreck"]
 
     spawn_cells = [c for c in cells if c.get("active") and c.get("spawn")]
+    available_spawn_heroes = _unique_spawn_hero_assets(entities, rng)
     for cell in spawn_cells:
-        asset = _pick_entity_asset(cell, entities, rng)
+        if not available_spawn_heroes:
+            continue
+        asset = available_spawn_heroes.pop(0)
         _place_overlay(overlay_by_key, cell, "entity", asset)
 
     special_entity_cells = [
@@ -1677,6 +1704,18 @@ def _build_detail_editor_payload(
             texture = cell.get("texture") or {}
             overlay = cell.get("overlay") or {}
             asset = overlay.get("asset") or {}
+            hero_file_name = None
+            hero_name_key = None
+            hero_label = None
+            hero_count = 0
+            hero_pathfinder = False
+            if (overlay.get("kind") == "entity") and _is_hero_entity_asset_data(asset):
+                hero_file_name = asset.get("file_name")
+                hero_name_key = asset.get("name_key")
+                hero_label = asset.get("label")
+                hero_count = 1
+                overlay = {}
+                asset = {}
             cells.append(
                 {
                     "row": int(cell.get("row", 0)),
@@ -1696,6 +1735,11 @@ def _build_detail_editor_payload(
                     "overlay_group": asset.get("group"),
                     "overlay_count": int(cell.get("overlay_count") or 0),
                     "guarded": bool((overlay or {}).get("guarded")),
+                    "hero_file_name": hero_file_name,
+                    "hero_name_key": hero_name_key,
+                    "hero_label": hero_label,
+                    "hero_count": hero_count,
+                    "hero_pathfinder": hero_pathfinder,
                 }
             )
     return {
@@ -1752,6 +1796,11 @@ def _normalize_detail_map_payload(payload: Dict[str, Any], fallback_name: str, f
                         "overlay_group": None,
                         "overlay_count": 0,
                         "guarded": False,
+                        "hero_file_name": None,
+                        "hero_name_key": None,
+                        "hero_label": None,
+                        "hero_count": 0,
+                        "hero_pathfinder": False,
                     }
                 )
 
@@ -1767,6 +1816,14 @@ def _normalize_detail_map_payload(payload: Dict[str, Any], fallback_name: str, f
     }
 
 
+def _is_hero_entity_asset_data(asset: Dict[str, Any] | None) -> bool:
+    if not asset:
+        return False
+    npc = str(asset.get("npc") or "").strip().lower()
+    file_name = str(asset.get("file_name") or "").strip().lower()
+    return npc == "hero" or file_name.startswith("npc=hero")
+
+
 def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> Dict[str, Any] | None:
     try:
         row = int(raw.get("row", 0))
@@ -1777,6 +1834,29 @@ def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> 
         return None
     role = _normalize_role(raw.get("role") or "empty")
     defaults = ROLE_DEFAULTS[role]
+    overlay_kind = (str(raw.get("overlay_kind") or "").strip().lower() or None)
+    overlay_file_name = str(raw.get("overlay_file_name") or "") or None
+    overlay_name_key = str(raw.get("overlay_name_key") or "") or None
+    overlay_label = str(raw.get("overlay_label") or "") or None
+    overlay_group = str(raw.get("overlay_group") or "") or None
+    hero_file_name = str(raw.get("hero_file_name") or "") or None
+    hero_name_key = str(raw.get("hero_name_key") or "") or None
+    hero_label = str(raw.get("hero_label") or "") or None
+    hero_count = max(0, min(int(raw.get("hero_count", 0) or 0), 99))
+    hero_pathfinder = bool(raw.get("hero_pathfinder", False))
+
+    if not hero_file_name and overlay_kind == "entity" and overlay_file_name and overlay_file_name.lower().startswith("npc=hero"):
+        hero_file_name = overlay_file_name
+        hero_name_key = overlay_name_key
+        hero_label = overlay_label
+        hero_count = max(hero_count, 1)
+        hero_pathfinder = bool(raw.get("hero_pathfinder", False))
+        overlay_kind = None
+        overlay_file_name = None
+        overlay_name_key = None
+        overlay_label = None
+        overlay_group = None
+
     return {
         "row": row,
         "col": col,
@@ -1788,13 +1868,18 @@ def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> 
         "special": (str(raw.get("special")).strip()[:120] if raw.get("special") not in (None, "", "null") else None),
         "biome": str(raw.get("biome") or "")[:80],
         "texture_file_name": str(raw.get("texture_file_name") or "") or None,
-        "overlay_kind": (str(raw.get("overlay_kind") or "").strip().lower() or None),
-        "overlay_file_name": str(raw.get("overlay_file_name") or "") or None,
-        "overlay_name_key": str(raw.get("overlay_name_key") or "") or None,
-        "overlay_label": str(raw.get("overlay_label") or "") or None,
-        "overlay_group": str(raw.get("overlay_group") or "") or None,
+        "overlay_kind": overlay_kind,
+        "overlay_file_name": overlay_file_name,
+        "overlay_name_key": overlay_name_key,
+        "overlay_label": overlay_label,
+        "overlay_group": overlay_group,
         "overlay_count": max(0, min(int(raw.get("overlay_count", 0) or 0), 99)),
         "guarded": bool(raw.get("guarded", False)),
+        "hero_file_name": hero_file_name,
+        "hero_name_key": hero_name_key,
+        "hero_label": hero_label,
+        "hero_count": hero_count if hero_file_name else 0,
+        "hero_pathfinder": hero_pathfinder if hero_file_name else False,
     }
 
 
@@ -1803,11 +1888,25 @@ def init_map_skeletons(app, socketio=None):
     detail_dir = _detail_map_dir(app)
     _admin_required = getattr(app, "admin_required", _login_required_local)
     detail_room_states: Dict[str, Dict[str, Any]] = {}
-    detail_room_presence: Dict[str, Dict[str, str]] = {}
-    detail_sid_rooms: Dict[str, str] = {}
+    detail_room_presence: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    detail_sid_rooms: Dict[str, Dict[str, Any]] = {}
+    redis_url = os.getenv("MAPGEN_REDIS_URL") or os.getenv("REDIS_URL") or ""
+    redis_client = None
+    if redis_url and redis_lib is not None:
+        try:
+            redis_client = redis_lib.from_url(redis_url, decode_responses=True)
+            redis_client.ping()
+        except Exception:
+            redis_client = None
 
     def _detail_room_name(skeleton_name: str, seed: int) -> str:
         return f"detail:{_safe_name(skeleton_name)}:{int(seed)}"
+
+    def _detail_state_key(skeleton_name: str, seed: int) -> str:
+        return f"mapgen:detail:state:{_safe_name(skeleton_name)}:{int(seed)}"
+
+    def _detail_presence_key(skeleton_name: str, seed: int) -> str:
+        return f"mapgen:detail:presence:{_safe_name(skeleton_name)}:{int(seed)}"
 
     def _detail_editor_user_label() -> str:
         return (
@@ -1818,10 +1917,16 @@ def init_map_skeletons(app, socketio=None):
         )[:80]
 
     def _detail_room_editor_names(room: str) -> list[str]:
+        cutoff = time.time() - 90
         names = []
         seen = set()
-        for raw_name in detail_room_presence.get(room, {}).values():
-            name = (raw_name or "").strip() or "Anonymous"
+        room_presence = detail_room_presence.get(room, {})
+        for sid, meta in list(room_presence.items()):
+            last_seen = float(meta.get("ts") or 0)
+            if last_seen < cutoff:
+                room_presence.pop(sid, None)
+                continue
+            name = str(meta.get("name") or "").strip() or "Anonymous"
             key = name.lower()
             if key in seen:
                 continue
@@ -1903,9 +2008,94 @@ def init_map_skeletons(app, socketio=None):
             )
         return items
 
-    def _get_or_create_room_state(skeleton_name: str, seed: int, base_payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def _load_detail_state_from_store(skeleton_name: str, seed: int) -> Dict[str, Any] | None:
+        if redis_client is None:
+            return detail_room_states.get(_detail_room_name(skeleton_name, seed))
+        raw = redis_client.get(_detail_state_key(skeleton_name, seed))
+        if not raw:
+            return None
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            return None
+        return _normalize_detail_map_payload(payload, skeleton_name, seed)
+
+    def _save_detail_state_to_store(detail_payload: Dict[str, Any], skeleton_name: str, seed: int) -> None:
+        normalized = _normalize_detail_map_payload(detail_payload, skeleton_name, seed)
+        if redis_client is None:
+            detail_room_states[_detail_room_name(skeleton_name, seed)] = normalized
+            return
+        redis_client.set(_detail_state_key(skeleton_name, seed), json.dumps(normalized))
+        redis_client.expire(_detail_state_key(skeleton_name, seed), 60 * 60 * 24)
+
+    def _delete_detail_state_from_store(skeleton_name: str, seed: int) -> None:
         room = _detail_room_name(skeleton_name, seed)
-        existing = detail_room_states.get(room)
+        detail_room_states.pop(room, None)
+        detail_room_presence.pop(room, None)
+        if redis_client is not None:
+            redis_client.delete(_detail_state_key(skeleton_name, seed))
+            redis_client.delete(_detail_presence_key(skeleton_name, seed))
+
+    def _presence_touch(room: str, skeleton_name: str, seed: int, sid: str, user_name: str) -> None:
+        now = time.time()
+        if redis_client is None:
+            detail_room_presence.setdefault(room, {})[sid] = {"name": user_name, "ts": now}
+            return
+        redis_client.hset(
+            _detail_presence_key(skeleton_name, seed),
+            sid,
+            json.dumps({"name": user_name, "ts": now}),
+        )
+        redis_client.expire(_detail_presence_key(skeleton_name, seed), 60 * 60 * 24)
+
+    def _presence_remove(room: str, skeleton_name: str, seed: int, sid: str) -> None:
+        if redis_client is None:
+            room_presence = detail_room_presence.get(room, {})
+            room_presence.pop(sid, None)
+            if not room_presence:
+                detail_room_presence.pop(room, None)
+            return
+        redis_client.hdel(_detail_presence_key(skeleton_name, seed), sid)
+
+    def _presence_names(room: str, skeleton_name: str, seed: int) -> list[str]:
+        cutoff = time.time() - 90
+        names: list[str] = []
+        seen = set()
+        if redis_client is None:
+            room_presence = detail_room_presence.get(room, {})
+            for sid, meta in list(room_presence.items()):
+                last_seen = float(meta.get("ts") or 0)
+                if last_seen < cutoff:
+                    room_presence.pop(sid, None)
+                    continue
+                name = str(meta.get("name") or "").strip() or "Anonymous"
+                lowered = name.lower()
+                if lowered in seen:
+                    continue
+                seen.add(lowered)
+                names.append(name)
+            return sorted(names, key=str.lower)
+
+        for sid, raw in (redis_client.hgetall(_detail_presence_key(skeleton_name, seed)) or {}).items():
+            try:
+                meta = json.loads(raw)
+            except Exception:
+                redis_client.hdel(_detail_presence_key(skeleton_name, seed), sid)
+                continue
+            last_seen = float(meta.get("ts") or 0)
+            if last_seen < cutoff:
+                redis_client.hdel(_detail_presence_key(skeleton_name, seed), sid)
+                continue
+            name = str(meta.get("name") or "").strip() or "Anonymous"
+            lowered = name.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            names.append(name)
+        return sorted(names, key=str.lower)
+
+    def _get_or_create_room_state(skeleton_name: str, seed: int, base_payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        existing = _load_detail_state_from_store(skeleton_name, seed)
         if existing:
             return existing
         if base_payload is not None:
@@ -1925,7 +2115,7 @@ def init_map_skeletons(app, socketio=None):
                     skeleton_name,
                     seed,
                 )
-        detail_room_states[room] = normalized
+        _save_detail_state_to_store(normalized, skeleton_name, seed)
         return normalized
 
     def _apply_detail_cell_patches(detail_payload: Dict[str, Any], raw_cells: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -2096,7 +2286,7 @@ def init_map_skeletons(app, socketio=None):
         seed = int(payload.get("seed") or 0)
         try:
             p = _save_detail_map(payload, name, seed)
-            detail_room_states[_detail_room_name(name, seed)] = _normalize_detail_map_payload(payload, name, seed)
+            _save_detail_state_to_store(payload, name, seed)
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 400
         return jsonify({"ok": True, "name": p.stem, "path": str(p.name)})
@@ -2106,7 +2296,7 @@ def init_map_skeletons(app, socketio=None):
     def api_map_detail_delete(name: str, seed: int):
         try:
             _delete_detail_map(name, seed)
-            detail_room_states.pop(_detail_room_name(name, seed), None)
+            _delete_detail_state_from_store(name, seed)
         except FileNotFoundError:
             return jsonify({"ok": False, "error": "Detail save not found"}), 404
         except Exception as e:
@@ -2123,8 +2313,8 @@ def init_map_skeletons(app, socketio=None):
                 return
             room = _detail_room_name(skeleton_name, seed)
             join_room(room)
-            detail_sid_rooms[request.sid] = room
-            detail_room_presence.setdefault(room, {})[request.sid] = _detail_editor_user_label()
+            detail_sid_rooms[request.sid] = {"room": room, "name": skeleton_name, "seed": seed}
+            _presence_touch(room, skeleton_name, seed, request.sid, _detail_editor_user_label())
             detail_payload = _get_or_create_room_state(skeleton_name, seed, payload.get("detail_map"))
             emit(
                 "detail_map_state",
@@ -2132,7 +2322,7 @@ def init_map_skeletons(app, socketio=None):
                     "map_name": skeleton_name,
                     "seed": seed,
                     "detail_map": detail_payload,
-                    "editors": _detail_room_editor_names(room),
+                    "editors": _presence_names(room, skeleton_name, seed),
                 },
             )
             emit(
@@ -2140,7 +2330,26 @@ def init_map_skeletons(app, socketio=None):
                 {
                     "map_name": skeleton_name,
                     "seed": seed,
-                    "editors": _detail_room_editor_names(room),
+                    "editors": _presence_names(room, skeleton_name, seed),
+                },
+                to=room,
+            )
+
+        @socketio.on("detail_map_presence_ping")
+        def detail_map_presence_ping(payload: Dict[str, Any] | None = None):
+            payload = payload or {}
+            skeleton_name = _safe_name(payload.get("map_name") or payload.get("name") or "")
+            seed = int(payload.get("seed") or 0)
+            if not skeleton_name or not seed:
+                return
+            room = _detail_room_name(skeleton_name, seed)
+            _presence_touch(room, skeleton_name, seed, request.sid, _detail_editor_user_label())
+            emit(
+                "detail_map_presence",
+                {
+                    "map_name": skeleton_name,
+                    "seed": seed,
+                    "editors": _presence_names(room, skeleton_name, seed),
                 },
                 to=room,
             )
@@ -2155,11 +2364,13 @@ def init_map_skeletons(app, socketio=None):
                 return
             room = _detail_room_name(skeleton_name, seed)
             detail_payload = _get_or_create_room_state(skeleton_name, seed, payload.get("detail_map"))
+            _presence_touch(room, skeleton_name, seed, request.sid, _detail_editor_user_label())
             if "save_label" in payload:
                 detail_payload["save_label"] = str(payload.get("save_label") or "").strip()[:120]
             applied = _apply_detail_cell_patches(detail_payload, raw_cells)
             if not applied and "save_label" not in payload:
                 return
+            _save_detail_state_to_store(detail_payload, skeleton_name, seed)
             emit(
                 "detail_map_patch",
                 {
@@ -2177,22 +2388,22 @@ def init_map_skeletons(app, socketio=None):
             payload = payload or {}
             skeleton_name = _safe_name(payload.get("map_name") or payload.get("name") or "")
             seed = int(payload.get("seed") or 0)
-            room = detail_sid_rooms.pop(request.sid, None)
+            info = detail_sid_rooms.pop(request.sid, None) or {}
+            room = info.get("room")
+            skeleton_name = skeleton_name or info.get("name") or ""
+            seed = seed or int(info.get("seed") or 0)
             if not room and skeleton_name and seed:
                 room = _detail_room_name(skeleton_name, seed)
-            if not room:
+            if not room or not skeleton_name or not seed:
                 return
             leave_room(room)
-            room_presence = detail_room_presence.get(room, {})
-            room_presence.pop(request.sid, None)
-            if not room_presence:
-                detail_room_presence.pop(room, None)
+            _presence_remove(room, skeleton_name, seed, request.sid)
             emit(
                 "detail_map_presence",
                 {
                     "map_name": skeleton_name,
                     "seed": seed,
-                    "editors": _detail_room_editor_names(room),
+                    "editors": _presence_names(room, skeleton_name, seed),
                 },
                 to=room,
             )

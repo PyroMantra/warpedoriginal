@@ -71,8 +71,15 @@ try:
 except Exception:
     ASYNC_MODE = "threading"
 
-socketio = SocketIO(app, async_mode=ASYNC_MODE, cors_allowed_origins="*")
+SOCKETIO_MESSAGE_QUEUE = os.getenv("SOCKETIO_MESSAGE_QUEUE") or os.getenv("REDIS_URL") or None
+socketio = SocketIO(
+    app,
+    async_mode=ASYNC_MODE,
+    cors_allowed_origins="*",
+    message_queue=SOCKETIO_MESSAGE_QUEUE,
+)
 print(f"[socketio] async_mode={ASYNC_MODE}")
+print(f"[socketio] message_queue={'enabled' if SOCKETIO_MESSAGE_QUEUE else 'disabled'}")
 # --- end Socket.IO setup ---
 
 # ---------------------------------------------------------------------------

@@ -80,6 +80,25 @@
     transform: translateY(-24%);
     filter: drop-shadow(0 4px 8px rgba(0,0,0,.35));
   }
+  .detail-hero {
+    position: absolute;
+    inset: -3%;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: grab;
+  }
+  .detail-hero img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+    object-position: center center;
+    filter: drop-shadow(0 8px 14px rgba(0,0,0,.48));
+    pointer-events: none;
+  }
   .detail-count-badge {
     position: absolute;
     left: 50%;
@@ -96,6 +115,9 @@
     font-weight: 800;
     box-shadow: 0 2px 8px rgba(0,0,0,.35);
     pointer-events: none;
+  }
+  .detail-hero-count-badge {
+    left: 33%;
   }
   .detail-preview-card {
     border-radius: 18px;
@@ -226,6 +248,89 @@
   .detail-hex.drop-target {
     box-shadow: inset 0 0 0 2px rgba(251,191,36,0.95), 0 0 0 3px rgba(251,191,36,0.35), 0 0 16px rgba(251,191,36,0.24);
   }
+  .detail-hero-actions {
+    position: fixed;
+    z-index: 60;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(17, 24, 39, 0.96);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    transform: translate(-50%, calc(-100% - 4px));
+  }
+  .detail-hero-actions.visible {
+    display: inline-flex;
+  }
+  .detail-hero-actions-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .detail-vision-btn {
+    min-width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(251,191,36,.4);
+    background: rgba(251,191,36,.15);
+    color: white;
+    font-weight: 800;
+  }
+  .detail-hero-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.92);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .detail-hero-toggle input {
+    width: 14px;
+    height: 14px;
+    accent-color: rgb(251 191 36);
+  }
+  .detail-hero-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 10px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.92);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .detail-hero-count input {
+    width: 46px;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: white;
+    font-weight: 800;
+    text-align: center;
+  }
+  .detail-hero-kill {
+    min-width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    border: 1px solid rgba(248,113,113,.4);
+    background: rgba(239,68,68,.14);
+    color: white;
+    font-weight: 900;
+    font-size: 16px;
+    line-height: 1;
+  }
 </style>
 
 <div class="max-w-[1850px] mx-auto space-y-6" id="detail-editor-root"
@@ -333,6 +438,22 @@
         <div class="detail-grid" id="detail-grid"></div>
       </div>
     </section>
+  </div>
+</div>
+<div id="detail-hero-actions" class="detail-hero-actions">
+  <div class="detail-hero-actions-inner">
+    <button type="button" class="detail-vision-btn" data-vision-range="1">1</button>
+    <button type="button" class="detail-vision-btn" data-vision-range="2">2</button>
+    <button type="button" class="detail-vision-btn" data-vision-range="3">3</button>
+    <label class="detail-hero-count">
+      <span>x</span>
+      <input id="detail-hero-count" type="number" min="1" max="99" step="1" value="1" />
+    </label>
+    <label class="detail-hero-toggle">
+      <input id="detail-hero-pathfinder" type="checkbox" />
+      <span>Pathfinder</span>
+    </label>
+    <button id="detail-hero-kill" type="button" class="detail-hero-kill" title="Remove hero">☠</button>
   </div>
 </div>
 <script src="{{ url_for('static', filename='map_detail_editor.js') }}"></script>

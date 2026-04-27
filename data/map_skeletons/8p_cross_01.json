@@ -5915,7 +5915,7 @@
       "role": "center_core",
       "region": "mid_core",
       "spawn": false,
-      "special": null,
+      "special": "Guardian",
       "allow_biomes": false,
       "allow_landmarks": true,
       "allow_entities": true
@@ -6191,7 +6191,7 @@
       "role": "center_core",
       "region": "mid_core",
       "spawn": false,
-      "special": "boss",
+      "special": "God",
       "allow_biomes": false,
       "allow_landmarks": true,
       "allow_entities": true
@@ -6203,7 +6203,7 @@
       "role": "center_core",
       "region": "mid_core",
       "spawn": false,
-      "special": "boss",
+      "special": "God",
       "allow_biomes": false,
       "allow_landmarks": true,
       "allow_entities": true
@@ -6491,7 +6491,7 @@
       "role": "center_core",
       "region": "mid_core",
       "spawn": false,
-      "special": null,
+      "special": "Guardian",
       "allow_biomes": false,
       "allow_landmarks": true,
       "allow_entities": true
