@@ -769,6 +769,14 @@ def bestiary():
         df = df.applymap(fmt_cell)  # pandas < 3
     raw_creatures = df.to_dict(orient="records")
 
+    def split_conditions(value):
+        if value is None:
+            return []
+        text = str(value).strip()
+        if not text:
+            return []
+        return [part.strip() for part in re.split(r"[;,\n]+", text) if part and part.strip()]
+
     # Excel headers for resistances
     resistance_fields = [
         "Light R", "Dark R", "Fire R", "Frost R",
@@ -817,6 +825,7 @@ def bestiary():
             })
 
         row["resistances"] = res_list
+        row["conditions_list"] = split_conditions(row.get("Conditions", ""))
         formatted_creatures.append(row)
 
     return render_template(

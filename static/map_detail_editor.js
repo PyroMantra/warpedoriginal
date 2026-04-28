@@ -47,7 +47,10 @@
   const MAX_HEX_W = 82;
   const currentEditorName = (window.CURRENT_USER_NAME || 'Anonymous').trim() || 'Anonymous';
   const VISION_EXPORT_SCALE = 2.8;
-  const VISION_EXPORT_ASPECT_SQUASH = 0.94;
+  const VISION_EXPORT_ASPECT_SQUASH = 0.9;
+  const MIN_EDITOR_ZOOM = 0.65;
+  const MAX_EDITOR_ZOOM = 2.2;
+  const EDITOR_ZOOM_STEP = 0.12;
   const OWNER_COLORS = [
     { key: '', label: 'Unowned', color: '' },
     { key: 'yellow', label: 'Yellow', color: '#facc15' },
@@ -68,9 +71,89 @@
   let socket = null;
   let activeUnitKey = null;
   let activeUnitKind = null;
+  let editorZoom = 1;
+  let editorPanX = 0;
+  let editorPanY = 0;
+  let panState = null;
+  let suppressNextMapClick = false;
 
   function key(row, col) { return `${row}:${col}`; }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function applyEditorViewportTransform() {
+    if (!shellEl) return;
+    shellEl.style.setProperty('--detail-zoom', String(editorZoom));
+    shellEl.style.setProperty('--detail-pan-x', `${editorPanX}px`);
+    shellEl.style.setProperty('--detail-pan-y', `${editorPanY}px`);
+  }
+
+  function setEditorZoomOriginFromEvent(event) {
+    if (!shellEl || !event) return;
+    const rect = shellEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const xPct = clamp(((event.clientX - rect.left) / rect.width) * 100, 0, 100);
+    const yPct = clamp(((event.clientY - rect.top) / rect.height) * 100, 0, 100);
+    shellEl.style.setProperty('--detail-zoom-origin-x', `${xPct}%`);
+    shellEl.style.setProperty('--detail-zoom-origin-y', `${yPct}%`);
+  }
+
+  function handleEditorZoom(event) {
+    if (!event.ctrlKey || !shellEl || !shellEl.contains(event.target)) return;
+    event.preventDefault();
+    setEditorZoomOriginFromEvent(event);
+    const direction = event.deltaY < 0 ? 1 : -1;
+    const nextZoom = clamp(editorZoom + direction * EDITOR_ZOOM_STEP, MIN_EDITOR_ZOOM, MAX_EDITOR_ZOOM);
+    if (nextZoom === editorZoom) return;
+    editorZoom = Math.round(nextZoom * 100) / 100;
+    applyEditorViewportTransform();
+  }
+
+  function beginEditorPan(event) {
+    if (!shellEl || !event.altKey || event.button !== 0) return;
+    panState = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startPanX: editorPanX,
+      startPanY: editorPanY,
+      moved: false,
+    };
+    suppressNextMapClick = false;
+    shellEl.classList.add('is-panning');
+    shellEl.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  }
+
+  function updateEditorPan(event) {
+    if (!shellEl || !panState || event.pointerId !== panState.pointerId) return;
+    const deltaX = event.clientX - panState.startClientX;
+    const deltaY = event.clientY - panState.startClientY;
+    if (!panState.moved && (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3)) {
+      panState.moved = true;
+      suppressNextMapClick = true;
+    }
+    editorPanX = panState.startPanX + deltaX;
+    editorPanY = panState.startPanY + deltaY;
+    applyEditorViewportTransform();
+    event.preventDefault();
+  }
+
+  function endEditorPan(event) {
+    if (!shellEl || !panState) return;
+    if (event && event.pointerId != null && event.pointerId !== panState.pointerId) return;
+    shellEl.classList.remove('is-panning');
+    if (panState.pointerId != null) {
+      shellEl.releasePointerCapture?.(panState.pointerId);
+    }
+    panState = null;
+  }
+
+  function swallowPanClick(event) {
+    if (!suppressNextMapClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextMapClick = false;
+  }
 
   function roomPayload() {
     return {
@@ -159,7 +242,7 @@
         overlayCountInput.value = cell.overlay_count || 0;
         guardedInput.checked = !!cell.guarded;
         const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
-        guardedInput.disabled = !isGuardedEligible(cell.overlay_kind, asset);
+        guardedInput.disabled = !canUseGuardedMarker(cell, cell.overlay_kind, asset);
         summaryEl.textContent = selectedKeys.size > 1
           ? `${selectedKeys.size} hexes selected · anchor Row ${cell.row}, Col ${cell.col} · ${cell.role}${cell.region ? ` · ${cell.region}` : ''}`
           : `Row ${cell.row}, Col ${cell.col} · ${cell.role}${cell.region ? ` · ${cell.region}` : ''}`;
@@ -250,6 +333,16 @@
     return false;
   }
 
+  function isForestCell(cell) {
+    return textureTag(cell).includes('type=forest');
+  }
+
+  function canUseGuardedMarker(cell, kind = null, asset = null, unitKind = null) {
+    if (isGuardedEligible(kind, asset)) return true;
+    if (unitKind === 'hero') return hasHero(cell);
+    return hasHero(cell);
+  }
+
   function isBoatOverlayCell(cell) {
     if (!cell || cell.overlay_kind !== 'landmark') return false;
     const nameKey = String(cell.overlay_name_key || '').trim().toLowerCase();
@@ -291,6 +384,14 @@
   function addonUrl(cell) {
     if (!cell.guarded) return '';
     return '/static/mapgen/addons/Guarded.png';
+  }
+
+  function heroGuardedAddonUrl(cell) {
+    return cell.guarded && hasHero(cell) ? addonUrl(cell) : '';
+  }
+
+  function overlayGuardedAddonUrl(cell) {
+    return cell.guarded && !hasHero(cell) ? addonUrl(cell) : '';
   }
 
   function isBoatAssetSrc(src) {
@@ -387,7 +488,7 @@
         renderOverlayAssetOptions(type);
         overlayAssetSelect.value = asset.file_name;
         const selectedAsset = overlayAssetByFile(type, asset.file_name);
-        guardedInput.disabled = !isGuardedEligible(type, selectedAsset);
+        guardedInput.disabled = !canUseGuardedMarker(state.cellsByKey[selectedKey], type, selectedAsset);
         if (guardedInput.disabled) guardedInput.checked = false;
         if (type !== 'entity' && overlayOwnerColorSelect) overlayOwnerColorSelect.value = '';
       }
@@ -622,7 +723,7 @@
         overlayCountInput.value = cell.overlay_count || 0;
         guardedInput.checked = !!cell.guarded;
         const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
-        guardedInput.disabled = !isGuardedEligible(cell.overlay_kind, asset);
+        guardedInput.disabled = !canUseGuardedMarker(cell, cell.overlay_kind, asset);
         summaryEl.textContent = selectedKeys.size > 1
           ? `${selectedKeys.size} hexes selected · anchor Row ${cell.row}, Col ${cell.col} · ${cell.role}${cell.region ? ` · ${cell.region}` : ''}`
           : `Row ${cell.row}, Col ${cell.col} · ${cell.role}${cell.region ? ` · ${cell.region}` : ''}`;
@@ -674,7 +775,7 @@
     const kind = overlayKindSelect.value || null;
     const asset = overlayAssetByFile(kind, overlayAssetSelect.value);
     const count = kind ? Math.max(1, Math.min(99, parseInt(overlayCountInput.value || '1', 10) || 1)) : 0;
-    const guarded = kind ? (guardedInput.checked && isGuardedEligible(kind, asset)) : false;
+    const guarded = !!(guardedInput.checked && canUseGuardedMarker(selectedCell, kind, asset, selectedUnitKind));
     const ownerColor = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
     const selectedIsBoat = isBoatOverlayCell(selectedCell);
     const draftIsBoat = kind === 'landmark' && String(asset?.name_key || '').trim().toLowerCase() === 'boat';
@@ -809,7 +910,11 @@
 
   function isVisionBlockingCell(cell) {
     const tag = textureTag(cell);
-    return tag.includes('type=forest') || tag.includes('mountain');
+    return isForestCell(cell) || tag.includes('mountain');
+  }
+
+  function shouldHideHeroFromCapture(cell) {
+    return hasHero(cell) && isForestCell(cell);
   }
 
   function isVisibleToHero(originCell, targetCell, radius, unitKind = null) {
@@ -1016,7 +1121,8 @@
       const overlaySrc = overlayUrl(target);
       const overlayOwnedColor = ownerColorValue(target.overlay_owner_color);
       const ownedBoat = isBoatOverlayCell(target) && overlayOwnedColor;
-      const heroSrc = heroUrl(target);
+      const heroHiddenInForest = shouldHideHeroFromCapture(target);
+      const heroSrc = heroHiddenInForest ? '' : heroUrl(target);
       const heroOwnedColor = ownerColorValue(target.hero_owner_color);
       const addonSrc = addonUrl(target);
 
@@ -1043,7 +1149,7 @@
           if (ownedBoat) {
             ctx.drawImage(overlayImg, x + metrics.hexW * 0.12, y + metrics.hexH * 0.12, metrics.hexW * 0.76, metrics.hexH * 0.76);
           } else if (target.overlay_kind === 'entity') {
-            ctx.drawImage(overlayImg, x + metrics.hexW * 0.19, y + metrics.hexH * 0.19, metrics.hexW * 0.62, metrics.hexH * 0.62);
+            ctx.drawImage(overlayImg, x + metrics.hexW * 0.16, y + metrics.hexH * 0.16, metrics.hexW * 0.68, metrics.hexH * 0.68);
           } else {
             ctx.drawImage(overlayImg, x - metrics.hexW * 0.01, y - metrics.hexH * 0.01, metrics.hexW * 1.02, metrics.hexH * 1.02);
           }
@@ -1052,10 +1158,10 @@
       if (visibleToHero && heroSrc) {
         const heroImg = await loadOwnedTokenImage(heroSrc, heroOwnedColor);
         if (heroImg) {
-          ctx.drawImage(heroImg, x + metrics.hexW * 0.19, y + metrics.hexH * 0.19, metrics.hexW * 0.62, metrics.hexH * 0.62);
+          ctx.drawImage(heroImg, x + metrics.hexW * 0.16, y + metrics.hexH * 0.16, metrics.hexW * 0.68, metrics.hexH * 0.68);
         }
       }
-      if (visibleToHero && (target.hero_count || 0) > 1) {
+      if (visibleToHero && !heroHiddenInForest && (target.hero_count || 0) > 1) {
         ctx.fillStyle = 'rgba(17,24,39,0.92)';
         const badgeW = Math.max(30, metrics.hexW * 0.19);
         const badgeH = Math.max(18, metrics.hexH * 0.11);
@@ -1080,7 +1186,7 @@
         ctx.textBaseline = 'middle';
         ctx.fillText(String(target.hero_count), badgeX + badgeW / 2, badgeY + badgeH / 2 + 0.5);
       }
-      if (visibleToHero && addonSrc) {
+      if (visibleToHero && addonSrc && !(heroHiddenInForest && !target.overlay_file_name)) {
         const addonImg = await loadImage(addonSrc);
         if (addonImg) {
           const inset = metrics.hexW * 0.26;
@@ -1202,7 +1308,8 @@
           el.style.backgroundImage = `url("${textureUrl(cell)}")`;
         }
         const overlaySrc = overlayUrl(cell);
-        const addonSrc = addonUrl(cell);
+        const addonSrc = overlayGuardedAddonUrl(cell);
+        const heroAddonSrc = heroGuardedAddonUrl(cell);
         const heroSrc = heroUrl(cell);
         const overlayOwnerColor = ownerColorValue(cell?.overlay_owner_color);
         const heroOwnerColor = ownerColorValue(cell?.hero_owner_color);
@@ -1214,6 +1321,7 @@
           ${cell?.overlay_count > 1 ? `<div class="detail-count-badge">${cell.overlay_count}</div>` : ''}
           ${addonSrc ? `<div class="detail-addon"><img src="${addonSrc}" alt=""></div>` : ''}
           ${heroSrc ? `<div class="detail-hero" draggable="true" data-unit-kind="hero" data-unit-key="${key(row, col)}"><img src="${heroSrc}" alt="${cell.hero_label || 'Hero'}" ${heroOwnerColor ? `data-owned-src="${heroSrc}" data-owner-color="${heroOwnerColor}"` : ''}></div>` : ''}
+          ${heroAddonSrc ? `<div class="detail-addon detail-hero-addon"><img src="${heroAddonSrc}" alt=""></div>` : ''}
           ${cell?.hero_count > 1 ? `<div class="detail-count-badge detail-hero-count-badge">${cell.hero_count}</div>` : ''}
         `;
         el.title = `Row ${row}, Col ${col} | Role: ${cell?.role || 'empty'}${cell?.texture_file_name ? ` | Texture: ${cell.texture_file_name}` : ''}${cell?.overlay_label ? ` | Overlay: ${cell.overlay_label}${cell.overlay_count > 1 ? ` x${cell.overlay_count}` : ''}${cell?.overlay_owner_color ? ` | Owner: ${cell.overlay_owner_color}` : ''}` : ''}${cell?.hero_label ? ` | Hero: ${cell.hero_label}${cell.hero_count > 1 ? ` x${cell.hero_count}` : ''}${cell?.hero_owner_color ? ` | Owner: ${cell.hero_owner_color}` : ''}` : ''}`;
@@ -1322,13 +1430,16 @@
               clearOverlayFields(targetCell);
             }
             if (payload.unit_kind === 'hero') {
+              const carriedGuarded = !!sourceCell.guarded;
               targetCell.hero_file_name = payload.file_name || sourceCell.hero_file_name;
               targetCell.hero_name_key = payload.name_key || sourceCell.hero_name_key;
               targetCell.hero_label = payload.label || sourceCell.hero_label;
               targetCell.hero_count = Math.max(1, Number(payload.count || sourceCell.hero_count || 1));
               targetCell.hero_owner_color = payload.owner_color || sourceCell.hero_owner_color || null;
               targetCell.hero_pathfinder = !!(payload.pathfinder ?? sourceCell.hero_pathfinder);
+              targetCell.guarded = carriedGuarded;
               clearHeroFields(sourceCell);
+              sourceCell.guarded = false;
             } else {
               targetCell.overlay_kind = sourceCell.overlay_kind || 'entity';
               targetCell.overlay_file_name = payload.file_name || sourceCell.overlay_file_name;
@@ -1362,12 +1473,12 @@
               targetCell.hero_count = 1;
               targetCell.hero_owner_color = String(overlayOwnerColorSelect?.value || '').trim().toLowerCase() || null;
               targetCell.hero_pathfinder = false;
-              guardedInput.disabled = true;
-              guardedInput.checked = false;
+              guardedInput.disabled = !canUseGuardedMarker(targetCell, null, null, 'hero');
+              guardedInput.checked = !!targetCell.guarded;
               emitCellPatch([targetCell]);
               handledDirectly = true;
             } else {
-              guardedInput.disabled = !isGuardedEligible(payload.type, droppedAsset);
+              guardedInput.disabled = !canUseGuardedMarker(state.cellsByKey[key(row, col)], payload.type, droppedAsset);
             }
           }
           if (handledDirectly) {
@@ -1425,7 +1536,7 @@
     overlayCountInput.value = cell.overlay_count || 0;
     guardedInput.checked = !!cell.guarded;
     const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
-    guardedInput.disabled = !isGuardedEligible(cell.overlay_kind, asset);
+    guardedInput.disabled = !canUseGuardedMarker(cell, cell.overlay_kind, asset, activeUnitKind);
     renderInspectorPreview();
     syncPaletteSelection();
     renderGrid();
@@ -1456,7 +1567,7 @@
         draft.overlayKind === 'entity' ||
         (draft.overlayKind === 'landmark' && asset && String(asset.name_key || '').trim().toLowerCase() === 'boat')
       ) ? !!cell.overlay_pathfinder : false;
-      cell.guarded = draft.guarded;
+      cell.guarded = !!(guardedInput.checked && canUseGuardedMarker(cell, draft.overlayKind, asset, focusedKind));
       if (focusedKind === 'hero') {
         cell.hero_owner_color = ownerValue;
       } else if (!focusedKind && hasHero(cell)) {
@@ -1518,7 +1629,7 @@
         overlayCountInput.value = cell.overlay_count || 0;
         guardedInput.checked = !!cell.guarded;
         const asset = overlayAssetByFile(cell.overlay_kind, cell.overlay_file_name);
-        guardedInput.disabled = !isGuardedEligible(cell.overlay_kind, asset);
+        guardedInput.disabled = !canUseGuardedMarker(cell, cell.overlay_kind, asset);
         renderInspectorPreview();
         syncPaletteSelection();
       }
@@ -1591,15 +1702,18 @@
 
   overlayKindSelect?.addEventListener('change', () => {
     renderOverlayAssetOptions(overlayKindSelect.value);
-    guardedInput.checked = false;
-    guardedInput.disabled = true;
+    const selectedCell = selectedKey ? state.cellsByKey[selectedKey] : null;
+    const asset = overlayAssetByFile(overlayKindSelect.value, overlayAssetSelect.value);
+    guardedInput.disabled = !canUseGuardedMarker(selectedCell, overlayKindSelect.value, asset, activeUnitKind);
+    guardedInput.checked = guardedInput.disabled ? false : !!selectedCell?.guarded;
     if (overlayKindSelect.value !== 'entity' && overlayOwnerColorSelect) overlayOwnerColorSelect.value = '';
     applySelectionSilent();
   });
 
   overlayAssetSelect?.addEventListener('change', () => {
     const asset = overlayAssetByFile(overlayKindSelect.value, overlayAssetSelect.value);
-    guardedInput.disabled = !isGuardedEligible(overlayKindSelect.value, asset);
+    const selectedCell = selectedKey ? state.cellsByKey[selectedKey] : null;
+    guardedInput.disabled = !canUseGuardedMarker(selectedCell, overlayKindSelect.value, asset, activeUnitKind);
     if (guardedInput.disabled) guardedInput.checked = false;
     applySelectionSilent();
   });
@@ -1644,6 +1758,7 @@
   renderTexturePalette();
   renderOverlayPalette();
   renderInspectorPreview();
+  applyEditorViewportTransform();
   renderGrid();
   renderEditors([]);
 
@@ -1672,6 +1787,18 @@
       socket.emit('detail_map_leave', { map_name: state.name, seed: state.seed });
     }
     window.clearInterval(presenceTimer);
+  });
+
+  shellEl?.addEventListener('wheel', handleEditorZoom, { passive: false });
+  shellEl?.addEventListener('pointerdown', beginEditorPan);
+  shellEl?.addEventListener('pointermove', updateEditorPan);
+  shellEl?.addEventListener('pointerup', endEditorPan);
+  shellEl?.addEventListener('pointercancel', endEditorPan);
+  shellEl?.addEventListener('lostpointercapture', endEditorPan);
+  shellEl?.addEventListener('click', swallowPanClick, true);
+  shellEl?.addEventListener('dragstart', (event) => {
+    if (!panState) return;
+    event.preventDefault();
   });
 
   heroVisionButtons.forEach((btn) => {

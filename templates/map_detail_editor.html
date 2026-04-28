@@ -8,6 +8,20 @@
     --hex-gap-x: 4px;
     --hex-overlap: 12px;
     --hex-row-offset: 31px;
+    --detail-zoom: 1;
+    --detail-zoom-origin-x: 50%;
+    --detail-zoom-origin-y: 0%;
+    --detail-pan-x: 0px;
+    --detail-pan-y: 0px;
+    position: relative;
+    transform: translate3d(var(--detail-pan-x), var(--detail-pan-y), 0) scale(var(--detail-zoom));
+    transform-origin: var(--detail-zoom-origin-x) var(--detail-zoom-origin-y);
+    transition: transform 140ms ease-out;
+    will-change: transform;
+  }
+  .detail-editor-shell.is-panning {
+    transition: none;
+    cursor: grabbing;
   }
   .detail-grid { width: 100%; min-width: 0; }
   .detail-row { display: flex; column-gap: var(--hex-gap-x); margin-bottom: calc(var(--hex-overlap) * -1); }
@@ -63,11 +77,11 @@
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
   }
   .detail-overlay.entity {
-    inset: 8.5%;
+    inset: 6.5%;
   }
   .detail-overlay.entity img {
     object-fit: contain;
-    transform: scale(0.84) translateY(1%);
+    transform: scale(0.9) translateY(1%);
   }
   .detail-overlay.boat {
     inset: 1%;
@@ -99,9 +113,16 @@
     transform: translateY(-24%);
     filter: drop-shadow(0 4px 8px rgba(0,0,0,.35));
   }
+  .detail-hero-addon {
+    z-index: 7;
+  }
+  .detail-hero-addon img {
+    transform: translateY(-28%);
+    filter: drop-shadow(0 6px 10px rgba(0,0,0,.42));
+  }
   .detail-hero {
     position: absolute;
-    inset: 8.5%;
+    inset: 6.5%;
     z-index: 6;
     display: flex;
     align-items: center;
@@ -115,7 +136,7 @@
     display: block;
     object-fit: contain;
     object-position: center center;
-    transform: scale(0.84) translateY(1%);
+    transform: scale(0.9) translateY(1%);
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
     pointer-events: none;
   }
@@ -228,11 +249,11 @@
     filter: drop-shadow(0 6px 10px rgba(0,0,0,.45));
   }
   .detail-preview-overlay.entity {
-    inset: 8.5%;
+    inset: 6.5%;
   }
   .detail-preview-overlay.entity img {
     object-fit: contain;
-    transform: scale(0.84) translateY(1%);
+    transform: scale(0.9) translateY(1%);
   }
   .detail-preview-overlay.boat {
     inset: 1%;

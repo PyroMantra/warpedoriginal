@@ -26,7 +26,7 @@
     {% set name = c["Character name"] %}
     <article
       class="card rounded-xl border border-white/10 shadow-md p-4 bg-black/30 creature-card"
-      data-search="{{ name }} {{ c.get('Location','') }} {{ c.get('Kin','') }} {{ c.get('Creature Type','') }} {{ c.get('Level','') }} {{ c.get('Guardians','') }}"
+      data-search="{{ name }} {{ c.get('Location','') }} {{ c.get('Kin','') }} {{ c.get('Creature Type','') }} {{ c.get('Level','') }} {{ c.get('Guardians','') }} {{ c.get('Conditions','') }}"
     >
       <!-- Header -->
       <header class="flex items-start justify-between gap-3 mb-3">
@@ -49,6 +49,18 @@
           {% endif %}
         </div>
       </header>
+
+      {% if c.conditions_list %}
+      <section class="mb-3">
+        <div class="flex flex-wrap gap-1.5">
+          {% for condition in c.conditions_list %}
+          <span class="px-2.5 py-1 rounded-full border border-amber-400/35 bg-amber-500/10 text-[0.7rem] font-semibold tracking-wide text-amber-200">
+            {{ condition }}
+          </span>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
       <!-- Main stats -->
       <section class="grid grid-cols-4 gap-2 text-sm mb-3">
