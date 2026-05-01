@@ -40,6 +40,9 @@
   let isPainting = false;
   let editorMode = 'paint';
   let inspectorDirty = new Set();
+  let dirty = false;
+  let autosaveTimer = null;
+  let saveInFlight = null;
   let dims = {
     hexW: 56,
     hexH: 64,
@@ -94,6 +97,12 @@
     }, 1800);
   }
 
+  function markDirty() {
+    dirty = true;
+    clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { void save(true); }, 1200);
+  }
+
   function buildMapIndex() {
     state.cellsByKey = {};
     state.cells.forEach(c => {
@@ -130,6 +139,7 @@
       cell.special = defaults.special;
     }
     updateHexVisual(cell);
+    markDirty();
     if (selectedKeys.has(key(cell.row, cell.col))) fillInspectorFromSelection();
   }
 
@@ -324,6 +334,7 @@
     });
 
     fillInspectorFromSelection();
+    markDirty();
     showToast(cells.length === 1 ? 'Hex updated' : `${cells.length} hexes updated`);
   }
 
@@ -337,19 +348,25 @@
     };
   }
 
-  async function save() {
+  async function save(isAutosave = false) {
+    if (!state || !dirty && isAutosave) return;
+    if (saveInFlight) return saveInFlight;
     try {
-      const res = await fetch(`/api/map-skeletons/${encodeURIComponent(state.name)}/save`, {
+      saveInFlight = fetch(`/api/map-skeletons/${encodeURIComponent(state.name)}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload()),
       });
+      const res = await saveInFlight;
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
-      showToast('Map saved');
+      dirty = false;
+      if (!isAutosave) showToast('Map saved');
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Save failed', false);
+    } finally {
+      saveInFlight = null;
     }
   }
 
@@ -367,6 +384,7 @@
   }
 
   [
+    [descEl, 'description', 'input'],
     [regionEl, 'region', 'input'],
     [specialEl, 'special', 'input'],
     [spawnEl, 'spawn', 'change'],
@@ -377,6 +395,7 @@
     el?.addEventListener(evt, () => {
       inspectorDirty.add(name);
       if ('indeterminate' in el) el.indeterminate = false;
+      if (el === descEl) markDirty();
     });
   });
 
@@ -386,6 +405,11 @@
   modeSelectBtn?.addEventListener('click', () => setMode('select'));
   window.addEventListener('mouseup', () => { isPainting = false; });
   window.addEventListener('resize', () => { if (state) renderGrid(); });
+  window.addEventListener('beforeunload', (e) => {
+    if (!dirty) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 
   load().catch(err => {
     console.error(err);

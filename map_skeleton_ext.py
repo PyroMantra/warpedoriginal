@@ -4,6 +4,7 @@ import json
 import os
 import random
 import re
+import sqlite3
 import time
 from collections import defaultdict
 from datetime import datetime
@@ -2006,6 +2007,7 @@ def init_map_skeletons(app, socketio=None):
     detail_dir = _detail_map_dir(app)
     legacy_data_dir = _legacy_skeleton_dir(app)
     legacy_detail_dir = _legacy_detail_map_dir(app)
+    db_path = app.config.get("AUTH_DB_PATH") or os.getenv("AUTH_DB_PATH") or str(Path(app.root_path) / "data" / "auth.db")
     _admin_required = getattr(app, "admin_required", _login_required_local)
     detail_room_states: Dict[str, Dict[str, Any]] = {}
     detail_room_presence: Dict[str, Dict[str, Dict[str, Any]]] = {}
@@ -2018,6 +2020,41 @@ def init_map_skeletons(app, socketio=None):
             redis_client.ping()
         except Exception:
             redis_client = None
+
+    def _db_conn():
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def _ensure_map_tables() -> None:
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS map_skeletons (
+                    name TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS map_detail_edits (
+                    skeleton_name TEXT NOT NULL,
+                    seed INTEGER NOT NULL,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (skeleton_name, seed)
+                )
+                """
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    _ensure_map_tables()
 
     def _detail_room_name(skeleton_name: str, seed: int) -> str:
         return f"detail:{_safe_name(skeleton_name)}:{int(seed)}"
@@ -2064,19 +2101,108 @@ def init_map_skeletons(app, socketio=None):
         with path.open("r", encoding="utf-8") as f:
             return json.load(f)
 
+    def _load_skeleton_from_db(name: str) -> Dict[str, Any] | None:
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT payload FROM map_skeletons WHERE name = ?", (_safe_name(name),))
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return None
+        try:
+            return _normalize_payload(json.loads(row["payload"]), _safe_name(name))
+        except Exception:
+            return None
+
+    def _save_skeleton_to_db(payload: Dict[str, Any], name_hint: str) -> Dict[str, Any]:
+        normalized = _normalize_payload(payload, name_hint)
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                INSERT INTO map_skeletons (name, payload, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    payload = excluded.payload,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    normalized["name"],
+                    json.dumps(normalized),
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return normalized
+
+    def _load_detail_from_db(skeleton_name: str, seed: int) -> Dict[str, Any] | None:
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT payload FROM map_detail_edits WHERE skeleton_name = ? AND seed = ?",
+                (_safe_name(skeleton_name), int(seed)),
+            )
+            row = cur.fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return None
+        try:
+            return _normalize_detail_map_payload(json.loads(row["payload"]), skeleton_name, seed)
+        except Exception:
+            return None
+
+    def _save_detail_to_db(payload: Dict[str, Any], skeleton_name: str, seed: int) -> Dict[str, Any]:
+        normalized = _normalize_detail_map_payload(payload, skeleton_name, seed)
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                INSERT INTO map_detail_edits (skeleton_name, seed, payload, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(skeleton_name, seed) DO UPDATE SET
+                    payload = excluded.payload,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    normalized["name"],
+                    int(normalized["seed"]),
+                    json.dumps(normalized),
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return normalized
+
     def _load(name: str) -> Dict[str, Any]:
+        from_db = _load_skeleton_from_db(name)
+        if from_db is not None:
+            return from_db
         p = _path_for(name)
         if p.exists():
             payload = _read_json(p)
-            return _normalize_payload(payload, _safe_name(name))
+            normalized = _normalize_payload(payload, _safe_name(name))
+            _save_skeleton_to_db(normalized, normalized["name"])
+            return normalized
         legacy = _legacy_path_for(name)
         if not legacy.exists():
             raise FileNotFoundError(name)
         payload = _read_json(legacy)
-        return _normalize_payload(payload, _safe_name(name))
+        normalized = _normalize_payload(payload, _safe_name(name))
+        _save_skeleton_to_db(normalized, normalized["name"])
+        return normalized
 
     def _save(payload: Dict[str, Any], name_hint: str) -> Path:
-        normalized = _normalize_payload(payload, name_hint)
+        normalized = _save_skeleton_to_db(payload, name_hint)
         p = _path_for(normalized["name"])
         tmp = p.with_suffix(".json.tmp")
         with tmp.open("w", encoding="utf-8") as f:
@@ -2091,7 +2217,7 @@ def init_map_skeletons(app, socketio=None):
         return legacy_detail_dir / _detail_map_file_name(skeleton_name, seed)
 
     def _save_detail_map(payload: Dict[str, Any], skeleton_name: str, seed: int) -> Path:
-        normalized = _normalize_detail_map_payload(payload, skeleton_name, seed)
+        normalized = _save_detail_to_db(payload, skeleton_name, seed)
         p = _detail_path_for(normalized["name"], normalized["seed"])
         tmp = p.with_suffix(".json.tmp")
         with tmp.open("w", encoding="utf-8") as f:
@@ -2100,20 +2226,38 @@ def init_map_skeletons(app, socketio=None):
         return p
 
     def _load_detail_map(skeleton_name: str, seed: int) -> Dict[str, Any]:
+        from_db = _load_detail_from_db(skeleton_name, seed)
+        if from_db is not None:
+            return from_db
         p = _detail_path_for(skeleton_name, seed)
         if p.exists():
             payload = _read_json(p)
-            return _normalize_detail_map_payload(payload, skeleton_name, seed)
+            normalized = _normalize_detail_map_payload(payload, skeleton_name, seed)
+            _save_detail_to_db(normalized, skeleton_name, seed)
+            return normalized
         legacy = _legacy_detail_path_for(skeleton_name, seed)
         if not legacy.exists():
             raise FileNotFoundError(p.name)
         payload = _read_json(legacy)
-        return _normalize_detail_map_payload(payload, skeleton_name, seed)
+        normalized = _normalize_detail_map_payload(payload, skeleton_name, seed)
+        _save_detail_to_db(normalized, skeleton_name, seed)
+        return normalized
 
     def _delete_detail_map(skeleton_name: str, seed: int) -> None:
         p = _detail_path_for(skeleton_name, seed)
         legacy = _legacy_detail_path_for(skeleton_name, seed)
         deleted = False
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "DELETE FROM map_detail_edits WHERE skeleton_name = ? AND seed = ?",
+                (_safe_name(skeleton_name), int(seed)),
+            )
+            deleted = cur.rowcount > 0
+            conn.commit()
+        finally:
+            conn.close()
         if p.exists():
             p.unlink()
             deleted = True
@@ -2125,6 +2269,24 @@ def init_map_skeletons(app, socketio=None):
 
     def _list_skeleton_maps() -> list[Dict[str, Any]]:
         items: Dict[str, Dict[str, Any]] = {}
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT name, payload FROM map_skeletons ORDER BY name")
+            db_rows = cur.fetchall()
+        finally:
+            conn.close()
+        for row in db_rows:
+            try:
+                payload = _normalize_payload(json.loads(row["payload"]), row["name"])
+                items[payload["name"]] = {
+                    "name": payload["name"],
+                    "width": payload["width"],
+                    "height": payload["height"],
+                    "description": payload.get("description", ""),
+                }
+            except Exception:
+                continue
         seen_paths: set[str] = set()
         for folder in (data_dir, legacy_data_dir):
             if not folder.exists():
@@ -2136,6 +2298,7 @@ def init_map_skeletons(app, socketio=None):
                 seen_paths.add(path_key)
                 try:
                     payload = _normalize_payload(_read_json(p), p.stem)
+                    _save_skeleton_to_db(payload, payload["name"])
                     items[payload["name"]] = {
                         "name": payload["name"],
                         "width": payload["width"],
@@ -2152,6 +2315,30 @@ def init_map_skeletons(app, socketio=None):
     def _list_detail_maps(skeleton_name: str) -> list[Dict[str, Any]]:
         prefix = f"{_safe_name(skeleton_name)}__seed_"
         items_by_seed: Dict[int, Dict[str, Any]] = {}
+        conn = _db_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT seed, payload, updated_at FROM map_detail_edits WHERE skeleton_name = ? ORDER BY seed DESC",
+                (_safe_name(skeleton_name),),
+            )
+            db_rows = cur.fetchall()
+        finally:
+            conn.close()
+        for row in db_rows:
+            try:
+                payload = json.loads(row["payload"])
+            except Exception:
+                payload = {}
+            items_by_seed[int(row["seed"])] = {
+                "seed": int(row["seed"]),
+                "save_label": str(payload.get("save_label") or "")[:120],
+                "file_name": _detail_map_file_name(skeleton_name, int(row["seed"])),
+                "updated_at": datetime.fromisoformat(row["updated_at"]) if row["updated_at"] else datetime.utcnow(),
+                "description": str(payload.get("description") or "")[:160],
+                "width": int(payload.get("width") or 0),
+                "height": int(payload.get("height") or 0),
+            }
         for folder in (detail_dir, legacy_detail_dir):
             if not folder.exists():
                 continue
@@ -2166,6 +2353,7 @@ def init_map_skeletons(app, socketio=None):
                 payload: Dict[str, Any] = {}
                 try:
                     payload = _read_json(p)
+                    _save_detail_to_db(payload, skeleton_name, seed_value)
                 except Exception:
                     payload = {}
                 items_by_seed[seed_value] = {
@@ -2573,7 +2761,9 @@ def init_map_skeletons(app, socketio=None):
     def map_skeleton_download(name: str):
         from flask import send_file
 
-        p = _path_for(name)
-        if not p.exists():
+        try:
+            payload = _load(name)
+            p = _save(payload, name)
+        except FileNotFoundError:
             return redirect(url_for("map_skeletons_home"))
         return send_file(p, as_attachment=True, download_name=p.name, mimetype="application/json")

@@ -110,6 +110,7 @@ def _default_auth_db_path() -> str:
 
 DEFAULT_DB_PATH = _default_auth_db_path()
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
+app.config["AUTH_DB_PATH"] = DB_PATH
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
