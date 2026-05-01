@@ -1575,15 +1575,43 @@ def _safe_name(name: str) -> str:
 
 
 def _skeleton_dir(app) -> Path:
-    p = Path(app.root_path) / "data" / "map_skeletons"
+    p = _map_storage_root(app) / "map_skeletons"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
 def _detail_map_dir(app) -> Path:
-    p = Path(app.root_path) / "data" / "map_detail_edits"
+    p = _map_storage_root(app) / "map_detail_edits"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def _legacy_skeleton_dir(app) -> Path:
+    return Path(app.root_path) / "data" / "map_skeletons"
+
+
+def _legacy_detail_map_dir(app) -> Path:
+    return Path(app.root_path) / "data" / "map_detail_edits"
+
+
+def _map_storage_root(app) -> Path:
+    configured = (
+        os.getenv("MAPGEN_DATA_ROOT")
+        or os.getenv("PERSISTENT_DATA_DIR")
+        or os.getenv("DATA_DIR")
+        or ""
+    ).strip()
+    if configured:
+        root = Path(configured)
+    else:
+        # Common mounted-volume path on Linux hosts. Falls back to repo-local data for local dev.
+        linux_volume = Path("/data")
+        if os.name != "nt" and linux_volume.exists() and linux_volume.is_dir():
+            root = linux_volume / "perfection"
+        else:
+            root = Path(app.root_path) / "data"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
 
 
 def _blank_skeleton(name: str, width: int, height: int) -> Dict[str, Any]:
@@ -1969,6 +1997,8 @@ def _normalize_detail_map_cell(raw: Dict[str, Any], width: int, height: int) -> 
 def init_map_skeletons(app, socketio=None):
     data_dir = _skeleton_dir(app)
     detail_dir = _detail_map_dir(app)
+    legacy_data_dir = _legacy_skeleton_dir(app)
+    legacy_detail_dir = _legacy_detail_map_dir(app)
     _admin_required = getattr(app, "admin_required", _login_required_local)
     detail_room_states: Dict[str, Dict[str, Any]] = {}
     detail_room_presence: Dict[str, Dict[str, Dict[str, Any]]] = {}
@@ -2020,12 +2050,22 @@ def init_map_skeletons(app, socketio=None):
     def _path_for(name: str) -> Path:
         return data_dir / f"{_safe_name(name)}.json"
 
+    def _legacy_path_for(name: str) -> Path:
+        return legacy_data_dir / f"{_safe_name(name)}.json"
+
+    def _read_json(path: Path) -> Dict[str, Any]:
+        with path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+
     def _load(name: str) -> Dict[str, Any]:
         p = _path_for(name)
-        if not p.exists():
+        if p.exists():
+            payload = _read_json(p)
+            return _normalize_payload(payload, _safe_name(name))
+        legacy = _legacy_path_for(name)
+        if not legacy.exists():
             raise FileNotFoundError(name)
-        with p.open("r", encoding="utf-8") as f:
-            payload = json.load(f)
+        payload = _read_json(legacy)
         return _normalize_payload(payload, _safe_name(name))
 
     def _save(payload: Dict[str, Any], name_hint: str) -> Path:
@@ -2040,6 +2080,9 @@ def init_map_skeletons(app, socketio=None):
     def _detail_path_for(skeleton_name: str, seed: int) -> Path:
         return detail_dir / _detail_map_file_name(skeleton_name, seed)
 
+    def _legacy_detail_path_for(skeleton_name: str, seed: int) -> Path:
+        return legacy_detail_dir / _detail_map_file_name(skeleton_name, seed)
+
     def _save_detail_map(payload: Dict[str, Any], skeleton_name: str, seed: int) -> Path:
         normalized = _normalize_detail_map_payload(payload, skeleton_name, seed)
         p = _detail_path_for(normalized["name"], normalized["seed"])
@@ -2051,35 +2094,74 @@ def init_map_skeletons(app, socketio=None):
 
     def _load_detail_map(skeleton_name: str, seed: int) -> Dict[str, Any]:
         p = _detail_path_for(skeleton_name, seed)
-        if not p.exists():
+        if p.exists():
+            payload = _read_json(p)
+            return _normalize_detail_map_payload(payload, skeleton_name, seed)
+        legacy = _legacy_detail_path_for(skeleton_name, seed)
+        if not legacy.exists():
             raise FileNotFoundError(p.name)
-        with p.open("r", encoding="utf-8") as f:
-            payload = json.load(f)
+        payload = _read_json(legacy)
         return _normalize_detail_map_payload(payload, skeleton_name, seed)
 
     def _delete_detail_map(skeleton_name: str, seed: int) -> None:
         p = _detail_path_for(skeleton_name, seed)
-        if not p.exists():
+        legacy = _legacy_detail_path_for(skeleton_name, seed)
+        deleted = False
+        if p.exists():
+            p.unlink()
+            deleted = True
+        if legacy.exists() and legacy != p:
+            legacy.unlink()
+            deleted = True
+        if not deleted:
             raise FileNotFoundError(p.name)
-        p.unlink()
+
+    def _list_skeleton_maps() -> list[Dict[str, Any]]:
+        items: Dict[str, Dict[str, Any]] = {}
+        seen_paths: set[str] = set()
+        for folder in (data_dir, legacy_data_dir):
+            if not folder.exists():
+                continue
+            for p in sorted(folder.glob("*.json")):
+                path_key = str(p.resolve())
+                if path_key in seen_paths:
+                    continue
+                seen_paths.add(path_key)
+                try:
+                    payload = _normalize_payload(_read_json(p), p.stem)
+                    items[payload["name"]] = {
+                        "name": payload["name"],
+                        "width": payload["width"],
+                        "height": payload["height"],
+                        "description": payload.get("description", ""),
+                    }
+                except Exception:
+                    items.setdefault(
+                        p.stem,
+                        {"name": p.stem, "width": "?", "height": "?", "description": "Unreadable JSON"},
+                    )
+        return sorted(items.values(), key=lambda item: str(item.get("name") or "").lower())
 
     def _list_detail_maps(skeleton_name: str) -> list[Dict[str, Any]]:
         prefix = f"{_safe_name(skeleton_name)}__seed_"
-        items: list[Dict[str, Any]] = []
-        for p in sorted(detail_dir.glob(f"{prefix}*.json"), reverse=True):
-            seed_part = p.stem.removeprefix(prefix)
-            try:
-                seed_value = int(seed_part)
-            except ValueError:
+        items_by_seed: Dict[int, Dict[str, Any]] = {}
+        for folder in (detail_dir, legacy_detail_dir):
+            if not folder.exists():
                 continue
-            payload: Dict[str, Any] = {}
-            try:
-                with p.open("r", encoding="utf-8") as f:
-                    payload = json.load(f)
-            except Exception:
-                payload = {}
-            items.append(
-                {
+            for p in sorted(folder.glob(f"{prefix}*.json"), reverse=True):
+                seed_part = p.stem.removeprefix(prefix)
+                try:
+                    seed_value = int(seed_part)
+                except ValueError:
+                    continue
+                if seed_value in items_by_seed:
+                    continue
+                payload: Dict[str, Any] = {}
+                try:
+                    payload = _read_json(p)
+                except Exception:
+                    payload = {}
+                items_by_seed[seed_value] = {
                     "seed": seed_value,
                     "save_label": str(payload.get("save_label") or "")[:120],
                     "file_name": p.name,
@@ -2088,8 +2170,7 @@ def init_map_skeletons(app, socketio=None):
                     "width": int(payload.get("width") or 0),
                     "height": int(payload.get("height") or 0),
                 }
-            )
-        return items
+        return sorted(items_by_seed.values(), key=lambda item: int(item["seed"]), reverse=True)
 
     def _load_detail_state_from_store(skeleton_name: str, seed: int) -> Dict[str, Any] | None:
         if redis_client is None:
@@ -2229,21 +2310,7 @@ def init_map_skeletons(app, socketio=None):
             _save(skeleton, name)
             return redirect(url_for("map_skeletons_editor", name=name))
 
-        maps = []
-        for p in sorted(data_dir.glob("*.json")):
-            try:
-                with p.open("r", encoding="utf-8") as f:
-                    payload = json.load(f)
-                maps.append(
-                    {
-                        "name": payload.get("name") or p.stem,
-                        "width": payload.get("width", "?"),
-                        "height": payload.get("height", "?"),
-                        "description": payload.get("description", ""),
-                    }
-                )
-            except Exception:
-                maps.append({"name": p.stem, "width": "?", "height": "?", "description": "Unreadable JSON"})
+        maps = _list_skeleton_maps()
         return render_template("map_skeletons_index.html", maps=maps)
 
     @app.route("/map-skeletons/<name>")
