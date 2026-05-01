@@ -54,6 +54,9 @@ def init_admin(app, get_db):
 
     _ensure_user_control_columns()
 
+    def _safe_redirect(message: str):
+        return redirect(url_for("admin_panel", msg=message))
+
     # ---------- Current email helpers ----------
     def _email_from_session() -> str:
         for key in ("email", "user_email"):
@@ -135,13 +138,25 @@ def init_admin(app, get_db):
     @admin_required
     def admin_panel():
         """Manage users. Supplies user.is_admin for your existing template."""
+        _ensure_user_control_columns()
         conn = get_db()
         cur = conn.cursor()
-        cur.execute(
-            "SELECT id, email, username, created_at, COALESCE(is_admin,0) as is_admin, COALESCE(is_banned,0) as is_banned "
-            "FROM users ORDER BY id"
-        )
-        rows = cur.fetchall()
+        try:
+            cur.execute(
+                "SELECT id, email, username, created_at, COALESCE(is_admin,0) as is_admin, COALESCE(is_banned,0) as is_banned "
+                "FROM users ORDER BY id"
+            )
+            rows = cur.fetchall()
+        except Exception:
+            conn.close()
+            return render_template(
+                "admin_panel.html",
+                users=[],
+                baseline_emails=sorted(BASELINE_EMAIL_ADMINS),
+                baseline_ids=sorted(list(BASELINE_ID_ADMINS)),
+                message="",
+                error="Could not load user list right now.",
+            )
         conn.close()
 
         users = []
@@ -189,6 +204,7 @@ def init_admin(app, get_db):
           - a baseline admin (hardcoded/env),
           - the last remaining effective admin (baseline + db).
         """
+        _ensure_user_control_columns()
         make = 1 if (request.form.get("make") == "1") else 0
 
         conn = get_db()
@@ -197,8 +213,7 @@ def init_admin(app, get_db):
             cur.execute("SELECT email, COALESCE(is_admin,0) FROM users WHERE id=?", (user_id,))
             row = cur.fetchone()
             if not row:
-                conn.close()
-                return redirect(url_for("admin_panel", msg="User not found."))
+                return _safe_redirect("User not found.")
 
             target_email = (row[0] or "").strip().lower()
             target_db_admin = bool(row[1])
@@ -206,8 +221,7 @@ def init_admin(app, get_db):
 
             # Can't demote baseline admin via UI
             if make == 0 and target_baseline:
-                conn.close()
-                return redirect(url_for("admin_panel", msg="Baseline admins cannot be removed here."))
+                return _safe_redirect("Baseline admins cannot be removed here.")
 
             # Prevent removing the last effective admin
             if make == 0:
@@ -217,20 +231,22 @@ def init_admin(app, get_db):
                 if target_db_admin:
                     db_count -= 1
                 if (baseline_count + db_count) <= 0:
-                    conn.close()
-                    return redirect(url_for("admin_panel", msg="Cannot remove the last remaining admin."))
+                    return _safe_redirect("Cannot remove the last remaining admin.")
 
             # Toggle DB flag
             cur.execute("UPDATE users SET is_admin=? WHERE id=?", (make, user_id))
             conn.commit()
+        except Exception:
+            return _safe_redirect("Admin update failed. Please try again.")
         finally:
             conn.close()
 
-        return redirect(url_for("admin_panel", msg="Updated."))
+        return _safe_redirect("Updated.")
 
     @app.route("/admin/ban/<int:user_id>", methods=["POST"])
     @admin_required
     def admin_ban(user_id):
+        _ensure_user_control_columns()
         make = 1 if (request.form.get("make") == "1") else 0
         current_user_id = session.get("user_id")
 
@@ -243,7 +259,7 @@ def init_admin(app, get_db):
             )
             row = cur.fetchone()
             if not row:
-                return redirect(url_for("admin_panel", msg="User not found."))
+                return _safe_redirect("User not found.")
 
             target_email = (row[0] or "").strip().lower()
             target_db_admin = bool(row[1])
@@ -251,10 +267,10 @@ def init_admin(app, get_db):
             target_baseline = (target_email in BASELINE_EMAIL_ADMINS) or (user_id in BASELINE_ID_ADMINS)
 
             if user_id == current_user_id:
-                return redirect(url_for("admin_panel", msg="You cannot ban your own account."))
+                return _safe_redirect("You cannot ban your own account.")
 
             if make == 1 and target_baseline:
-                return redirect(url_for("admin_panel", msg="Baseline admins cannot be banned here."))
+                return _safe_redirect("Baseline admins cannot be banned here.")
 
             if make == 1 and target_db_admin:
                 baseline_count = len(BASELINE_EMAIL_ADMINS) + len(BASELINE_ID_ADMINS)
@@ -263,16 +279,18 @@ def init_admin(app, get_db):
                 if target_db_admin:
                     db_admin_count -= 1
                 if (baseline_count + db_admin_count) <= 0:
-                    return redirect(url_for("admin_panel", msg="Cannot ban the last remaining admin."))
+                    return _safe_redirect("Cannot ban the last remaining admin.")
 
             if target_banned == bool(make):
-                return redirect(url_for("admin_panel", msg="No change needed."))
+                return _safe_redirect("No change needed.")
 
             cur.execute("UPDATE users SET is_banned=? WHERE id=?", (make, user_id))
             conn.commit()
+        except Exception:
+            return _safe_redirect("Account update failed. Please try again.")
         finally:
             conn.close()
 
-        return redirect(url_for("admin_panel", msg="Account updated."))
+        return _safe_redirect("Account updated.")
 
     return app

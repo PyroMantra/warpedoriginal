@@ -87,7 +87,28 @@ print(f"[socketio] message_queue={'enabled' if SOCKETIO_MESSAGE_QUEUE else 'disa
 
 # ---------------------------------------------------------------------------
 # Auth DB
-DEFAULT_DB_PATH = os.path.join("data", "auth.db")  # local default is fine
+def _default_auth_db_path() -> str:
+    explicit_root = (os.getenv("MAPGEN_DATA_ROOT") or "").strip()
+    if explicit_root:
+        return os.path.join(explicit_root, "auth.db")
+
+    configured_base = (
+        os.getenv("PERSISTENT_DATA_DIR")
+        or os.getenv("DATA_DIR")
+        or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+        or ""
+    ).strip()
+    if configured_base:
+        return os.path.join(configured_base, "perfection", "auth.db")
+
+    railway_volume = "/app/var"
+    if os.name != "nt" and os.path.isdir(railway_volume):
+        return os.path.join(railway_volume, "perfection", "auth.db")
+
+    return os.path.join("data", "auth.db")  # local default is fine
+
+
+DEFAULT_DB_PATH = _default_auth_db_path()
 DB_PATH = os.getenv("AUTH_DB_PATH", DEFAULT_DB_PATH)
 
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
@@ -112,6 +133,12 @@ def init_auth_db():
         )
         """
     )
+    cur.execute("PRAGMA table_info(users)")
+    cols = [r[1] for r in cur.fetchall()]
+    if "is_admin" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+    if "is_banned" not in cols:
+        cur.execute("ALTER TABLE users ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -299,9 +326,9 @@ def hydrate_username_in_session():
             u = cur.fetchone()
             conn.close()
             if u:
-                if u.get("username"):
+                if u["username"]:
                     session["username"] = u["username"]
-                if u.get("email") and not session.get("email"):
+                if u["email"] and not session.get("email"):
                     session["email"] = u["email"]
             else:
                 session.clear()

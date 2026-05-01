@@ -1595,21 +1595,28 @@ def _legacy_detail_map_dir(app) -> Path:
 
 
 def _map_storage_root(app) -> Path:
-    configured = (
-        os.getenv("MAPGEN_DATA_ROOT")
-        or os.getenv("PERSISTENT_DATA_DIR")
-        or os.getenv("DATA_DIR")
-        or ""
-    ).strip()
-    if configured:
-        root = Path(configured)
+    explicit_root = (os.getenv("MAPGEN_DATA_ROOT") or "").strip()
+    if explicit_root:
+        root = Path(explicit_root)
     else:
-        # Common mounted-volume path on Linux hosts. Falls back to repo-local data for local dev.
-        linux_volume = Path("/data")
-        if os.name != "nt" and linux_volume.exists() and linux_volume.is_dir():
-            root = linux_volume / "perfection"
+        configured_base = (
+            os.getenv("PERSISTENT_DATA_DIR")
+            or os.getenv("DATA_DIR")
+            or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+            or ""
+        ).strip()
+        if configured_base:
+            root = Path(configured_base) / "perfection"
         else:
-            root = Path(app.root_path) / "data"
+        # Common mounted-volume paths on Linux hosts. Falls back to repo-local data for local dev.
+            railway_volume = Path("/app/var")
+            linux_volume = Path("/data")
+            if os.name != "nt" and railway_volume.exists() and railway_volume.is_dir():
+                root = railway_volume / "perfection"
+            elif os.name != "nt" and linux_volume.exists() and linux_volume.is_dir():
+                root = linux_volume / "perfection"
+            else:
+                root = Path(app.root_path) / "data"
     root.mkdir(parents=True, exist_ok=True)
     return root
 
