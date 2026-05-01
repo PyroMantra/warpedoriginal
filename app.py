@@ -2,7 +2,7 @@ import os
 import re
 import random
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps, lru_cache
 from collections import defaultdict, deque
 
@@ -31,6 +31,9 @@ app.config.setdefault("SECRET_KEY", os.environ.get("SECRET_KEY", "change-this"))
 app.config.update(
     SESSION_COOKIE_SAMESITE="None",
     SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    PERMANENT_SESSION_LIFETIME=timedelta(days=30),
+    SESSION_REFRESH_EACH_REQUEST=True,
     PREFERRED_URL_SCHEME="https",
 )
 
@@ -328,6 +331,14 @@ def login_required(f):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
+
+
+def _start_user_session(user_id, email, username):
+    session.clear()
+    session.permanent = True
+    session["user_id"] = user_id
+    session["email"] = email
+    session["username"] = username
 
 # ------------------------------------------------------------------------------
 # Routes
@@ -1605,9 +1616,7 @@ def register():
         user_id = cur.lastrowid
         conn.close()
 
-        session["user_id"] = user_id
-        session["email"] = email
-        session["username"] = username
+        _start_user_session(user_id, email, username)
         return redirect(url_for("home"))
 
     return render_template("register.html")
@@ -1627,9 +1636,7 @@ def login():
         conn.close()
 
         if u and u["password_hash"] and check_password_hash(u["password_hash"], password):
-            session["user_id"] = u["id"]
-            session["email"] = u["email"]
-            session["username"] = u["username"]
+            _start_user_session(u["id"], u["email"], u["username"])
             return redirect(url_for("home"))
 
     return render_template("login.html")
@@ -1712,9 +1719,7 @@ def google_login_callback():
 
     conn.close()
 
-    session["user_id"] = user_id
-    session["email"] = email
-    session["username"] = username
+    _start_user_session(user_id, email, username)
 
     if not username:
         return redirect(url_for("pick_username"))
