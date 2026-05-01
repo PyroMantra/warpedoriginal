@@ -30,8 +30,8 @@ def init_admin(app, get_db):
     BASELINE_EMAIL_ADMINS = {e.strip().lower() for e in HARDCODED_ADMINS if e.strip()} | ENV_ADMINS
     BASELINE_ID_ADMINS = set(FORCE_ADMIN_USER_IDS)
 
-    # ---------- Ensure users.is_admin exists (safe if users is missing) ----------
-    def _ensure_is_admin_column():
+    # ---------- Ensure admin/user control columns exist ----------
+    def _ensure_user_control_columns():
         conn = get_db()
         cur = conn.cursor()
         try:
@@ -43,14 +43,16 @@ def init_admin(app, get_db):
             cols = [r[1] for r in cur.fetchall()]
             if "is_admin" not in cols:
                 cur.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
-                conn.commit()
+            if "is_banned" not in cols:
+                cur.execute("ALTER TABLE users ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
         except Exception:
             # Never block startup
             pass
         finally:
             conn.close()
 
-    _ensure_is_admin_column()
+    _ensure_user_control_columns()
 
     # ---------- Current email helpers ----------
     def _email_from_session() -> str:
@@ -136,7 +138,7 @@ def init_admin(app, get_db):
         conn = get_db()
         cur = conn.cursor()
         cur.execute(
-            "SELECT id, email, username, created_at, COALESCE(is_admin,0) as is_admin "
+            "SELECT id, email, username, created_at, COALESCE(is_admin,0) as is_admin, COALESCE(is_banned,0) as is_banned "
             "FROM users ORDER BY id"
         )
         rows = cur.fetchall()
@@ -150,6 +152,7 @@ def init_admin(app, get_db):
 
             baseline = (email_lc in BASELINE_EMAIL_ADMINS) or (uid in BASELINE_ID_ADMINS)
             db_admin = bool(r[4])
+            is_banned = bool(r[5])
             effective = baseline or db_admin
 
             users.append({
@@ -165,6 +168,8 @@ def init_admin(app, get_db):
                 "is_admin_db": db_admin,
                 "is_admin_baseline": baseline,
                 "is_admin_effective": effective,
+                "is_banned": is_banned,
+                "can_ban": not baseline and uid != session.get("user_id"),
             })
 
         return render_template(
@@ -222,5 +227,52 @@ def init_admin(app, get_db):
             conn.close()
 
         return redirect(url_for("admin_panel", msg="Updated."))
+
+    @app.route("/admin/ban/<int:user_id>", methods=["POST"])
+    @admin_required
+    def admin_ban(user_id):
+        make = 1 if (request.form.get("make") == "1") else 0
+        current_user_id = session.get("user_id")
+
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT email, COALESCE(is_admin,0), COALESCE(is_banned,0) FROM users WHERE id=?",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return redirect(url_for("admin_panel", msg="User not found."))
+
+            target_email = (row[0] or "").strip().lower()
+            target_db_admin = bool(row[1])
+            target_banned = bool(row[2])
+            target_baseline = (target_email in BASELINE_EMAIL_ADMINS) or (user_id in BASELINE_ID_ADMINS)
+
+            if user_id == current_user_id:
+                return redirect(url_for("admin_panel", msg="You cannot ban your own account."))
+
+            if make == 1 and target_baseline:
+                return redirect(url_for("admin_panel", msg="Baseline admins cannot be banned here."))
+
+            if make == 1 and target_db_admin:
+                baseline_count = len(BASELINE_EMAIL_ADMINS) + len(BASELINE_ID_ADMINS)
+                cur.execute("SELECT COUNT(*) FROM users WHERE is_admin=1 AND COALESCE(is_banned,0)=0")
+                db_admin_count = (cur.fetchone()[0] or 0)
+                if target_db_admin:
+                    db_admin_count -= 1
+                if (baseline_count + db_admin_count) <= 0:
+                    return redirect(url_for("admin_panel", msg="Cannot ban the last remaining admin."))
+
+            if target_banned == bool(make):
+                return redirect(url_for("admin_panel", msg="No change needed."))
+
+            cur.execute("UPDATE users SET is_banned=? WHERE id=?", (make, user_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+        return redirect(url_for("admin_panel", msg="Account updated."))
 
     return app

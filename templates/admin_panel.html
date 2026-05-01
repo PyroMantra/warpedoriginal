@@ -13,8 +13,10 @@
     .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid #444;background:#2a2a2a;font-size:.85rem}
     .ok{background:#244c2a;border-color:#3c7a42}
     .no{background:#4c2424;border-color:#7a3c3c}
-    .row-actions{display:flex;gap:8px;align-items:center}
+    .row-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .warn{background:#5a241f;border-color:#8a3d33}
+    .muted{color:#bcbcbc;font-size:.9rem}
   </style>
 </head>
 <body>
@@ -28,7 +30,7 @@
   <table>
     <thead>
       <tr>
-        <th>ID</th><th>Email</th><th>Username</th><th>Created</th><th>Admin</th><th style="width:220px">Actions</th>
+        <th>ID</th><th>Email</th><th>Username</th><th>Created</th><th>Status</th><th style="width:320px">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -38,15 +40,36 @@
         <td>{{ u.email or '—' }}</td>
         <td>{{ u.username or '—' }}</td>
         <td>{{ u.created_at or '—' }}</td>
-        <td>{% if u.is_admin %}<span class="pill ok">admin</span>{% else %}<span class="pill no">user</span>{% endif %}</td>
         <td>
-          <form class="row-actions" method="post" action="{{ url_for('admin_toggle', user_id=u.id) }}" onsubmit="return confirm('Are you sure?');">
-            {% if u.is_admin %}
-              <button type="submit" name="make" value="0">Remove admin</button>
+          {% if u.is_banned %}
+            <span class="pill no">banned</span>
+          {% elif u.is_admin %}
+            <span class="pill ok">admin</span>
+          {% else %}
+            <span class="pill no">user</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="row-actions">
+            <form method="post" action="{{ url_for('admin_toggle', user_id=u.id) }}" onsubmit="return confirm('Are you sure?');">
+              {% if u.is_admin %}
+                <button type="submit" name="make" value="0">Remove admin</button>
+              {% else %}
+                <button type="submit" name="make" value="1">Make admin</button>
+              {% endif %}
+            </form>
+            {% if u.can_ban %}
+              <form method="post" action="{{ url_for('admin_ban', user_id=u.id) }}" onsubmit="return confirm('{% if u.is_banned %}Restore{% else %}Ban{% endif %} this account?');">
+                {% if u.is_banned %}
+                  <button type="submit" name="make" value="0">Unban account</button>
+                {% else %}
+                  <button class="warn" type="submit" name="make" value="1">Ban account</button>
+                {% endif %}
+              </form>
             {% else %}
-              <button type="submit" name="make" value="1">Make admin</button>
+              <span class="muted">Protected account</span>
             {% endif %}
-          </form>
+          </div>
         </td>
       </tr>
       {% endfor %}

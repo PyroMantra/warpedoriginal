@@ -303,8 +303,29 @@ def hydrate_username_in_session():
                     session["username"] = u["username"]
                 if u.get("email") and not session.get("email"):
                     session["email"] = u["email"]
+            else:
+                session.clear()
     except Exception:
         # best-effort; never block request
+        pass
+
+
+@app.before_request
+def enforce_active_user_session():
+    try:
+        uid = session.get("user_id")
+        if not uid:
+            return
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT COALESCE(is_banned,0) FROM users WHERE id = ?", (uid,))
+        row = cur.fetchone()
+        conn.close()
+        if (not row) or bool(row[0]):
+            session.clear()
+            if request.endpoint not in {"login", "register", "login_google", "auth_google_callback", "static"}:
+                return redirect(url_for("login"))
+    except Exception:
         pass
 
 @app.context_processor
@@ -1601,10 +1622,12 @@ def register():
 
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("SELECT 1 FROM users WHERE email = ? OR username = ?", (email, username))
+        cur.execute("SELECT COALESCE(is_banned,0) FROM users WHERE email = ? OR username = ?", (email, username))
         exists = cur.fetchone()
         if exists:
             conn.close()
+            if bool(exists[0]):
+                return render_template("register.html", error="This account has been disabled.")
             return render_template("register.html", error="Email or username already exists.")
 
         pw_hash = generate_password_hash(password)
@@ -1634,6 +1657,9 @@ def login():
         cur.execute("SELECT * FROM users WHERE email = ?", (email,))
         u = cur.fetchone()
         conn.close()
+
+        if u and bool(u["is_banned"]):
+            return render_template("login.html", error="This account has been disabled.")
 
         if u and u["password_hash"] and check_password_hash(u["password_hash"], password):
             _start_user_session(u["id"], u["email"], u["username"])
@@ -1703,6 +1729,9 @@ def google_login_callback():
     u = cur.fetchone()
 
     if u:
+        if bool(u["is_banned"]):
+            conn.close()
+            return redirect(url_for("login"))
         if not u["google_id"]:
             cur.execute("UPDATE users SET google_id = ? WHERE id = ?", (sub, u["id"]))
             conn.commit()
