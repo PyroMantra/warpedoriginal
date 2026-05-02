@@ -2221,10 +2221,13 @@ def init_map_skeletons(app, socketio=None):
     def _save(payload: Dict[str, Any], name_hint: str) -> Path:
         normalized = _save_skeleton_to_db(payload, name_hint)
         p = _path_for(normalized["name"])
-        tmp = p.with_suffix(".json.tmp")
-        with tmp.open("w", encoding="utf-8") as f:
-            json.dump(normalized, f, indent=2)
-        tmp.replace(p)
+        try:
+            tmp = p.with_suffix(".json.tmp")
+            with tmp.open("w", encoding="utf-8") as f:
+                json.dump(normalized, f, indent=2)
+            tmp.replace(p)
+        except Exception:
+            pass
         return p
 
     def _detail_path_for(skeleton_name: str, seed: int) -> Path:
@@ -2236,10 +2239,13 @@ def init_map_skeletons(app, socketio=None):
     def _save_detail_map(payload: Dict[str, Any], skeleton_name: str, seed: int) -> Path:
         normalized = _save_detail_to_db(payload, skeleton_name, seed)
         p = _detail_path_for(normalized["name"], normalized["seed"])
-        tmp = p.with_suffix(".json.tmp")
-        with tmp.open("w", encoding="utf-8") as f:
-            json.dump(normalized, f, indent=2)
-        tmp.replace(p)
+        try:
+            tmp = p.with_suffix(".json.tmp")
+            with tmp.open("w", encoding="utf-8") as f:
+                json.dump(normalized, f, indent=2)
+            tmp.replace(p)
+        except Exception:
+            pass
         return p
 
     def _load_detail_map(skeleton_name: str, seed: int) -> Dict[str, Any]:
