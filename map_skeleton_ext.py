@@ -2153,20 +2153,32 @@ def init_map_skeletons(app, socketio=None):
         conn = _db_conn()
         cur = conn.cursor()
         try:
+            payload_json = json.dumps(normalized)
+            updated_at = datetime.utcnow().isoformat()
             cur.execute(
                 """
-                INSERT INTO map_skeletons (name, payload, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(name) DO UPDATE SET
-                    payload = excluded.payload,
-                    updated_at = excluded.updated_at
+                UPDATE map_skeletons
+                SET payload = ?, updated_at = ?
+                WHERE name = ?
                 """,
                 (
+                    payload_json,
+                    updated_at,
                     normalized["name"],
-                    json.dumps(normalized),
-                    datetime.utcnow().isoformat(),
                 ),
             )
+            if cur.rowcount == 0:
+                cur.execute(
+                    """
+                    INSERT INTO map_skeletons (name, payload, updated_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (
+                        normalized["name"],
+                        payload_json,
+                        updated_at,
+                    ),
+                )
             conn.commit()
         finally:
             conn.close()
@@ -2195,21 +2207,34 @@ def init_map_skeletons(app, socketio=None):
         conn = _db_conn()
         cur = conn.cursor()
         try:
+            payload_json = json.dumps(normalized)
+            updated_at = datetime.utcnow().isoformat()
             cur.execute(
                 """
-                INSERT INTO map_detail_edits (skeleton_name, seed, payload, updated_at)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(skeleton_name, seed) DO UPDATE SET
-                    payload = excluded.payload,
-                    updated_at = excluded.updated_at
+                UPDATE map_detail_edits
+                SET payload = ?, updated_at = ?
+                WHERE skeleton_name = ? AND seed = ?
                 """,
                 (
+                    payload_json,
+                    updated_at,
                     normalized["name"],
                     int(normalized["seed"]),
-                    json.dumps(normalized),
-                    datetime.utcnow().isoformat(),
                 ),
             )
+            if cur.rowcount == 0:
+                cur.execute(
+                    """
+                    INSERT INTO map_detail_edits (skeleton_name, seed, payload, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        normalized["name"],
+                        int(normalized["seed"]),
+                        payload_json,
+                        updated_at,
+                    ),
+                )
             conn.commit()
         finally:
             conn.close()
