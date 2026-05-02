@@ -2081,6 +2081,13 @@ def init_map_skeletons(app, socketio=None):
         resp.headers["Expires"] = "0"
         return resp
 
+    def _html_no_store(html):
+        resp = make_response(html)
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
+
     def _detail_room_name(skeleton_name: str, seed: int) -> str:
         return f"detail:{_safe_name(skeleton_name)}:{int(seed)}"
 
@@ -2548,13 +2555,15 @@ def init_map_skeletons(app, socketio=None):
         except FileNotFoundError:
             payload = _blank_skeleton(safe_name, 25, 25)
             _save(payload, safe_name)
-        return render_template(
-            "map_skeleton_editor.html",
-            map_name=payload["name"],
-            map_width=payload["width"],
-            map_height=payload["height"],
-            role_colors=ROLE_COLORS,
-            role_defaults=ROLE_DEFAULTS,
+        return _html_no_store(
+            render_template(
+                "map_skeleton_editor.html",
+                map_name=payload["name"],
+                map_width=payload["width"],
+                map_height=payload["height"],
+                role_colors=ROLE_COLORS,
+                role_defaults=ROLE_DEFAULTS,
+            )
         )
 
     @app.route("/map-skeletons/<name>/preview")
