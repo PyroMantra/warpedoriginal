@@ -245,6 +245,17 @@ def _load_addon_assets() -> Dict[str, Dict[str, Any]]:
     return assets
 
 
+def _find_empty_hex_texture(textures: List[Dict[str, Any]]) -> Dict[str, Any] | None:
+    for asset in textures:
+        biome = str(asset.get("biome") or "").strip().lower()
+        variant = str(asset.get("variant") or "").strip().lower()
+        label = str(asset.get("label") or "").strip().lower()
+        file_name = str(asset.get("file_name") or "").strip().lower()
+        if biome == "neutral" and (variant == "empty" or "hex=empty" in label or "hex=empty" in file_name):
+            return asset
+    return None
+
+
 def _pick_matching_by_hints(values: List[str], hints: tuple[str, ...]) -> List[str]:
     matched = [v for v in values if any(h in v.lower() for h in hints)]
     return matched or values
@@ -1278,6 +1289,7 @@ def _build_preview_map(payload: Dict[str, Any], seed: int) -> Dict[str, Any]:
     landmarks = _load_landmark_assets()
     entities = _load_entity_assets()
     addons = _load_addon_assets()
+    empty_hex_texture = _find_empty_hex_texture(textures)
 
     texture_biomes = sorted(
         {
@@ -1499,7 +1511,12 @@ def _build_preview_map(payload: Dict[str, Any], seed: int) -> Dict[str, Any]:
                     "spawn": False,
                     "special": None,
                 }
+            role_name = str(cell.get("role") or "empty").strip().lower()
+            emitted_active = bool(cell.get("active"))
             texture = cell.get("_final_texture") or texture_overrides.get((row, col))
+            if role_name == "empty":
+                emitted_active = True
+                texture = texture or empty_hex_texture
             if texture is None:
                 texture = _pick_texture_for_cell(cell, cell_lookup, region_biomes, textures, biome_variant_plan, rng)
             overlay = overlay_by_key.get((row, col))
@@ -1524,7 +1541,7 @@ def _build_preview_map(payload: Dict[str, Any], seed: int) -> Dict[str, Any]:
                 {
                     "row": row,
                     "col": col,
-                    "active": bool(cell.get("active")),
+                    "active": emitted_active,
                     "role": cell.get("role") or "empty",
                     "region": cell.get("region") or "",
                     "spawn": bool(cell.get("spawn")),

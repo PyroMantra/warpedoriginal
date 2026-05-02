@@ -4,9 +4,9 @@
 <style>
   .map-preview-shell {
     --hex-w: 58px;
-    --hex-h: 66px;
+    --hex-h: 66.97px;
     --hex-gap-x: 4px;
-    --hex-overlap: 12px;
+    --hex-overlap: 13.28px;
     --hex-row-offset: 31px;
     --overlay-fit-scale: 145%;
   }
@@ -17,7 +17,7 @@
     width: var(--hex-w);
     min-width: var(--hex-w);
     height: var(--hex-h);
-    clip-path: polygon(50% 1.5%, 95% 25%, 95% 75%, 50% 98.5%, 5% 75%, 5% 25%);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     border: 1.5px solid rgba(22, 22, 26, 0.88);
     box-sizing: border-box;
     background-size: cover;
@@ -223,7 +223,7 @@
       const hexW = clamp(Math.floor(usable / (cols + 0.52)), 34, 82);
       const hexH = Math.round((hexW * 2 / Math.sqrt(3)) * 100) / 100;
       const rowOffset = (hexW + gapX) / 2;
-      const rowStep = hexH * 0.75 + 4;
+      const rowStep = (hexW + gapX) * Math.sqrt(3) / 2;
       const overlap = Math.max(0, hexH - rowStep);
 
       shell.style.setProperty("--hex-w", hexW + "px");

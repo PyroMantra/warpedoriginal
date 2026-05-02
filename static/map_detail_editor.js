@@ -47,7 +47,7 @@
   const MAX_HEX_W = 82;
   const currentEditorName = (window.CURRENT_USER_NAME || 'Anonymous').trim() || 'Anonymous';
   const VISION_EXPORT_SCALE = 2.8;
-  const VISION_EXPORT_ASPECT_SQUASH = 0.9;
+  const VISION_EXPORT_ASPECT_SQUASH = 1;
   const MIN_EDITOR_ZOOM = 0.65;
   const MAX_EDITOR_ZOOM = 2.2;
   const EDITOR_ZOOM_STEP = 0.12;
@@ -405,7 +405,7 @@
     const hexW = clamp(Math.floor(usable / (cols + 0.52)), MIN_HEX_W, MAX_HEX_W);
     const hexH = Math.round((hexW * 2 / Math.sqrt(3)) * 100) / 100;
     const rowOffset = (hexW + GAP_X) / 2;
-    const rowStep = hexH * 0.75 + GAP_Y;
+    const rowStep = (hexW + GAP_X) * Math.sqrt(3) / 2;
     const overlap = Math.max(0, hexH - rowStep);
     shellEl.style.setProperty('--hex-w', `${hexW}px`);
     shellEl.style.setProperty('--hex-h', `${hexH}px`);
@@ -959,12 +959,12 @@
 
   function drawHexPath(ctx, x, y, w, h) {
     ctx.beginPath();
-    ctx.moveTo(x + w * 0.5, y + h * 0.015);
-    ctx.lineTo(x + w * 0.95, y + h * 0.25);
-    ctx.lineTo(x + w * 0.95, y + h * 0.75);
-    ctx.lineTo(x + w * 0.5, y + h * 0.985);
-    ctx.lineTo(x + w * 0.05, y + h * 0.75);
-    ctx.lineTo(x + w * 0.05, y + h * 0.25);
+    ctx.moveTo(x + w * 0.5, y);
+    ctx.lineTo(x + w, y + h * 0.25);
+    ctx.lineTo(x + w, y + h * 0.75);
+    ctx.lineTo(x + w * 0.5, y + h);
+    ctx.lineTo(x, y + h * 0.75);
+    ctx.lineTo(x, y + h * 0.25);
     ctx.closePath();
   }
 
@@ -981,6 +981,36 @@
     });
     imageCache.set(src, promise);
     return promise;
+  }
+
+  function drawImageContain(ctx, img, x, y, w, h, scale = 1, offsetY = 0) {
+    const srcW = img.naturalWidth || img.width || w;
+    const srcH = img.naturalHeight || img.height || h;
+    if (!srcW || !srcH) {
+      ctx.drawImage(img, x, y, w, h);
+      return;
+    }
+    const fit = Math.min(w / srcW, h / srcH) * scale;
+    const drawW = srcW * fit;
+    const drawH = srcH * fit;
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (h - drawH) / 2 + offsetY;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  }
+
+  function drawImageCover(ctx, img, x, y, w, h, scale = 1, offsetY = 0) {
+    const srcW = img.naturalWidth || img.width || w;
+    const srcH = img.naturalHeight || img.height || h;
+    if (!srcW || !srcH) {
+      ctx.drawImage(img, x, y, w, h);
+      return;
+    }
+    const fit = Math.max(w / srcW, h / srcH) * scale;
+    const drawW = srcW * fit;
+    const drawH = srcH * fit;
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (h - drawH) / 2 + offsetY;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
   }
 
   async function loadOwnedTokenImage(src, ownerColor) {
@@ -1147,18 +1177,18 @@
         const overlayImg = await loadOwnedTokenImage(overlaySrc, (target.overlay_kind === 'entity' || ownedBoat) ? overlayOwnedColor : '');
         if (overlayImg) {
           if (ownedBoat) {
-            ctx.drawImage(overlayImg, x + metrics.hexW * 0.12, y + metrics.hexH * 0.12, metrics.hexW * 0.76, metrics.hexH * 0.76);
+            drawImageContain(ctx, overlayImg, x + metrics.hexW * 0.01, y + metrics.hexH * 0.01, metrics.hexW * 0.98, metrics.hexH * 0.98, 1.08, metrics.hexH * 0.01);
           } else if (target.overlay_kind === 'entity') {
-            ctx.drawImage(overlayImg, x + metrics.hexW * 0.16, y + metrics.hexH * 0.16, metrics.hexW * 0.68, metrics.hexH * 0.68);
+            drawImageContain(ctx, overlayImg, x + metrics.hexW * 0.065, y + metrics.hexH * 0.065, metrics.hexW * 0.87, metrics.hexH * 0.87, 0.9, metrics.hexH * 0.01);
           } else {
-            ctx.drawImage(overlayImg, x - metrics.hexW * 0.01, y - metrics.hexH * 0.01, metrics.hexW * 1.02, metrics.hexH * 1.02);
+            drawImageCover(ctx, overlayImg, x - metrics.hexW * 0.005, y - metrics.hexH * 0.005, metrics.hexW * 1.01, metrics.hexH * 1.01);
           }
         }
       }
       if (visibleToHero && heroSrc) {
         const heroImg = await loadOwnedTokenImage(heroSrc, heroOwnedColor);
         if (heroImg) {
-          ctx.drawImage(heroImg, x + metrics.hexW * 0.16, y + metrics.hexH * 0.16, metrics.hexW * 0.68, metrics.hexH * 0.68);
+          drawImageContain(ctx, heroImg, x + metrics.hexW * 0.065, y + metrics.hexH * 0.065, metrics.hexW * 0.87, metrics.hexH * 0.87, 0.9, metrics.hexH * 0.01);
         }
       }
       if (visibleToHero && !heroHiddenInForest && (target.hero_count || 0) > 1) {
@@ -1190,7 +1220,7 @@
         const addonImg = await loadImage(addonSrc);
         if (addonImg) {
           const inset = metrics.hexW * 0.26;
-          ctx.drawImage(addonImg, x + inset, y + inset - metrics.hexH * 0.08, metrics.hexW - inset * 2, metrics.hexH - inset * 2);
+          drawImageContain(ctx, addonImg, x + inset, y + inset, metrics.hexW - inset * 2, metrics.hexH - inset * 2, 1, -metrics.hexH * 0.24);
         }
       }
       if (visibleToHero && (target.overlay_count || 0) > 1) {

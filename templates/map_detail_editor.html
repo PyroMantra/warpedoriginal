@@ -4,9 +4,9 @@
 <style>
   .detail-editor-shell {
     --hex-w: 58px;
-    --hex-h: 66px;
+    --hex-h: 66.97px;
     --hex-gap-x: 4px;
-    --hex-overlap: 12px;
+    --hex-overlap: 13.28px;
     --hex-row-offset: 31px;
     --detail-zoom: 1;
     --detail-zoom-origin-x: 50%;
@@ -30,22 +30,21 @@
     width: var(--hex-w);
     min-width: var(--hex-w);
     height: var(--hex-h);
-    clip-path: polygon(50% 1.5%, 95% 25%, 95% 75%, 50% 98.5%, 5% 75%, 5% 25%);
-    border: 1.5px solid rgba(22, 22, 26, 0.88);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     box-sizing: border-box;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     overflow: hidden;
     cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
   }
   .detail-hex.inactive { opacity: 0.22; background-image: none !important; }
   .detail-hex.selected {
-    border: 3px solid rgba(255, 250, 205, 1);
     box-shadow:
       inset 0 0 0 3px rgba(250, 204, 21, 1),
-      0 0 0 4px rgba(255, 215, 64, 0.72),
-      0 0 0 7px rgba(245, 158, 11, 0.28),
+      0 0 0 3px rgba(255, 215, 64, 0.72),
+      0 0 0 6px rgba(245, 158, 11, 0.28),
       0 0 20px rgba(250, 204, 21, 0.5),
       0 0 34px rgba(249, 115, 22, 0.24);
     z-index: 8;
@@ -219,7 +218,7 @@
     width: 108px;
     height: 120px;
     margin: 0 auto;
-    clip-path: polygon(50% 1.5%, 95% 25%, 95% 75%, 50% 98.5%, 5% 75%, 5% 25%);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

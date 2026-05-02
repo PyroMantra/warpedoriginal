@@ -28,10 +28,9 @@
   const GAP_Y = 4;
   const MIN_HEX_W = 34;
   const MAX_HEX_W = 82;
-  const HEX_BORDER = '1.5px solid rgba(22, 22, 26, 0.88)';
-  const HEX_CLIP = 'polygon(50% 1.5%, 95% 25%, 95% 75%, 50% 98.5%, 5% 75%, 5% 25%)';
-  const HEX_SHADOW_NORMAL = 'inset 0 1px 0 rgba(255,255,255,0.05)';
-  const HEX_SHADOW_SELECTED = 'inset 0 0 0 2px rgba(255,255,255,0.98), inset 0 0 0 6px rgba(59,130,246,0.78), 0 0 0 2px rgba(255,255,255,0.92), 0 0 0 5px rgba(59,130,246,0.45), 0 0 14px rgba(59,130,246,0.42)';
+  const HEX_CLIP = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
+  const HEX_SHADOW_NORMAL = 'inset 0 1px 0 rgba(255,255,255,0.035)';
+  const HEX_SHADOW_SELECTED = 'inset 0 0 0 3px rgba(255,255,255,0.98), 0 0 0 3px rgba(59,130,246,0.78), 0 0 0 6px rgba(59,130,246,0.42), 0 0 14px rgba(59,130,246,0.42)';
 
   let state = null;
   let currentRole = 'outer_area';
@@ -65,7 +64,7 @@
     const hexW = clamp(Math.floor(usable / (cols + 0.52)), MIN_HEX_W, MAX_HEX_W);
     const hexH = Math.round((hexW * 2 / Math.sqrt(3)) * 100) / 100;
     const rowOffset = (hexW + GAP_X) / 2;
-    const rowStep = hexH * 0.75 + GAP_Y;
+    const rowStep = (hexW + GAP_X) * Math.sqrt(3) / 2;
     const rowOverlap = Math.max(0, hexH - rowStep);
     const coordFont = clamp(Math.round(hexW * 0.15), 7, 12);
     const labelFont = clamp(Math.round(hexW * 0.26), 11, 20);
@@ -161,7 +160,6 @@
     el.style.opacity = cell.active ? '1' : '0.28';
     el.querySelector('.hex-label').textContent = hexLabel(cell);
     el.querySelector('.hex-coord').textContent = `${cell.row},${cell.col}`;
-    el.style.border = isSelected ? '2px solid rgba(255,255,255,0.98)' : HEX_BORDER;
     el.style.boxShadow = isSelected ? HEX_SHADOW_SELECTED : HEX_SHADOW_NORMAL;
     el.style.zIndex = isSelected ? '6' : '1';
   }
@@ -218,7 +216,6 @@
         cellEl.style.height = `${dims.hexH}px`;
         cellEl.style.minWidth = `${dims.hexW}px`;
         cellEl.style.clipPath = HEX_CLIP;
-        cellEl.style.border = HEX_BORDER;
         cellEl.style.boxSizing = 'border-box';
         cellEl.style.boxShadow = HEX_SHADOW_NORMAL;
         cellEl.innerHTML = `
