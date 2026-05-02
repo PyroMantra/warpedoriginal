@@ -913,6 +913,23 @@
     return tag.includes('hex=bridge') || tag.includes('hex=platform');
   }
 
+  function isWaterlikeTextureCell(cell) {
+    const tag = textureTag(cell);
+    return tag.includes('hex=water') || tag.includes('hex=maelstrom');
+  }
+
+  function drawTextureForCapture(ctx, cell, img, x, y, w, h) {
+    if (isContainedTextureCell(cell)) {
+      drawImageContain(ctx, img, x + w * 0.04, y + h * 0.04, w * 0.92, h * 0.92, 0.9, 0);
+      return;
+    }
+    if (isWaterlikeTextureCell(cell)) {
+      drawImageCover(ctx, img, x, y, w, h, 0.96, 0);
+      return;
+    }
+    drawImageCover(ctx, img, x, y, w, h, 0.95, 0);
+  }
+
   function isVisionBlockingCell(cell) {
     const tag = textureTag(cell);
     return isForestCell(cell) || tag.includes('mountain');
@@ -1170,11 +1187,7 @@
       } else if (target.active && textureSrc) {
         const textureImg = await loadImage(textureSrc);
         if (textureImg) {
-          if (isContainedTextureCell(target)) {
-            drawImageContain(ctx, textureImg, x, y, metrics.hexW, metrics.hexH, 1, 0);
-          } else {
-            ctx.drawImage(textureImg, x, y, metrics.hexW, metrics.hexH);
-          }
+          drawTextureForCapture(ctx, target, textureImg, x, y, metrics.hexW, metrics.hexH);
         }
       } else {
         ctx.fillStyle = inactiveFill;
