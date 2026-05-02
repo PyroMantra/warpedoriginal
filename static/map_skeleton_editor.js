@@ -16,6 +16,7 @@
   const modeSelectBtn = document.getElementById('mode-select-btn');
   const modeHelpPaint = document.getElementById('mode-help-paint');
   const modeHelpSelect = document.getElementById('mode-help-select');
+  const LOCAL_BACKUP_KEY = `map-skeleton-draft:${mapName}`;
 
   const regionEl = document.getElementById('cell-region');
   const specialEl = document.getElementById('cell-special');
@@ -98,6 +99,7 @@
 
   function markDirty() {
     dirty = true;
+    persistLocalBackup();
     clearTimeout(autosaveTimer);
     autosaveTimer = setTimeout(() => { void save(true); }, 1200);
   }
@@ -345,6 +347,53 @@
     };
   }
 
+  function skeletonSignature(data) {
+    if (!data) return '';
+    return JSON.stringify({
+      name: data.name || '',
+      description: data.description || '',
+      width: Number(data.width || 0),
+      height: Number(data.height || 0),
+      cells: Array.isArray(data.cells) ? data.cells.map(cell => ({
+        row: Number(cell.row || 0),
+        col: Number(cell.col || 0),
+        active: !!cell.active,
+        role: cell.role || 'empty',
+        region: cell.region || '',
+        spawn: !!cell.spawn,
+        special: cell.special || null,
+        allow_biomes: !!cell.allow_biomes,
+        allow_landmarks: !!cell.allow_landmarks,
+        allow_entities: !!cell.allow_entities,
+      })) : [],
+    });
+  }
+
+  function persistLocalBackup() {
+    if (!state) return;
+    try {
+      localStorage.setItem(LOCAL_BACKUP_KEY, JSON.stringify({
+        savedAt: Date.now(),
+        payload: payload(),
+      }));
+    } catch (err) {
+      console.warn('Could not persist skeleton backup', err);
+    }
+  }
+
+  function loadLocalBackup() {
+    try {
+      const raw = localStorage.getItem(LOCAL_BACKUP_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.payload) return null;
+      return parsed;
+    } catch (err) {
+      console.warn('Could not read skeleton backup', err);
+      return null;
+    }
+  }
+
   async function fetchLatestState() {
     const url = `/api/map-skeletons/${encodeURIComponent(mapName)}?_=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
@@ -358,6 +407,7 @@
     if (!state || (!dirty && autosave)) return;
     if (saveInFlight) return saveInFlight;
     try {
+      persistLocalBackup();
       if (saveBtn) {
         saveBtn.disabled = true;
         saveBtn.style.opacity = '0.7';
@@ -375,6 +425,7 @@
       renderGrid();
       renderSelection();
       descEl.value = state.description || '';
+      persistLocalBackup();
       dirty = false;
       if (!autosave) showToast('Map saved');
     } catch (err) {
@@ -390,7 +441,14 @@
   }
 
   async function load() {
-    state = await fetchLatestState();
+    const serverState = await fetchLatestState();
+    const localBackup = loadLocalBackup();
+    if (localBackup && skeletonSignature(localBackup.payload) !== skeletonSignature(serverState)) {
+      state = localBackup.payload;
+      showToast('Recovered local skeleton draft');
+    } else {
+      state = serverState;
+    }
     if (!state.description) state.description = 'Skeleton exported from CSV';
     buildMapIndex();
     renderPalette();
