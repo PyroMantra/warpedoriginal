@@ -908,6 +908,11 @@
     return String(cell?.texture_file_name || '').toLowerCase();
   }
 
+  function isContainedTextureCell(cell) {
+    const tag = textureTag(cell);
+    return tag.includes('hex=bridge') || tag.includes('hex=platform');
+  }
+
   function isVisionBlockingCell(cell) {
     const tag = textureTag(cell);
     return isForestCell(cell) || tag.includes('mountain');
@@ -1165,7 +1170,11 @@
       } else if (target.active && textureSrc) {
         const textureImg = await loadImage(textureSrc);
         if (textureImg) {
-          ctx.drawImage(textureImg, x, y, metrics.hexW, metrics.hexH);
+          if (isContainedTextureCell(target)) {
+            drawImageContain(ctx, textureImg, x, y, metrics.hexW, metrics.hexH, 1, 0);
+          } else {
+            ctx.drawImage(textureImg, x, y, metrics.hexW, metrics.hexH);
+          }
         }
       } else {
         ctx.fillStyle = inactiveFill;
