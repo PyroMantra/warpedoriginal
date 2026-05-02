@@ -345,6 +345,14 @@
     };
   }
 
+  async function fetchLatestState() {
+    const url = `/api/map-skeletons/${encodeURIComponent(mapName)}?_=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load map');
+    return data;
+  }
+
   async function save(isAutosave = false) {
     if (!state || !dirty && isAutosave) return;
     if (saveInFlight) return saveInFlight;
@@ -357,6 +365,11 @@
       const res = await saveInFlight;
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
+      state = await fetchLatestState();
+      buildMapIndex();
+      renderGrid();
+      renderSelection();
+      descEl.value = state.description || '';
       dirty = false;
       if (!isAutosave) showToast('Map saved');
     } catch (err) {
@@ -368,10 +381,7 @@
   }
 
   async function load() {
-    const res = await fetch(`/api/map-skeletons/${encodeURIComponent(mapName)}`);
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to load map');
-    state = data;
+    state = await fetchLatestState();
     if (!state.description) state.description = 'Skeleton exported from CSV';
     buildMapIndex();
     renderPalette();

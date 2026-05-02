@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
-from flask import jsonify, redirect, render_template, request, session, url_for
+from flask import jsonify, make_response, redirect, render_template, request, session, url_for
 from flask_socketio import emit, join_room, leave_room
 
 try:
@@ -2039,8 +2039,9 @@ def init_map_skeletons(app, socketio=None):
             redis_client = None
 
     def _db_conn():
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, timeout=30)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA busy_timeout = 30000")
         return conn
 
     def _ensure_map_tables() -> None:
@@ -2072,6 +2073,13 @@ def init_map_skeletons(app, socketio=None):
             conn.close()
 
     _ensure_map_tables()
+
+    def _json_no_store(payload: Dict[str, Any], status: int = 200):
+        resp = make_response(jsonify(payload), status)
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
 
     def _detail_room_name(skeleton_name: str, seed: int) -> str:
         return f"detail:{_safe_name(skeleton_name)}:{int(seed)}"
@@ -2636,9 +2644,9 @@ def init_map_skeletons(app, socketio=None):
     @_admin_required
     def api_map_skeleton_get(name: str):
         try:
-            return jsonify(_load(name))
+            return _json_no_store(_load(name))
         except FileNotFoundError:
-            return jsonify({"error": "Map not found"}), 404
+            return _json_no_store({"error": "Map not found"}, 404)
 
     @app.route("/api/map-skeletons/<name>/save", methods=["POST"])
     @_admin_required
@@ -2647,8 +2655,8 @@ def init_map_skeletons(app, socketio=None):
         try:
             p = _save(payload, name)
         except Exception as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
-        return jsonify({"ok": True, "name": p.stem, "path": str(p.name)})
+            return _json_no_store({"ok": False, "error": str(e)}, 400)
+        return _json_no_store({"ok": True, "name": p.stem, "path": str(p.name)})
 
     @app.route("/api/map-skeletons/<name>/detail-save", methods=["POST"])
     @_admin_required

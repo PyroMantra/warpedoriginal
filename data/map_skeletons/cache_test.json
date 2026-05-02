@@ -1,0 +1,56 @@
+{
+  "name": "cache_test",
+  "description": "v1",
+  "width": 2,
+  "height": 2,
+  "cells": [
+    {
+      "row": 0,
+      "col": 0,
+      "active": true,
+      "role": "outer_area",
+      "region": "",
+      "spawn": false,
+      "special": null,
+      "allow_biomes": true,
+      "allow_landmarks": true,
+      "allow_entities": true
+    },
+    {
+      "row": 0,
+      "col": 1,
+      "active": true,
+      "role": "outer_area",
+      "region": "",
+      "spawn": false,
+      "special": null,
+      "allow_biomes": true,
+      "allow_landmarks": true,
+      "allow_entities": true
+    },
+    {
+      "row": 1,
+      "col": 0,
+      "active": true,
+      "role": "outer_area",
+      "region": "",
+      "spawn": false,
+      "special": null,
+      "allow_biomes": true,
+      "allow_landmarks": true,
+      "allow_entities": true
+    },
+    {
+      "row": 1,
+      "col": 1,
+      "active": true,
+      "role": "outer_area",
+      "region": "",
+      "spawn": false,
+      "special": null,
+      "allow_biomes": true,
+      "allow_landmarks": true,
+      "allow_entities": true
+    }
+  ]
+}
