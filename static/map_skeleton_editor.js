@@ -354,9 +354,14 @@
   }
 
   async function save(isAutosave = false) {
-    if (!state || !dirty && isAutosave) return;
+    const autosave = isAutosave === true;
+    if (!state || (!dirty && autosave)) return;
     if (saveInFlight) return saveInFlight;
     try {
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.7';
+      }
       saveInFlight = fetch(`/api/map-skeletons/${encodeURIComponent(state.name)}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -371,11 +376,15 @@
       renderSelection();
       descEl.value = state.description || '';
       dirty = false;
-      if (!isAutosave) showToast('Map saved');
+      if (!autosave) showToast('Map saved');
     } catch (err) {
       console.error(err);
       showToast(err.message || 'Save failed', false);
     } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '1';
+      }
       saveInFlight = null;
     }
   }
@@ -407,7 +416,7 @@
   });
 
   applyBtn?.addEventListener('click', applyInspector);
-  saveBtn?.addEventListener('click', save);
+  saveBtn?.addEventListener('click', () => { void save(false); });
   modePaintBtn?.addEventListener('click', () => setMode('paint'));
   modeSelectBtn?.addEventListener('click', () => setMode('select'));
   window.addEventListener('mouseup', () => { isPainting = false; });
