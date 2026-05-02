@@ -908,26 +908,13 @@
     return String(cell?.texture_file_name || '').toLowerCase();
   }
 
-  function isContainedTextureCell(cell) {
-    const tag = textureTag(cell);
-    return tag.includes('hex=bridge') || tag.includes('hex=platform');
-  }
-
-  function isWaterlikeTextureCell(cell) {
-    const tag = textureTag(cell);
-    return tag.includes('hex=water') || tag.includes('hex=maelstrom');
-  }
-
   function drawTextureForCapture(ctx, cell, img, x, y, w, h) {
-    if (isContainedTextureCell(cell)) {
-      drawImageContain(ctx, img, x + w * 0.04, y + h * 0.04, w * 0.92, h * 0.92, 0.9, 0);
+    if (textureNeedsOpaqueCrop(cell, img)) {
+      const bounds = getOpaqueImageBounds(img);
+      drawImageCoverFromSource(ctx, img, bounds, x, y, w, h, 0.985, 0);
       return;
     }
-    if (isWaterlikeTextureCell(cell)) {
-      drawImageCover(ctx, img, x, y, w, h, 0.96, 0);
-      return;
-    }
-    drawImageCover(ctx, img, x, y, w, h, 0.95, 0);
+    drawImageCover(ctx, img, x, y, w, h, 0.985, 0);
   }
 
   function isVisionBlockingCell(cell) {
@@ -991,6 +978,7 @@
   }
 
   const imageCache = new Map();
+  const imageOpaqueBoundsCache = new WeakMap();
   function loadImage(src) {
     if (!src) return Promise.resolve(null);
     if (imageCache.has(src)) return imageCache.get(src);
@@ -1020,6 +1008,68 @@
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
   }
 
+  function getOpaqueImageBounds(img) {
+    if (!img) return null;
+    if (imageOpaqueBoundsCache.has(img)) return imageOpaqueBoundsCache.get(img);
+    const srcW = img.naturalWidth || img.width || 0;
+    const srcH = img.naturalHeight || img.height || 0;
+    if (!srcW || !srcH) {
+      imageOpaqueBoundsCache.set(img, null);
+      return null;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = srcW;
+    canvas.height = srcH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) {
+      imageOpaqueBoundsCache.set(img, null);
+      return null;
+    }
+    ctx.drawImage(img, 0, 0, srcW, srcH);
+    const { data } = ctx.getImageData(0, 0, srcW, srcH);
+    let minX = srcW;
+    let minY = srcH;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < srcH; y++) {
+      for (let x = 0; x < srcW; x++) {
+        const alpha = data[(y * srcW + x) * 4 + 3];
+        if (!alpha) continue;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+    const bounds = maxX < 0
+      ? null
+      : {
+          x: minX,
+          y: minY,
+          width: maxX - minX + 1,
+          height: maxY - minY + 1,
+        };
+    imageOpaqueBoundsCache.set(img, bounds);
+    return bounds;
+  }
+
+  function drawImageCoverFromSource(ctx, img, sourceRect, x, y, w, h, scale = 1, offsetY = 0) {
+    const srcX = sourceRect?.x ?? 0;
+    const srcY = sourceRect?.y ?? 0;
+    const srcW = sourceRect?.width || img.naturalWidth || img.width || w;
+    const srcH = sourceRect?.height || img.naturalHeight || img.height || h;
+    if (!srcW || !srcH) {
+      ctx.drawImage(img, x, y, w, h);
+      return;
+    }
+    const fit = Math.max(w / srcW, h / srcH) * scale;
+    const drawW = srcW * fit;
+    const drawH = srcH * fit;
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (h - drawH) / 2 + offsetY;
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, drawX, drawY, drawW, drawH);
+  }
+
   function drawImageCover(ctx, img, x, y, w, h, scale = 1, offsetY = 0) {
     const srcW = img.naturalWidth || img.width || w;
     const srcH = img.naturalHeight || img.height || h;
@@ -1033,6 +1083,19 @@
     const drawX = x + (w - drawW) / 2;
     const drawY = y + (h - drawH) / 2 + offsetY;
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  }
+
+  function textureNeedsOpaqueCrop(cell, img) {
+    const tag = textureTag(cell);
+    if (tag.includes('hex=bridge') || tag.includes('hex=platform')) return true;
+    const bounds = getOpaqueImageBounds(img);
+    if (!bounds) return false;
+    const srcW = img.naturalWidth || img.width || 0;
+    const srcH = img.naturalHeight || img.height || 0;
+    if (!srcW || !srcH) return false;
+    const insetX = bounds.x + (srcW - (bounds.x + bounds.width));
+    const insetY = bounds.y + (srcH - (bounds.y + bounds.height));
+    return insetX >= 6 || insetY >= 6;
   }
 
   async function loadOwnedTokenImage(src, ownerColor) {
@@ -1188,6 +1251,9 @@
         const textureImg = await loadImage(textureSrc);
         if (textureImg) {
           drawTextureForCapture(ctx, target, textureImg, x, y, metrics.hexW, metrics.hexH);
+        } else {
+          ctx.fillStyle = target.role_color || '#334155';
+          ctx.fillRect(x, y, metrics.hexW, metrics.hexH);
         }
       } else {
         ctx.fillStyle = inactiveFill;
