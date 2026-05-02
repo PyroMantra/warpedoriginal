@@ -312,13 +312,13 @@
     fillInspectorFromSelection();
   }
 
-  function applyInspector() {
+  function applyInspector(silent = false) {
     const cells = [...selectedKeys].map(k => state.cellsByKey[k]).filter(Boolean);
     if (!cells.length) return;
 
     const touched = inspectorDirty.size > 0;
     if (!touched) {
-      showToast('No inspector changes to apply', false);
+      if (!silent) showToast('No inspector changes to apply', false);
       return;
     }
 
@@ -334,7 +334,7 @@
 
     fillInspectorFromSelection();
     markDirty();
-    showToast(cells.length === 1 ? 'Hex updated' : `${cells.length} hexes updated`);
+    if (!silent) showToast(cells.length === 1 ? 'Hex updated' : `${cells.length} hexes updated`);
   }
 
   function payload() {
@@ -407,6 +407,9 @@
     if (!state || (!dirty && autosave)) return;
     if (saveInFlight) return saveInFlight;
     try {
+      if (inspectorDirty.size > 0 && selectedKeys.size > 0) {
+        applyInspector(true);
+      }
       persistLocalBackup();
       if (saveBtn) {
         saveBtn.disabled = true;
