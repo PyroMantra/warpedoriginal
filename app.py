@@ -959,7 +959,16 @@ def view_sheet(sheet):
             "gold": {"gold", "price", "cost"},
             "artifact": {"artifact", "isartifact"},
         }
+        optional_wants = {
+            "item_type": {"itemtype", "itemtypes"},
+            "spec_type": {"spectype", "specialtype", "spectypes", "specialtypes"},
+        }
         for canon, candidates in wants.items():
+            for c in df_gi.columns:
+                if c in candidates:
+                    colmap[canon] = c
+                    break
+        for canon, candidates in optional_wants.items():
             for c in df_gi.columns:
                 if c in candidates:
                     colmap[canon] = c
@@ -979,7 +988,12 @@ def view_sheet(sheet):
             colmap["gold"],
             colmap["artifact"],
         )
-        out = df_gi[[k, r, n, g, a]].copy()
+        selected_cols = [k, r, n, g, a]
+        if colmap.get("item_type"):
+            selected_cols.append(colmap["item_type"])
+        if colmap.get("spec_type"):
+            selected_cols.append(colmap["spec_type"])
+        out = df_gi[selected_cols].copy()
 
         # Clean/standardize
         out[n] = out[n].astype(str)
@@ -1067,6 +1081,8 @@ def view_sheet(sheet):
             detail = ""
             if ":" in full:
                 detail = full.split(":", 1)[1].strip()
+            item_type = str(row[colmap["item_type"]]).strip() if colmap.get("item_type") else ""
+            spec_type = str(row[colmap["spec_type"]]).strip() if colmap.get("spec_type") else ""
             items.append(
                 {
                     "kind": str(row[k]).strip().title(),
@@ -1075,6 +1091,8 @@ def view_sheet(sheet):
                     "detail": detail,
                     "gold": int(row[g]),
                     "artifact": bool(row[a]),
+                    "item_type": item_type,
+                    "spec_type": spec_type,
                 }
             )
         return render_template(
