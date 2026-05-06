@@ -100,11 +100,11 @@
         {% set rar = it.rarity %}
         {% set rar_css = rarity_styles.get(rar, 'border-white/15 bg-white/5 text-white/80') %}
         {% set kind_css = 'border-sky-400/25 bg-sky-400/10 text-sky-200' if it.kind == 'Gear' else 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200' %}
-        {% set item_type_css = 'border-orange-400/25 bg-orange-400/10 text-orange-200' %}
-        {% set spec_type_css = 'border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200' %}
+        {% set item_type = (it.get('item_type') or '') %}
+        {% set spec_type = (it.get('spec_type') or '') %}
 
         <div class="group relative rounded-2xl bg-white/5 ring-1 ring-white/10 hover:bg-white/7 transition overflow-hidden">
-  <div class="absolute left-0 top-0 bottom-0 w-1.5 {% if it.rarity == 'Ultimate' %}bg-pink-400/70{% elif it.rarity == 'Astral' %}bg-cyan-400/70{% elif it.rarity == 'Mythic' %}bg-rose-500/70{% elif it.rarity == 'Legendary' %}bg-amber-400/70{% elif it.rarity == 'Epic' %}bg-violet-400/70{% elif it.rarity == 'Rare' %}bg-sky-400/70{% elif it.rarity == 'Uncommon' %}bg-emerald-400/70{% else %}bg-white/20{% endif %}"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-1.5 {% if it.rarity == 'Ultimate' %}bg-pink-400/70{% elif it.rarity == 'Astral' %}bg-cyan-400/70{% elif it.rarity == 'Mythic' %}bg-rose-500/70{% elif it.rarity == 'Legendary' %}bg-amber-400/70{% elif it.rarity == 'Epic' %}bg-violet-400/70{% elif it.rarity == 'Rare' %}bg-sky-400/70{% elif it.rarity == 'Uncommon' %}bg-emerald-400/70{% else %}bg-white/20{% endif %}"></div>
           <div class="p-4 pl-5">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
@@ -131,15 +131,15 @@
                 {{ it.rarity }}
               </span>
 
-              {% if it.item_type %}
-                <span class="inline-flex items-center px-2 py-1 rounded-full border {{ item_type_css }} text-xs font-semibold">
-                  {{ it.item_type }}
+              {% if item_type %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full border border-orange-400/25 bg-orange-400/10 text-orange-200 text-xs font-semibold">
+                  {{ item_type }}
                 </span>
               {% endif %}
 
-              {% if it.spec_type %}
-                <span class="inline-flex items-center px-2 py-1 rounded-full border {{ spec_type_css }} text-xs font-semibold">
-                  {{ it.spec_type }}
+              {% if spec_type %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 text-fuchsia-200 text-xs font-semibold">
+                  {{ spec_type }}
                 </span>
               {% endif %}
 
