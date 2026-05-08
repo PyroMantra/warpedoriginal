@@ -51,13 +51,39 @@ RANKS: List[str] = [
 ]
 
 RANK_CONFIG: Dict[str, Dict[str, object]] = {
-    "Weakling": {"required_rarity": "Common", "extra_gold": 200, "Highest_Rarity": "Common"},
-    "Prime Weakling": {"required_rarity": "Uncommon", "extra_gold": 200, "Highest_Rarity": "Common"},
-    "Elite": {"required_rarity": "Rare", "extra_gold": 400, "Highest_Rarity": "Uncommon"},
-    "Prime Elite": {"required_rarity": "Epic", "extra_gold": 400, "Highest_Rarity": "Uncommon"},
-    "Boss": {"required_rarity": "Legendary", "extra_gold": 600, "Highest_Rarity": "Rare"},
-    "Prime Boss": {"required_rarity": "Legendary", "extra_gold": 800, "Highest_Rarity": "Epic"},
-    "Guardian": {"required_rarity": "Mythic", "extra_gold": 1000, "Highest_Rarity": "Legendary"},
+    "Weakling": {"required_rarity": "Common", "extra_gold": 250, "Highest_Rarity": "Common"},
+    "Prime Weakling": {"required_rarity": "Uncommon", "extra_gold": 300, "Highest_Rarity": "Common"},
+    "Elite": {"required_rarity": "Rare", "extra_gold": 550, "Highest_Rarity": "Uncommon"},
+    "Prime Elite": {"required_rarity": "Epic", "extra_gold": 600, "Highest_Rarity": "Uncommon"},
+    "Boss": {"required_rarity": "Legendary", "extra_gold": 900, "Highest_Rarity": "Rare"},
+    "Prime Boss": {"required_rarity": "Legendary", "extra_gold": 1300, "Highest_Rarity": "Epic"},
+    "Guardian": {"required_rarity": "Mythic", "extra_gold": 1100, "Highest_Rarity": "Legendary"},
+}
+
+RANK_XP: Dict[str, int] = {
+    "Weakling": 100,
+    "Prime Weakling": 200,
+    "Elite": 400,
+    "Prime Elite": 600,
+    "Boss": 800,
+    "Prime Boss": 1000,
+    "Guardian": 1400,
+}
+
+RANK_LEVEL: Dict[str, int] = {
+    "Weakling": 1,
+    "Prime Weakling": 2,
+    "Elite": 4,
+    "Prime Elite": 5,
+    "Boss": 6,
+    "Prime Boss": 8,
+    "Guardian": 10,
+}
+
+BONUS_UPGRADE_BUDGETS: Dict[str, Dict[str, float]] = {
+    "Prime Elite": {"base_gold": 400, "bonus_gold": 200, "spend_chance": 0.35},
+    "Boss": {"base_gold": 600, "bonus_gold": 300, "spend_chance": 0.35},
+    "Prime Boss": {"base_gold": 800, "bonus_gold": 500, "spend_chance": 0.35},
 }
 
 RARITY_ORDER = ["Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Astral", "Ultimate"]
@@ -343,8 +369,7 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
     # ------------------------------
 
     def _sentient_value(rank: str) -> int:
-        vals = {"Weakling": 1, "Prime Weakling": 2, "Elite": 4, "Prime Elite": 5, "Boss": 6, "Prime Boss": 7, "Guardian": 8}
-        return vals.get(rank, 0)
+        return int(RANK_LEVEL.get(rank, 0))
 
     def sum_to_n_with_max3(n: int) -> List[int]:
         elements = [list(t) for t in itertools.product(range(1, 4), repeat=3) if sum(t) == n]
@@ -553,6 +578,32 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
             rarity = "Unknown"
         box["Rolling_Log"].append(f"[{len(box['Rolling_Log']) + 1}] {method}: {item_name} ({rarity})")
 
+    def get_item_gold_cost(item_name: str) -> int:
+        if not item_name or item_name in {"Empty", "Locked"}:
+            return 0
+        try:
+            row = FrameG[FrameG.iloc[:, 0] == item_name]
+            if row.empty:
+                return 0
+            rarity = str(row.iloc[0, 1]).strip().title()
+            return int(RARITY_PRICE.get(rarity, 0))
+        except Exception:
+            return 0
+
+    def get_rank_gold_budget(rank: str, rank_info: Dict[str, object]) -> Tuple[int, int]:
+        extra_gold = int(rank_info.get("extra_gold", 0) or 0)
+        bonus_rule = BONUS_UPGRADE_BUDGETS.get(rank)
+        if not bonus_rule:
+            return extra_gold, 0
+
+        base_gold = int(bonus_rule.get("base_gold", extra_gold) or 0)
+        bonus_gold = int(bonus_rule.get("bonus_gold", 0) or 0)
+        spend_chance = float(bonus_rule.get("spend_chance", 0.0) or 0.0)
+
+        if random.random() < spend_chance:
+            return base_gold + bonus_gold, 0
+        return base_gold, bonus_gold
+
     def fill_remaining_slots(box: Dict[str, object], gold: int, rank_info: Dict[str, object], enabled_map: Dict[str, int], faction: str) -> Tuple[Dict[str, object], int]:
         df = FrameG
 
@@ -581,7 +632,7 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
                         if "Two-handed" in grip_val:
                             box["Off Hand"] = "Locked"
                             box["Rolling_Log"].append("Slot Locked: 2H Weapon Equipped")
-                        gold = 0
+                        gold = max(0, gold - get_item_gold_cost(cand))
                         break
 
         main_wep = box["Main Hand 1"]
@@ -595,8 +646,10 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
             if not item_row.empty:
                 trigger_val = str(item_row.iloc[0, 45])
                 if any(k in trigger_val for k in ["Pouch", "Quiver"]):
+                    had_supplement_before = box.get("Supplement") not in {"Empty", None}
                     box = mandatory_supplement_check(main_wep, box, enabled_map)
-                    gold = 0
+                    if (not had_supplement_before) and box["Supplement"] != "Empty":
+                        gold = max(0, gold - 200)
                     box["Rolling_Log"].append("Budget Cleared: Ranged Supplement Assigned.")
 
         for slot in ["Off Hand", "Secondary Gear"]:
@@ -629,12 +682,13 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
             log_roll(box, mandatory_item, "Mandatory Roll")
             box = mandatory_supplement_check(mandatory_item, box, enabled_map)
 
-        gold = int(rank_info.get("extra_gold", 0))
+        gold, reserved_gold = get_rank_gold_budget(rank, rank_info)
         if box["Supplement"] != "Empty":
             gold -= 200
 
-        box, _ = fill_remaining_slots(box, gold, rank_info, enabled_map, faction=faction)
+        box, remaining_gold = fill_remaining_slots(box, gold, rank_info, enabled_map, faction=faction)
         box["Abilities"] = generate_abilities(rank, faction)
+        box["Remaining Gold"] = int(remaining_gold + reserved_gold)
         return box
 
     # ------------------------------
@@ -653,8 +707,21 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
                 tries += 1
         return str(chosen)
 
+    def get_race_row(race_name: str) -> pd.DataFrame:
+        return FrameS[FrameS.iloc[:, 2].astype(str).str.lower() == str(race_name).lower()]
+
+    def get_race_kin(race_name: str) -> str:
+        race_row = get_race_row(race_name)
+        if race_row.empty:
+            return ""
+        try:
+            kin = str(race_row.iloc[0, 0]).strip()
+            return "" if kin.lower() == "nan" else kin.title()
+        except Exception:
+            return ""
+
     def get_race_stat_values(race_name: str, attrs: List[str]) -> Dict[str, float]:
-        race_row = FrameS[FrameS.iloc[:, 2].astype(str).str.lower() == str(race_name).lower()]
+        race_row = get_race_row(race_name)
         if race_row.empty:
             return {}
         col_map = {str(c).strip().lower(): c for c in FrameS.columns}
@@ -887,6 +954,7 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
         enabled_map = _load_unique_enabled_map(get_db)
         entity = generate_single_entity(rank, enabled_map)
         entity["Race"] = get_random_race(rank)
+        entity["Kin"] = get_race_kin(entity["Race"])
 
         vital_stats = ["Health", "Mana", "Defense", "Dispersion"]
         aux_stats = ["Mobility", "Might", "Wisdom"]
@@ -965,7 +1033,7 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
         # Conditions (from race sheet col 5)
         conditions = "None"
         try:
-            rrow = FrameS[FrameS.iloc[:, 2].astype(str).str.lower() == str(entity["Race"]).lower()]
+            rrow = get_race_row(entity["Race"])
             if not rrow.empty:
                 cval = rrow.iloc[0, 5]
                 if pd.notnull(cval) and str(cval).strip():
@@ -1003,8 +1071,11 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
 
         return {
             "rank": rank,
+            "level": _sentient_value(rank),
+            "xp": int(RANK_XP.get(rank, 0)),
             "faction": entity.get("Faction"),
             "race": entity.get("Race"),
+            "kin": entity.get("Kin"),
             "conditions": conditions,
             "intelligence_roll": intel_roll,
             "intelligence_label": intel_label,
@@ -1013,6 +1084,7 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
             "stats": stats,
             "resists": resists,
             "gear": gear_slots,
+            "remaining_gold": int(entity.get("Remaining Gold", 0) or 0),
             "abilities": entity.get("Abilities", {}),
             "rolling_log": entity.get("Rolling_Log", []),
         }

@@ -66,6 +66,15 @@
     'Prime Boss':'rar-legendary',
     'Guardian':'rar-mythic'
   }.get(result.rank, 'rar-common') %}
+  {% set loot_lines = [] %}
+  {% for slot, item in result.gear.items() %}
+    {% if item and item not in ['Empty', 'Locked'] %}
+      {% set label = 'Main Hand' if slot == 'Main Hand 1' else slot %}
+      {% set _ = loot_lines.append(label ~ ': ' ~ item) %}
+    {% endif %}
+  {% endfor %}
+  {% set _ = loot_lines.append('Gold: ' ~ result.remaining_gold) %}
+  {% set _ = loot_lines.append('XP: ' ~ result.xp) %}
 
   <section class="rounded-2xl border border-white/10 bg-black/40 p-5 space-y-4 {{ rank_tone }}">
 
@@ -74,13 +83,19 @@
         <h2 class="text-2xl font-bold">{{ result.rank }} Sentient</h2>
         <p class="text-sm text-white/70">
           {{ result.faction }} • {{ result.race or '-' }}
+          {% if result.kin %}
+            • {{ result.kin }}
+          {% endif %}
           {% if result.conditions and result.conditions != 'None' %}
             • <span class="text-white/60">Conditions:</span> {{ result.conditions }}
           {% endif %}
         </p>
         <p class="text-xs text-white/50 mt-1">Rounding: standard (0.5+ rounds up)</p>
       </div>
-      <div class="text-right text-sm text-white/60">
+      <div class="text-right text-sm text-white/60 space-y-1">
+        <div class="flex flex-wrap justify-end gap-2">
+          <span class="chip chip-zero">Level {{ result.level }}</span>
+        </div>
         <div>Intelligence: <span class="font-semibold text-white/90">{{ result.intelligence_label }}</span></div>
         <div class="text-xs">d20 = {{ result.intelligence_roll }}</div>
       </div>
@@ -164,7 +179,17 @@
       <!-- Right: gear -->
       <div class="space-y-3">
         <div class="card p-3">
-          <div class="card-h mb-2">Gear</div>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <div class="card-h">Gear</div>
+            <button
+              type="button"
+              class="px-2.5 py-1 rounded-lg bg-white/8 hover:bg-white/12 border border-white/12 text-[0.72rem] text-white/85 font-semibold"
+              data-copy-loot
+              data-copy-text="{{ loot_lines|join('\n') }}"
+            >
+              Copy Loot
+            </button>
+          </div>
           <dl class="text-sm space-y-1">
             {% for slot, item in result.gear.items() %}
             <div class="flex justify-between gap-3">
@@ -172,6 +197,14 @@
               <dd class="font-semibold text-white/90 text-right break-words">{{ item or 'Empty' }}</dd>
             </div>
             {% endfor %}
+            <div class="flex justify-between gap-3 pt-2 border-t border-white/10 mt-2">
+              <dt class="text-white/60">Gold Drop</dt>
+              <dd class="font-semibold text-white/90 text-right break-words">{{ result.remaining_gold }}</dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-white/60">XP</dt>
+              <dd class="font-semibold text-white/90 text-right break-words">{{ result.xp }}</dd>
+            </div>
           </dl>
         </div>
       </div>
@@ -203,4 +236,22 @@
   {% endif %}
 
 </div>
+<script>
+(() => {
+  const copyBtn = document.querySelector('[data-copy-loot]');
+  if (!copyBtn) return;
+  copyBtn.addEventListener('click', async () => {
+    const raw = copyBtn.getAttribute('data-copy-text') || '';
+    try {
+      await navigator.clipboard.writeText(raw);
+      const original = copyBtn.textContent;
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = original; }, 1200);
+    } catch (_) {
+      copyBtn.textContent = 'Copy failed';
+      setTimeout(() => { copyBtn.textContent = 'Copy Loot'; }, 1200);
+    }
+  });
+})();
+</script>
 {% endblock %}
