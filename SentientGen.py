@@ -13,7 +13,7 @@ scaling_csv_path = r"static\notion\Scaling.csv"
 
 # --- BANNED GEAR LIST ---
 PROHIBITED_GEAR = [
-    "Insert Broken Item Name",
+    "Rusty Glaive",
     "The Immoral Bulwark",
     "The Hero's Story",
     "Dark Sparrow",
@@ -27,7 +27,7 @@ PROHIBITED_GEAR = [
     "Unstable Archorb",
     "The Unknown Shawl",
     "Spectators Sandals",
-    "Spell-Eater",
+    "Spell-Eater"
 ]
 
 # --- AMMO RULES ---
@@ -58,8 +58,27 @@ PROHIBITED_WEAKLING_RACES = [
    "Mana-Tech",
    "Blanc",
    "Electis",
-  "Nameless",
-  "Rusthead"
+    "Nameless",
+   "Rusthead",
+    "Spinner",
+    "Imp",
+    "Pixie"
+]
+
+PROHIBITED_HIGH_RANK_RACES = [
+    "Steam Walker",
+    "Amalgam",
+    "Patagan",
+    "Orion",
+    "Electis",
+    "Mana-Tech",
+    "Spinner",
+    "Empyrian",
+    "Imp",
+    "Pixie",
+    "Gnome",
+    "Sear",
+    "Inkveined"
 ]
 
 # ==========================================
@@ -200,7 +219,8 @@ def generate_abilities(rank, faction):
         # Ultimate Checks
         if 5 < sentient_level < 12:
             abilities["Ultimate"] = ability_search(random.choice(RangeTeir4), 1, selected_frame)
-        elif sentient_level == 12:
+        elif sentient_level >= 8:
+            # Guardian (and anything higher) gets Tier 2 Ultimate (Column B / Index 2)
             abilities["Ultimate"] = ability_search(random.choice(RangeTeir4), 2, selected_frame)
 
     return abilities
@@ -542,18 +562,23 @@ def generate_single_entity():
 # --- 6. STAT & COMBAT CALCULATIONS ---
 # ==========================================
 def get_random_race(rank="Unknown"):
-    race_list = FrameS.iloc[:, 2].dropna().tolist()
+    raw_race_list = FrameS.iloc[:, 2].dropna().tolist()
+
+    # --- DYNAMIC BAN LIST LOGIC ---
+    # Choose which list to apply based on the rank
+    if rank in ["Weakling", "Prime Weakling"]:
+        active_ban_list = PROHIBITED_WEAKLING_RACES
+    else:
+        active_ban_list = PROHIBITED_HIGH_RANK_RACES
+
+    # Filter out the banned races before we roll
+    race_list = [r for r in raw_race_list if str(r).strip() not in active_ban_list]
+
+    # Failsafe: If somehow every single race in Excel was banned
     if not race_list:
         return "Unknown Race"
-        
-    chosen_race = random.choice(race_list)
-    
-    # --- PROHIBITED RACES FILTER ---
-    if rank in ["Weakling", "Prime Weakling"]:
-        while chosen_race.strip() in PROHIBITED_WEAKLING_RACES:
-            chosen_race = random.choice(race_list)
-            
-    return chosen_race
+
+    return random.choice(race_list)
 
 def get_race_stat_values(race_name, attribute_list):
     race_row = FrameS[FrameS.iloc[:, 2].str.lower() == race_name.lower()]
@@ -793,8 +818,8 @@ def run_mass_simulation(total_runs=50):
 
         # APPLY RANK MODIFIERS TO BASE HP/MANA
         rank_modifiers = {
-            "Weakling": (0.50, 1.0),
-            "Prime Weakling": (0.75, 1.0),
+            "Weakling": (0.35, 0.35),
+            "Prime Weakling": (0.5, 0.5),
             "Elite": (1.0, 1.0),
             "Prime Elite": (1.25, 1.0),
             "Boss": (3.0, 2.0),
