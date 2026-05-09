@@ -565,14 +565,18 @@ def get_random_race(rank="Unknown"):
     raw_race_list = FrameS.iloc[:, 2].dropna().tolist()
 
     # --- DYNAMIC BAN LIST LOGIC ---
-    # Choose which list to apply based on the rank
     if rank in ["Weakling", "Prime Weakling"]:
         active_ban_list = PROHIBITED_WEAKLING_RACES
     else:
         active_ban_list = PROHIBITED_HIGH_RANK_RACES
 
-    # Filter out the banned races before we roll
-    race_list = [r for r in raw_race_list if str(r).strip() not in active_ban_list]
+    # BULLETPROOF NORMALIZATION:
+    # Forces every item in your ban list to lowercase and removes edge spaces
+    clean_ban_list = [str(b).strip().lower() for b in active_ban_list]
+
+    # Filters the raw Excel list by forcing it to lowercase during the check,
+    # but preserves the original capitalized spelling for the final output.
+    race_list = [r for r in raw_race_list if str(r).strip().lower() not in clean_ban_list]
 
     # Failsafe: If somehow every single race in Excel was banned
     if not race_list:
@@ -730,7 +734,7 @@ def get_full_loadout_report(entity_data):
                 col_v_val = str(item_row.iloc[0, 21]).strip()
                 if col_v_val.lower() != "nan":
                     # Uses Regex to find the exact number, ignoring spaces or capitalization
-                    crit_match = re.search(r'+\s([0-9.]+)\sCritical Multiplier', col_v_val, re.IGNORECASE)
+                    crit_match = re.search(r'\+\s*([0-9.]+)\s*Critical Multiplier', col_v_val, re.IGNORECASE)
                     if crit_match:
                         extra_crit = float(crit_match.group(1))
                         crit_mult += extra_crit
@@ -968,4 +972,4 @@ def run_mass_simulation(total_runs=50):
                 print(f"{ability_tier}: {ability_name}")
 
 if __name__ == "__main__":
-    run_mass_simulation(1)
+    run_mass_simulation(100)
