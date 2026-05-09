@@ -14,8 +14,20 @@ scaling_csv_path = r"static\notion\Scaling.csv"
 # --- BANNED GEAR LIST ---
 PROHIBITED_GEAR = [
     "Insert Broken Item Name",
-    "Debug Sword",
-    "God Mode Armor"
+    "The Immoral Bulwark",
+    "The Hero's Story",
+    "Dark Sparrow",
+    "Bomb on a Stick",
+    "Crumbler",
+    "Factionless Cloak",
+    "The Golden Sack",
+    "The Tool",
+    "Stone Glaive",
+    "Starfall",
+    "Unstable Archorb",
+    "The Unknown Shawl",
+    "Spectators Sandals",
+    "Spell-Eater",
 ]
 
 # --- AMMO RULES ---
@@ -32,8 +44,22 @@ AMMO_RULES = {
 # --- PROHIBITED WEAKLING RACES ---
 # These races are too powerful/rare to spawn as low-level Weaklings
 PROHIBITED_WEAKLING_RACES = [
-    "Patagan",
-    "Steam Walker"
+     "Patagan",
+    "Steam Walker",
+    "Amalgam",
+    "Orion",
+    "Clockwork",
+    "Metal",
+    "Ghoul",
+    "Mountain",
+    "Forest",
+    "Cave",
+   "Redcap",
+   "Mana-Tech",
+   "Blanc",
+   "Electis",
+  "Nameless",
+  "Rusthead"
 ]
 
 # ==========================================
