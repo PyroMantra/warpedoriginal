@@ -30,14 +30,60 @@ from flask import render_template, request
 # ------------------------------
 
 PROHIBITED_GEAR = {
-    "Insert Broken Item Name",
-    "Debug Sword",
-    "God Mode Armor",
+    "Rusty Glaive",
+    "The Immoral Bulwark",
+    "The Hero's Story",
+    "Dark Sparrow",
+    "Bomb on a Stick",
+    "Crumbler",
+    "Factionless Cloak",
+    "The Golden Sack",
+    "The Tool",
+    "Stone Glaive",
+    "Starfall",
+    "Unstable Archorb",
+    "The Unknown Shawl",
+    "Spectators Sandals",
+    "Sharp Axe on a Branch",
+    "Spell-Eater",
 }
 
 PROHIBITED_WEAKLING_RACES = {
     "Patagan",
     "Steam Walker",
+    "Amalgam",
+    "Orion",
+    "Clockwork",
+    "Metal",
+    "Ghoul",
+    "Mountain",
+    "Forest",
+    "Cave",
+    "Redcap",
+    "Mana-Tech",
+    "Blanc",
+    "Electis",
+    "Nameless",
+    "Rusthead",
+    "Spinner",
+    "Imp",
+    "Pixie",
+}
+
+PROHIBITED_HIGH_RANK_RACES = {
+    "Steam Walker",
+    "Amalgam",
+    "Patagan",
+    "Orion",
+    "Electis",
+    "Mana-Tech",
+    "Spinner",
+    "Empyrian",
+    "Imp",
+    "Pixie",
+    "Gnome",
+    "Sear",
+    "Inkveined",
 }
 
 RANKS: List[str] = [
@@ -705,6 +751,11 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
             while str(chosen).strip() in PROHIBITED_WEAKLING_RACES and tries < 50:
                 chosen = random.choice(race_list)
                 tries += 1
+        elif rank in {"Elite", "Prime Elite", "Boss", "Prime Boss"}:
+            tries = 0
+            while str(chosen).strip() in PROHIBITED_HIGH_RANK_RACES and tries < 50:
+                chosen = random.choice(race_list)
+                tries += 1
         return str(chosen)
 
     def get_race_row(race_name: str) -> pd.DataFrame:
@@ -972,9 +1023,9 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
 
         # Rank modifiers (HP/Mana)
         rank_mod = {
-            "Weakling": (0.50, 1.0),
-            "Prime Weakling": (0.75, 1.0),
-            "Elite": (1.0, 1.0),
+            "Weakling": (0.40, 0.40),
+            "Prime Weakling": (0.60, 0.60),
+            "Elite": (0.90, 0.90),
             "Prime Elite": (1.25, 1.0),
             "Boss": (3.0, 2.0),
             "Prime Boss": (4.0, 2.5),
