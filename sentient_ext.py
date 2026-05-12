@@ -18,6 +18,7 @@ import os
 import random
 import re
 import itertools
+from bisect import bisect_left, bisect_right
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -46,44 +47,6 @@ PROHIBITED_GEAR = {
     "Spectators Sandals",
     "Sharp Axe on a Branch",
     "Spell-Eater",
-}
-
-PROHIBITED_WEAKLING_RACES = {
-    "Patagan",
-    "Steam Walker",
-    "Amalgam",
-    "Orion",
-    "Clockwork",
-    "Metal",
-    "Ghoul",
-    "Mountain",
-    "Forest",
-    "Cave",
-    "Redcap",
-    "Mana-Tech",
-    "Blanc",
-    "Electis",
-    "Nameless",
-    "Rusthead",
-    "Spinner",
-    "Imp",
-    "Pixie",
-}
-
-PROHIBITED_HIGH_RANK_RACES = {
-    "Steam Walker",
-    "Amalgam",
-    "Patagan",
-    "Orion",
-    "Electis",
-    "Mana-Tech",
-    "Spinner",
-    "Empyrian",
-    "Imp",
-    "Pixie",
-    "Gnome",
-    "Sear",
-    "Inkveined",
 }
 
 RANKS: List[str] = [
@@ -124,6 +87,16 @@ RANK_LEVEL: Dict[str, int] = {
     "Boss": 6,
     "Prime Boss": 8,
     "Guardian": 10,
+}
+
+RANK_VITAL_RANGES: Dict[str, Tuple[int, int]] = {
+    "Weakling": (25, 50),
+    "Prime Weakling": (50, 75),
+    "Elite": (75, 125),
+    "Prime Elite": (125, 150),
+    "Boss": (200, 300),
+    "Prime Boss": (300, 400),
+    "Guardian": (400, 600),
 }
 
 BONUS_UPGRADE_BUDGETS: Dict[str, Dict[str, float]] = {
@@ -745,21 +718,70 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
         race_list = FrameS.iloc[:, 2].dropna().tolist()
         if not race_list:
             return "Unknown Race"
-        chosen = random.choice(race_list)
-        if rank in {"Weakling", "Prime Weakling"}:
-            tries = 0
-            while str(chosen).strip() in PROHIBITED_WEAKLING_RACES and tries < 50:
-                chosen = random.choice(race_list)
-                tries += 1
-        elif rank in {"Elite", "Prime Elite", "Boss", "Prime Boss"}:
-            tries = 0
-            while str(chosen).strip() in PROHIBITED_HIGH_RANK_RACES and tries < 50:
-                chosen = random.choice(race_list)
-                tries += 1
-        return str(chosen)
+        return str(random.choice(race_list))
 
     def get_race_row(race_name: str) -> pd.DataFrame:
         return FrameS[FrameS.iloc[:, 2].astype(str).str.lower() == str(race_name).lower()]
+
+    def _quantile(sorted_values: List[float], q: float) -> float:
+        if not sorted_values:
+            return 0.0
+        if len(sorted_values) == 1:
+            return float(sorted_values[0])
+        q = max(0.0, min(1.0, float(q)))
+        idx = (len(sorted_values) - 1) * q
+        lo = int(math.floor(idx))
+        hi = int(math.ceil(idx))
+        if lo == hi:
+            return float(sorted_values[lo])
+        frac = idx - lo
+        return float(sorted_values[lo] + (sorted_values[hi] - sorted_values[lo]) * frac)
+
+    def _race_stat_distribution(stat_name: str) -> List[float]:
+        col_map = {str(c).strip().lower(): c for c in FrameS.columns}
+        col = col_map.get(str(stat_name).strip().lower())
+        if col is None:
+            return []
+        vals = pd.to_numeric(FrameS[col], errors="coerce").dropna().astype(float).tolist()
+        return sorted(vals)
+
+    def _stable_stat_nudge(race_name: str, stat_name: str) -> float:
+        key = f"{race_name}|{stat_name}"
+        total = sum(ord(ch) for ch in key)
+        return ((total % 101) / 100.0 - 0.5) * 0.06
+
+    def _scale_race_vital_to_rank_range(race_name: str, stat_name: str, rank: str, raw_value: float) -> float:
+        low, high = RANK_VITAL_RANGES.get(rank, (0, 0))
+        if high <= low:
+            return float(raw_value)
+
+        values = _race_stat_distribution(stat_name)
+        if not values:
+            return float((low + high) / 2.0)
+
+        raw = float(raw_value or 0.0)
+        lower_anchor = _quantile(values, 0.10)
+        upper_anchor = _quantile(values, 0.90)
+        if upper_anchor <= lower_anchor:
+            anchor_pos = 0.5
+        elif raw <= lower_anchor:
+            anchor_pos = 0.0
+        elif raw >= upper_anchor:
+            anchor_pos = 1.0
+        else:
+            anchor_pos = (raw - lower_anchor) / (upper_anchor - lower_anchor)
+
+        if len(values) <= 1:
+            percentile_pos = 0.5
+        else:
+            left = bisect_left(values, raw)
+            right = bisect_right(values, raw)
+            avg_rank = (left + right - 1) / 2.0
+            percentile_pos = avg_rank / (len(values) - 1)
+
+        blended = (anchor_pos * 0.55) + (percentile_pos * 0.45)
+        blended = max(0.0, min(1.0, blended + _stable_stat_nudge(race_name, stat_name)))
+        return low + ((high - low) * blended)
 
     def get_race_kin(race_name: str) -> str:
         race_row = get_race_row(race_name)
@@ -1021,21 +1043,16 @@ def init_sentient(app, get_db, sheets_all: Dict[str, pd.DataFrame], excel_path: 
         gear_atk = sum_gear_attribute_bonuses(entity, atk_stats)
         race_atk = get_race_stat_values(entity["Race"], atk_stats)
 
-        # Rank modifiers (HP/Mana)
-        rank_mod = {
-            "Weakling": (0.40, 0.40),
-            "Prime Weakling": (0.60, 0.60),
-            "Elite": (0.90, 0.90),
-            "Prime Elite": (1.25, 1.0),
-            "Boss": (3.0, 2.0),
-            "Prime Boss": (4.0, 2.5),
-            "Guardian": (5.0, 3.0),
-        }
-        hp_mult, mana_mult = rank_mod.get(rank, (1.0, 1.0))
+        # Health and Mana are mapped into rank-specific ranges using the race
+        # sheet's base values, instead of race bans or flat multipliers.
         if "Health" in race_def:
-            race_def["Health"] = float(race_def.get("Health", 0.0)) * hp_mult
+            race_def["Health"] = _scale_race_vital_to_rank_range(
+                entity["Race"], "Health", rank, float(race_def.get("Health", 0.0))
+            )
         if "Mana" in race_def:
-            race_def["Mana"] = float(race_def.get("Mana", 0.0)) * mana_mult
+            race_def["Mana"] = _scale_race_vital_to_rank_range(
+                entity["Race"], "Mana", rank, float(race_def.get("Mana", 0.0))
+            )
 
         # Damage
         combat = get_full_loadout_report(entity)
