@@ -942,7 +942,7 @@ details.zone-card > summary::-webkit-details-marker{display:none;}
     document.addEventListener('DOMContentLoaded', () => {
       const ui = document.getElementById('skillsUI');
       const table = document.querySelector('table');
-      if (!ui || !table || !table.tBodies.length) return;
+      if (!ui) return;
 
       const classListEl = document.getElementById('skillsClassList');
       const emptyEl = document.getElementById('skillsEmpty');
@@ -962,15 +962,24 @@ details.zone-card > summary::-webkit-details-marker{display:none;}
         const clean = norm(s);
         return clean.length > max ? `${clean.slice(0, max).trim()}...` : clean;
       };
+      const isPlaceholderHeader = (s) => /^Unnamed:\s*\d+$/i.test(norm(s));
 
       const sectionLabels = new Set(['Knowledge', 'Proficiency', 'Leadership', 'Combat', 'Utility', 'Survival']);
-      const rows = Array.from(table.tBodies[0].rows);
+      const rawSkillsRows = [
+        {% if headers and headers|length >= 2 %}
+        [{{ headers[0]|tojson }}, {{ headers[1]|tojson }}],
+        {% endif %}
+        {% for row in rows %}
+        [{{ (row[0] if row|length > 0 else '')|tojson }}, {{ (row[1] if row|length > 1 else '')|tojson }}],
+        {% endfor %}
+      ];
       const classes = [];
       let current = null;
 
-      for (const tr of rows) {
-        const a = norm(tr.cells[0]?.innerText);
-        const b = norm(tr.cells[1]?.innerText);
+      for (const rawRow of rawSkillsRows) {
+        const a = norm(rawRow?.[0]);
+        const b = norm(rawRow?.[1]);
+        if (isPlaceholderHeader(a) && isPlaceholderHeader(b)) continue;
         if (!a && !b) {
           current = null;
           continue;
@@ -1074,7 +1083,7 @@ details.zone-card > summary::-webkit-details-marker{display:none;}
       });
       searchEl?.addEventListener('input', applyFilter);
 
-      table.style.display = 'none';
+      if (table) table.style.display = 'none';
       applyFilter();
     });
   </script>
